@@ -240,21 +240,21 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             {
                 statustext.Text = inFile;
                 Refresh();
-                inFile = FixPath(inFile);
+                inFile = FixPath(inputfolder.Text, inFile);
 
                 if (!File.Exists(inFile))
                 {
                     return;
                 }
 
-                outFile = FixPath(outFile);
+                outFile = FixPath(outputFolderTextbox.Text,outFile);
 
                 if (File.Exists(outFile))
                 {
                     return;
                 }
 
-                outIdx = FixPath(outIdx);
+                outIdx = FixPath(outputFolderTextbox.Text, outIdx);
                 ++_total;
 
                 _conv.FromUop(inFile, outFile, outIdx, type, typeIndex);
@@ -300,6 +300,10 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             }
         }
 
+        private string FixPath(string file, string folder)
+        {
+            return (file == null) ? null : Path.Combine(folder, file);
+        }
         private string FixPath(string file)
         {
             return (file == null) ? null : Path.Combine(inputfolder.Text, file);
@@ -352,6 +356,14 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             else
             {
                 MessageBox.Show("You must select an option");
+            }
+        }
+
+        private void outpubFolderBtn_Click(object sender, EventArgs e)
+        {
+            if (FolderDialog.ShowDialog() == DialogResult.OK)
+            {
+                outputFolderTextbox.Text = FolderDialog.SelectedPath;
             }
         }
     }

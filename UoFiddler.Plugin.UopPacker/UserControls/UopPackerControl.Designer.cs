@@ -88,6 +88,9 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             VersionLabel = new System.Windows.Forms.ToolStripStatusLabel();
             FolderDialog = new System.Windows.Forms.FolderBrowserDialog();
             splitContainer = new System.Windows.Forms.SplitContainer();
+            label14 = new System.Windows.Forms.Label();
+            outputFolderTextbox = new System.Windows.Forms.TextBox();
+            outpubFolderBtn = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)mulMapIndex).BeginInit();
             ((System.ComponentModel.ISupportInitialize)uopMapIndex).BeginInit();
             OperationTypeTabControl.SuspendLayout();
@@ -425,6 +428,9 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // 
             // ExtractAllFilesTabPage
             // 
+            ExtractAllFilesTabPage.Controls.Add(label14);
+            ExtractAllFilesTabPage.Controls.Add(outputFolderTextbox);
+            ExtractAllFilesTabPage.Controls.Add(outpubFolderBtn);
             ExtractAllFilesTabPage.Controls.Add(StartFolderButton);
             ExtractAllFilesTabPage.Controls.Add(ExtractionStatusStrip);
             ExtractAllFilesTabPage.Controls.Add(pack);
@@ -443,7 +449,7 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // 
             // StartFolderButton
             // 
-            StartFolderButton.Location = new System.Drawing.Point(10, 96);
+            StartFolderButton.Location = new System.Drawing.Point(9, 146);
             StartFolderButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             StartFolderButton.Name = "StartFolderButton";
             StartFolderButton.Size = new System.Drawing.Size(326, 27);
@@ -466,7 +472,7 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // 
             statustext.ForeColor = System.Drawing.Color.DarkRed;
             statustext.Name = "statustext";
-            statustext.Size = new System.Drawing.Size(299, 17);
+            statustext.Size = new System.Drawing.Size(330, 17);
             statustext.Spring = true;
             statustext.Text = "Status";
             statustext.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -480,7 +486,7 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // pack
             // 
             pack.AutoSize = true;
-            pack.Location = new System.Drawing.Point(56, 69);
+            pack.Location = new System.Drawing.Point(56, 121);
             pack.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             pack.Name = "pack";
             pack.Size = new System.Drawing.Size(119, 19);
@@ -492,7 +498,7 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // extract
             // 
             extract.AutoSize = true;
-            extract.Location = new System.Drawing.Point(56, 43);
+            extract.Location = new System.Drawing.Point(56, 95);
             extract.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             extract.Name = "extract";
             extract.Size = new System.Drawing.Size(130, 19);
@@ -504,17 +510,17 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // label13
             // 
             label13.AutoSize = true;
-            label13.Location = new System.Drawing.Point(7, 16);
+            label13.Location = new System.Drawing.Point(12, 20);
             label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(40, 15);
+            label13.Size = new System.Drawing.Size(71, 15);
             label13.TabIndex = 6;
-            label13.Text = "Folder";
+            label13.Text = "Input Folder";
             // 
             // inputfolder
             // 
             inputfolder.BackColor = System.Drawing.Color.White;
-            inputfolder.Location = new System.Drawing.Point(56, 13);
+            inputfolder.Location = new System.Drawing.Point(94, 16);
             inputfolder.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             inputfolder.Name = "inputfolder";
             inputfolder.Size = new System.Drawing.Size(241, 23);
@@ -522,7 +528,7 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             // 
             // SelectFolderButton
             // 
-            SelectFolderButton.Location = new System.Drawing.Point(304, 13);
+            SelectFolderButton.Location = new System.Drawing.Point(342, 16);
             SelectFolderButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             SelectFolderButton.Name = "SelectFolderButton";
             SelectFolderButton.Size = new System.Drawing.Size(31, 23);
@@ -623,6 +629,36 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             splitContainer.SplitterWidth = 5;
             splitContainer.TabIndex = 40;
             // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new System.Drawing.Point(12, 49);
+            label14.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(81, 15);
+            label14.TabIndex = 13;
+            label14.Text = "Output Folder";
+            // 
+            // outputFolderTextbox
+            // 
+            outputFolderTextbox.BackColor = System.Drawing.Color.White;
+            outputFolderTextbox.Location = new System.Drawing.Point(94, 45);
+            outputFolderTextbox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            outputFolderTextbox.Name = "outputFolderTextbox";
+            outputFolderTextbox.Size = new System.Drawing.Size(241, 23);
+            outputFolderTextbox.TabIndex = 14;
+            // 
+            // outpubFolderBtn
+            // 
+            outpubFolderBtn.Location = new System.Drawing.Point(342, 45);
+            outpubFolderBtn.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            outpubFolderBtn.Name = "outpubFolderBtn";
+            outpubFolderBtn.Size = new System.Drawing.Size(31, 23);
+            outpubFolderBtn.TabIndex = 15;
+            outpubFolderBtn.Text = "...";
+            outpubFolderBtn.UseVisualStyleBackColor = true;
+            outpubFolderBtn.Click += outpubFolderBtn_Click;
+            // 
             // UopPackerControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -704,5 +740,8 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
         private System.Windows.Forms.Button uoptomul;
         private System.Windows.Forms.ComboBox uoptype;
         private System.Windows.Forms.ToolStripStatusLabel VersionLabel;
+        private System.Windows.Forms.Label label14;
+        private System.Windows.Forms.TextBox outputFolderTextbox;
+        private System.Windows.Forms.Button outpubFolderBtn;
     }
 }
