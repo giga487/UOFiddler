@@ -472,8 +472,7 @@ namespace Ultima
         /// <param name="statics"></param>
         public unsafe void GetImage(int x, int y, int width, int height, Bitmap bmp, bool statics)
         {
-            BitmapData bd = bmp.LockBits(
-                new Rectangle(0, 0, width << 3, height << 3), ImageLockMode.WriteOnly, PixelFormat.Format16bppRgb555);
+            BitmapData bd = bmp.LockBits(new Rectangle(0, 0, width << 3, height << 3), ImageLockMode.WriteOnly, PixelFormat.Format16bppRgb555);
             int stride = bd.Stride;
             int blockStride = stride << 3;
 
