@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
+using SkiaSharp;
 
 namespace Ultima
 {
@@ -136,9 +137,10 @@ namespace Ultima
         /// <param name="height">8x8 Block</param>
         /// <param name="statics">8x8 Block</param>
         /// <returns></returns>
-        public Bitmap GetImage(int x, int y, int width, int height, bool statics)
+        public SKBitmap GetImage(int x, int y, int width, int height, bool statics)
         {
-            var bmp = new Bitmap(width << 3, height << 3, PixelFormat.Format16bppRgb555);
+            SKBitmap bmp = new SKBitmap(width << 3, height << 3, SKColorType.Rgb565, SKAlphaType.Unknown);
+            //var bmp = new Bitmap(width << 3, height << 3, PixelFormat.Format16bppRgb555);
 
             GetImage(x, y, width, height, bmp, statics);
 
@@ -456,7 +458,7 @@ namespace Ultima
         /// <param name="width">8x8 Block</param>
         /// <param name="height">8x8 Block</param>
         /// <param name="bmp">8x8 Block</param>
-        public void GetImage(int x, int y, int width, int height, Bitmap bmp)
+        public void GetImage(int x, int y, int width, int height, SKBitmap bmp)
         {
             GetImage(x, y, width, height, bmp, true);
         }
@@ -470,9 +472,12 @@ namespace Ultima
         /// <param name="height">8x8 Block</param>
         /// <param name="bmp"></param>
         /// <param name="statics"></param>
-        public unsafe void GetImage(int x, int y, int width, int height, Bitmap bmp, bool statics)
+        public unsafe void GetImage(int x, int y, int width, int height, SKBitmap bmp2, bool statics)
         {
+            Bitmap bmp = null;
+
             BitmapData bd = bmp.LockBits(new Rectangle(0, 0, width << 3, height << 3), ImageLockMode.WriteOnly, PixelFormat.Format16bppRgb555);
+
             int stride = bd.Stride;
             int blockStride = stride << 3;
 

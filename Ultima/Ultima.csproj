@@ -23,4 +23,7 @@
 		<DebugType>none</DebugType>
 		<GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
 	</PropertyGroup>
+	<ItemGroup>
+	  <PackageReference Include="SkiaSharp" Version="2.88.5" />
+	</ItemGroup>
 </Project>

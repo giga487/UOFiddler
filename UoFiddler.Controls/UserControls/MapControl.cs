@@ -22,6 +22,7 @@ using UoFiddler.Controls.Classes;
 using UoFiddler.Controls.Forms;
 using UoFiddler.Controls.Helpers;
 
+
 namespace UoFiddler.Controls.UserControls
 {
     public partial class MapControl : UserControl
@@ -855,7 +856,7 @@ namespace UoFiddler.Controls.UserControls
                     int c = int.Parse(element.GetAttribute("color"));
                     string text = element.GetAttribute("text");
                     OverlayCursor o = new OverlayCursor(new Point(x, y), m, text, Color.FromArgb(c));
-                    TreeNode node = new TreeNode(text) {Tag = o};
+                    TreeNode node = new TreeNode(text) { Tag = o };
                     OverlayObjectTree.Nodes[m].Nodes.Add(node);
                 }
             }
