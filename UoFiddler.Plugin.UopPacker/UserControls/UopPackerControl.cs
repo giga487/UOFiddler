@@ -240,21 +240,21 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             {
                 statustext.Text = inFile;
                 Refresh();
-                inFile = FixPath(inputfolder.Text, inFile);
+                inFile = FixPath(inFile, inputfolder.Text);
 
                 if (!File.Exists(inFile))
                 {
                     return;
                 }
 
-                outFile = FixPath(outputFolderTextbox.Text,outFile);
+                outFile = FixPath(outFile, outputFolderTextbox.Text);
 
                 if (File.Exists(outFile))
                 {
                     return;
                 }
 
-                outIdx = FixPath(outputFolderTextbox.Text, outIdx);
+                outIdx = FixPath(outIdx, outputFolderTextbox.Text);
                 ++_total;
 
                 _conv.FromUop(inFile, outFile, outIdx, type, typeIndex);

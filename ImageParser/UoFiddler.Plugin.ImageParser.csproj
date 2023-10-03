@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Controls</AssemblyName>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <AssemblyTitle>ImageParserPlugin</AssemblyTitle>
+    <Product>FiddlerPlugin</Product>
+    <Copyright>Copyright © 2023</Copyright>
+  </PropertyGroup>
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ultima\Ultima.csproj" />
+    <ProjectReference Include="..\UoFiddler.Controls\UoFiddler.Controls.csproj" />
+    <ProjectReference Include="..\UoFiddler\UoFiddler.csproj" />
+  </ItemGroup>
+
+</Project>
