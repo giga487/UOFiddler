@@ -14,6 +14,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
 using Ultima;
@@ -97,6 +98,53 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void extractPieceBtn_Click(object sender, EventArgs e)
         {
+
+        }
+
+        private void drawBorderBtn_Click(object sender, EventArgs e)
+        {
+            CustomImage newImage = new CustomImage();
+
+            var polygon = newImage.CreatePolygon(0, 0, 5);
+            var newBitmap = newImage.CreateBitmapFromPoints(polygon, Color.AliceBlue);
+
+            pictureBoxImage.Image = newBitmap;
+        }
+
+        private void splitinTileBtn_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+            string filename = (string)imageLoadedCombobox.SelectedItem;
+
+            CustomImage image = null;
+            if (Images.TryGetValue(filename, out image))
+            {
+                var dictSplittedImg = image.SplitInTile();
+
+                if (dictSplittedImg is null)
+                    return;
+
+                Bitmap newBitmap = new Bitmap(1000, 1000);
+
+                int x = 0;
+                int xOffset = image.Image.Width + 50;
+                using (Graphics g = Graphics.FromImage(newBitmap))
+                {
+                    g.DrawImage(image.Image, new Rectangle(0 + xOffset, 0, image.Image.Width, image.Image.Height));
+
+                    foreach (var keyValueBitmap in dictSplittedImg)
+                    {
+                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X*46, keyValueBitmap.Key.Y* 45, 44, 44);
+                        g.DrawImage(keyValueBitmap.Value, rect);
+                    }
+                }
+
+                pictureBoxImage.Image = newBitmap;
+            }
 
         }
     }
