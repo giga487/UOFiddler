@@ -41,11 +41,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             pictureBoxImage = new System.Windows.Forms.PictureBox();
             loadImagebtn = new System.Windows.Forms.Button();
-            textBox1 = new System.Windows.Forms.TextBox();
-            textBox2 = new System.Windows.Forms.TextBox();
+            widthTxt = new System.Windows.Forms.TextBox();
+            heightTxt = new System.Windows.Forms.TextBox();
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
-            button1 = new System.Windows.Forms.Button();
+            stretchBtn = new System.Windows.Forms.Button();
             imageLoadedCombobox = new System.Windows.Forms.ComboBox();
             matrixBtn = new System.Windows.Forms.Button();
             saveBtn = new System.Windows.Forms.Button();
@@ -53,16 +53,17 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             drawBorderBtn = new System.Windows.Forms.Button();
             splitinTileBtn = new System.Windows.Forms.Button();
             splitRectBtn = new System.Windows.Forms.Button();
+            saveTileBtn = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBoxImage).BeginInit();
             SuspendLayout();
             // 
             // pictureBoxImage
             // 
-            pictureBoxImage.BackColor = System.Drawing.Color.Fuchsia;
-            pictureBoxImage.Location = new System.Drawing.Point(153, 2);
+            pictureBoxImage.BackColor = System.Drawing.Color.MintCream;
+            pictureBoxImage.Location = new System.Drawing.Point(307, 2);
             pictureBoxImage.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             pictureBoxImage.Name = "pictureBoxImage";
-            pictureBoxImage.Size = new System.Drawing.Size(580, 495);
+            pictureBoxImage.Size = new System.Drawing.Size(848, 495);
             pictureBoxImage.TabIndex = 0;
             pictureBoxImage.TabStop = false;
             // 
@@ -77,23 +78,23 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             loadImagebtn.UseVisualStyleBackColor = true;
             loadImagebtn.Click += loadImagebtn_Click;
             // 
-            // textBox1
+            // widthTxt
             // 
-            textBox1.Location = new System.Drawing.Point(66, 68);
-            textBox1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(83, 23);
-            textBox1.TabIndex = 2;
-            textBox1.Text = "300";
+            widthTxt.Location = new System.Drawing.Point(67, 69);
+            widthTxt.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            widthTxt.Name = "widthTxt";
+            widthTxt.Size = new System.Drawing.Size(83, 23);
+            widthTxt.TabIndex = 2;
+            widthTxt.Text = "300";
             // 
-            // textBox2
+            // heightTxt
             // 
-            textBox2.Location = new System.Drawing.Point(66, 93);
-            textBox2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(83, 23);
-            textBox2.TabIndex = 3;
-            textBox2.Text = "300";
+            heightTxt.Location = new System.Drawing.Point(66, 93);
+            heightTxt.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            heightTxt.Name = "heightTxt";
+            heightTxt.Size = new System.Drawing.Size(83, 23);
+            heightTxt.TabIndex = 3;
+            heightTxt.Text = "300";
             // 
             // label1
             // 
@@ -113,16 +114,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             label2.TabIndex = 5;
             label2.Text = "Height";
             // 
-            // button1
+            // stretchBtn
             // 
-            button1.Location = new System.Drawing.Point(66, 118);
-            button1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(82, 22);
-            button1.TabIndex = 6;
-            button1.Text = "Stretch";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
+            stretchBtn.Location = new System.Drawing.Point(156, 70);
+            stretchBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            stretchBtn.Name = "stretchBtn";
+            stretchBtn.Size = new System.Drawing.Size(82, 22);
+            stretchBtn.TabIndex = 6;
+            stretchBtn.Text = "Stretch";
+            stretchBtn.UseVisualStyleBackColor = true;
+            stretchBtn.Click += button1_Click;
             // 
             // imageLoadedCombobox
             // 
@@ -137,7 +138,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // matrixBtn
             // 
-            matrixBtn.Location = new System.Drawing.Point(66, 144);
+            matrixBtn.Location = new System.Drawing.Point(3, 144);
             matrixBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             matrixBtn.Name = "matrixBtn";
             matrixBtn.Size = new System.Drawing.Size(82, 36);
@@ -148,7 +149,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // saveBtn
             // 
-            saveBtn.Location = new System.Drawing.Point(66, 184);
+            saveBtn.Location = new System.Drawing.Point(219, 144);
             saveBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             saveBtn.Name = "saveBtn";
             saveBtn.Size = new System.Drawing.Size(82, 36);
@@ -159,7 +160,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // extractPieceBtn
             // 
-            extractPieceBtn.Location = new System.Drawing.Point(66, 225);
+            extractPieceBtn.Location = new System.Drawing.Point(219, 184);
             extractPieceBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             extractPieceBtn.Name = "extractPieceBtn";
             extractPieceBtn.Size = new System.Drawing.Size(82, 36);
@@ -170,7 +171,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // drawBorderBtn
             // 
-            drawBorderBtn.Location = new System.Drawing.Point(67, 266);
+            drawBorderBtn.Location = new System.Drawing.Point(219, 225);
             drawBorderBtn.Name = "drawBorderBtn";
             drawBorderBtn.Size = new System.Drawing.Size(82, 41);
             drawBorderBtn.TabIndex = 11;
@@ -190,18 +191,29 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // splitRectBtn
             // 
-            splitRectBtn.Location = new System.Drawing.Point(40, 313);
+            splitRectBtn.Location = new System.Drawing.Point(3, 185);
             splitRectBtn.Name = "splitRectBtn";
-            splitRectBtn.Size = new System.Drawing.Size(109, 32);
+            splitRectBtn.Size = new System.Drawing.Size(78, 41);
             splitRectBtn.TabIndex = 13;
-            splitRectBtn.Text = "split in rect";
+            splitRectBtn.Text = "split in tile";
             splitRectBtn.UseVisualStyleBackColor = true;
             splitRectBtn.Click += button2_Click_1;
+            // 
+            // saveTileBtn
+            // 
+            saveTileBtn.Location = new System.Drawing.Point(3, 229);
+            saveTileBtn.Name = "saveTileBtn";
+            saveTileBtn.Size = new System.Drawing.Size(78, 33);
+            saveTileBtn.TabIndex = 14;
+            saveTileBtn.Text = "Save Tile";
+            saveTileBtn.UseVisualStyleBackColor = true;
+            saveTileBtn.Click += saveTileBtn_Click;
             // 
             // ImageParserBase
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(saveTileBtn);
             Controls.Add(splitRectBtn);
             Controls.Add(splitinTileBtn);
             Controls.Add(drawBorderBtn);
@@ -209,17 +221,17 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             Controls.Add(saveBtn);
             Controls.Add(matrixBtn);
             Controls.Add(imageLoadedCombobox);
-            Controls.Add(button1);
+            Controls.Add(stretchBtn);
             Controls.Add(label2);
             Controls.Add(label1);
-            Controls.Add(textBox2);
-            Controls.Add(textBox1);
+            Controls.Add(heightTxt);
+            Controls.Add(widthTxt);
             Controls.Add(loadImagebtn);
             Controls.Add(pictureBoxImage);
             DoubleBuffered = true;
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Name = "ImageParserBase";
-            Size = new System.Drawing.Size(736, 500);
+            Size = new System.Drawing.Size(1158, 499);
             ((System.ComponentModel.ISupportInitialize)pictureBoxImage).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -229,11 +241,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private System.Windows.Forms.PictureBox pictureBoxImage;
         private System.Windows.Forms.Button loadImagebtn;
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.TextBox textBox2;
+        private System.Windows.Forms.TextBox widthTxt;
+        private System.Windows.Forms.TextBox heightTxt;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button stretchBtn;
         private System.Windows.Forms.ComboBox imageLoadedCombobox;
         private System.Windows.Forms.Button matrixBtn;
         private System.Windows.Forms.Button saveBtn;
@@ -241,5 +253,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button drawBorderBtn;
         private System.Windows.Forms.Button splitinTileBtn;
         private System.Windows.Forms.Button splitRectBtn;
+        private System.Windows.Forms.Button saveTileBtn;
     }
 }

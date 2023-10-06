@@ -16,7 +16,6 @@ using System.Drawing;
 using System.IO;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Media.Imaging;
 using Ultima;
 using UoFiddler.Plugin.ImageParser;
 using UoFiddler.Plugin.MultiEditor.Classes;
@@ -56,7 +55,15 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void button1_Click(object sender, EventArgs e)
         {
+            string filename = (string)imageLoadedCombobox.SelectedItem;
 
+            if (Images.TryGetValue(filename, out var image) && Int32.TryParse(widthTxt.Text, out int width) && Int32.TryParse(heightTxt.Text, out int height))
+            {
+                pictureBoxImage.Image = image.Stretch(width, height);
+
+            };
+
+            pictureBoxImage.Invalidate();
         }
 
 
@@ -116,6 +123,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         }
 
+        Dictionary<System.Drawing.Point, Bitmap> TileSplitted = new Dictionary<System.Drawing.Point, Bitmap>();
+
         private void button2_Click_1(object sender, EventArgs e)
         {
             string filename = (string)imageLoadedCombobox.SelectedItem;
@@ -123,22 +132,22 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             CustomImage image = null;
             if (Images.TryGetValue(filename, out image))
             {
-                var dictSplittedImg = image.SplitInTile();
+                TileSplitted = image.SplitInTile();
 
-                if (dictSplittedImg is null)
+                if (TileSplitted is null)
                     return;
 
                 Bitmap newBitmap = new Bitmap(1000, 1000);
 
                 int x = 0;
-                int xOffset = image.Image.Width + 50;
+                int xOffset = image.Image.Width + 100;
                 using (Graphics g = Graphics.FromImage(newBitmap))
                 {
                     g.DrawImage(image.Image, new Rectangle(0 + xOffset, 0, image.Image.Width, image.Image.Height));
 
-                    foreach (var keyValueBitmap in dictSplittedImg)
+                    foreach (var keyValueBitmap in TileSplitted)
                     {
-                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X*46, keyValueBitmap.Key.Y* 45, 44, 44);
+                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X * 45, keyValueBitmap.Key.Y * 45, 44, 44);
                         g.DrawImage(keyValueBitmap.Value, rect);
                     }
                 }
@@ -146,6 +155,29 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 pictureBoxImage.Image = newBitmap;
             }
 
+        }
+
+        private void saveTileBtn_Click(object sender, EventArgs e)
+        {
+            if (TileSplitted.Values.Count > 0)
+            {
+                SaveFileDialog saveFileDialog1 = new SaveFileDialog();
+                saveFileDialog1.Filter = "";// "JPeg Image|*.jpg|Bitmap Image|*.bmp|Gif Image|*.gif";
+                saveFileDialog1.Title = "Save an Image File";
+                saveFileDialog1.ShowDialog();
+
+                // If the file name is not an empty string open it for saving.
+                if (saveFileDialog1.FileName != "")
+                {
+                    foreach (var keyValue in TileSplitted)
+                    {
+                        keyValue.Value.Save(saveFileDialog1.FileName + $"_{keyValue.Key.X}_{keyValue.Key.Y}.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
+                    }
+                }
+
+
+
+            }
         }
     }
 }

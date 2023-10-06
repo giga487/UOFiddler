@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Ultima;
 using UoFiddler.Plugin.MultiEditor.Classes;
 
 namespace UoFiddler.Plugin.ImageParser
@@ -43,6 +44,14 @@ namespace UoFiddler.Plugin.ImageParser
         public Bitmap Stretch(int width, int height) 
         {
             Image = new Bitmap(_originalImage, new System.Drawing.Size(width, height));
+
+            using (Graphics g = Graphics.FromImage(Image))
+            {
+                g.DrawImage(Image, new Rectangle(0,0,width, height));
+                g.Save();
+            }
+
+
 
             return Image;
         }
@@ -99,11 +108,11 @@ namespace UoFiddler.Plugin.ImageParser
         {
             var dictToReturn = new Dictionary<Point, Bitmap>();
 
-            Bitmap correctSizeBitmap = new Bitmap(_originalImage.Width+44, _originalImage.Height + 44);
+            Bitmap correctSizeBitmap = new Bitmap(Image.Width+44, Image.Height + 44);
 
             using (Graphics g = Graphics.FromImage(correctSizeBitmap))
             {
-                g.DrawImage(_originalImage, new Rectangle(22, 22, _originalImage.Width, _originalImage.Height));
+                g.DrawImage(_originalImage, new Rectangle(22, 22, Image.Width, Image.Height));
                 g.Save();
             }
 
@@ -136,7 +145,7 @@ namespace UoFiddler.Plugin.ImageParser
             Rectangle tileRectangle;
             try
             {
-                for (y = 44 / 2; y < bigHeight - 22; y += 44)
+                for (y = 44 / 2; y < bigHeight - 22; y += 22)
                 {
                     x = (i + 1) % 2 == 0 ? 0 : 44 / 2;
                     int t = 0;
