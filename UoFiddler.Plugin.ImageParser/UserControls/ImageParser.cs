@@ -147,7 +147,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                     foreach (var keyValueBitmap in TileSplitted)
                     {
-                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X * 45, keyValueBitmap.Key.Y * 45, 44, 44);
+                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X + 5, keyValueBitmap.Key.Y +5, 44, 44);
                         g.DrawImage(keyValueBitmap.Value, rect);
                     }
                 }

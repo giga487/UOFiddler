@@ -145,14 +145,15 @@ namespace UoFiddler.Plugin.ImageParser
             Rectangle tileRectangle;
             try
             {
-                for (y = 44 / 2; y < bigHeight - 22; y += 22)
+                for (y = 0; y < bigHeight - 22; y += 22)
                 {
                     x = (i + 1) % 2 == 0 ? 0 : 44 / 2;
                     int t = 0;
                     for (; x < bigWidth - 22; x += 44)
                     {
                         tileRectangle = new Rectangle(x, y, width, height); //aggiungo metà rombo
-                        splittedDictionary.Add(new Point(t++, z), correctSizeBitmap.Clone(tileRectangle, format));
+                        //splittedDictionary.Add(new Point(t++, z), correctSizeBitmap.Clone(tileRectangle, format));
+                        splittedDictionary.Add(new Point(x, y), correctSizeBitmap.Clone(tileRectangle, format));
                     }
                     i++;
                     z++;
