@@ -47,11 +47,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             label2 = new System.Windows.Forms.Label();
             stretchBtn = new System.Windows.Forms.Button();
             imageLoadedCombobox = new System.Windows.Forms.ComboBox();
-            matrixBtn = new System.Windows.Forms.Button();
             saveBtn = new System.Windows.Forms.Button();
             extractPieceBtn = new System.Windows.Forms.Button();
             drawBorderBtn = new System.Windows.Forms.Button();
-            splitinTileBtn = new System.Windows.Forms.Button();
             splitRectBtn = new System.Windows.Forms.Button();
             saveTileBtn = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBoxImage).BeginInit();
@@ -69,7 +67,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // loadImagebtn
             // 
-            loadImagebtn.Location = new System.Drawing.Point(66, 2);
+            loadImagebtn.Location = new System.Drawing.Point(219, 2);
             loadImagebtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             loadImagebtn.Name = "loadImagebtn";
             loadImagebtn.Size = new System.Drawing.Size(82, 22);
@@ -136,17 +134,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             imageLoadedCombobox.TabIndex = 7;
             imageLoadedCombobox.SelectedIndexChanged += imageLoadedCombobox_SelectedIndexChanged;
             // 
-            // matrixBtn
-            // 
-            matrixBtn.Location = new System.Drawing.Point(3, 144);
-            matrixBtn.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            matrixBtn.Name = "matrixBtn";
-            matrixBtn.Size = new System.Drawing.Size(82, 36);
-            matrixBtn.TabIndex = 8;
-            matrixBtn.Text = "Insert Matrix";
-            matrixBtn.UseVisualStyleBackColor = true;
-            matrixBtn.Click += matrixBtn_Click;
-            // 
             // saveBtn
             // 
             saveBtn.Location = new System.Drawing.Point(219, 144);
@@ -179,19 +166,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             drawBorderBtn.UseVisualStyleBackColor = true;
             drawBorderBtn.Click += drawBorderBtn_Click;
             // 
-            // splitinTileBtn
-            // 
-            splitinTileBtn.Location = new System.Drawing.Point(67, 456);
-            splitinTileBtn.Name = "splitinTileBtn";
-            splitinTileBtn.Size = new System.Drawing.Size(82, 41);
-            splitinTileBtn.TabIndex = 12;
-            splitinTileBtn.Text = "Split in tile";
-            splitinTileBtn.UseVisualStyleBackColor = true;
-            splitinTileBtn.Click += splitinTileBtn_Click;
-            // 
             // splitRectBtn
             // 
-            splitRectBtn.Location = new System.Drawing.Point(3, 185);
+            splitRectBtn.Location = new System.Drawing.Point(3, 144);
             splitRectBtn.Name = "splitRectBtn";
             splitRectBtn.Size = new System.Drawing.Size(78, 41);
             splitRectBtn.TabIndex = 13;
@@ -201,7 +178,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // saveTileBtn
             // 
-            saveTileBtn.Location = new System.Drawing.Point(3, 229);
+            saveTileBtn.Location = new System.Drawing.Point(3, 186);
             saveTileBtn.Name = "saveTileBtn";
             saveTileBtn.Size = new System.Drawing.Size(78, 33);
             saveTileBtn.TabIndex = 14;
@@ -215,11 +192,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(saveTileBtn);
             Controls.Add(splitRectBtn);
-            Controls.Add(splitinTileBtn);
             Controls.Add(drawBorderBtn);
             Controls.Add(extractPieceBtn);
             Controls.Add(saveBtn);
-            Controls.Add(matrixBtn);
             Controls.Add(imageLoadedCombobox);
             Controls.Add(stretchBtn);
             Controls.Add(label2);
@@ -247,11 +222,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button stretchBtn;
         private System.Windows.Forms.ComboBox imageLoadedCombobox;
-        private System.Windows.Forms.Button matrixBtn;
         private System.Windows.Forms.Button saveBtn;
         private System.Windows.Forms.Button extractPieceBtn;
         private System.Windows.Forms.Button drawBorderBtn;
-        private System.Windows.Forms.Button splitinTileBtn;
         private System.Windows.Forms.Button splitRectBtn;
         private System.Windows.Forms.Button saveTileBtn;
     }

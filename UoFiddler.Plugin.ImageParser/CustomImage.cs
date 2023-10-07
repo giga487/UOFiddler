@@ -168,30 +168,59 @@ namespace UoFiddler.Plugin.ImageParser
             var polygon = CreatePolygon(0,0);
             var borderPoints = FindBorderOfPolygon(polygon);
 
+
+            int blackPixel = 0;
+            int notBlackPixel = 0;
+
             foreach (var keyvaluepair in splittedDictionary)
             {
                 Bitmap newBitmap = new Bitmap(keyvaluepair.Value);
+
+                blackPixel = 0;
+                notBlackPixel = 0;
+
                 using (Graphics g = Graphics.FromImage(newBitmap))
                 {
                     g.Clear(Color.Black);
+
+
 
                     for (int xF = 0; xF <= keyvaluepair.Value.Width; xF++)
                     {
                         for (int yF = 0; yF <= keyvaluepair.Value.Height; yF++)
                         {
+
                             if (FindIfPointsIsInConvexPolygon(borderPoints, new Point(xF, yF)))
                             {
                                 Color c = keyvaluepair.Value.GetPixel(xF, yF);
                                 newBitmap.SetPixel(xF, yF, c);
                                 //g.FillRectangle(floorBrush, xF, yF, 1, 1);
+
+                                if(c != Color.Black)
+                                {
+                                    notBlackPixel++;
+                                }
+                                else
+                                    blackPixel++;
                             }
+
                         }
                     }
 
                     g.Save();
                 }
 
-                polygonTile[keyvaluepair.Key] = newBitmap;
+                int total = blackPixel + notBlackPixel;
+                double notBlackPixelPercentage = (double)notBlackPixel/ total*100;
+
+                if(notBlackPixelPercentage > 1)
+                    polygonTile[keyvaluepair.Key] = newBitmap;
+                else
+                {
+
+                }
+
+
             }
 
 

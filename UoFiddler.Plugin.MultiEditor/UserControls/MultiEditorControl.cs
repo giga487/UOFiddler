@@ -15,6 +15,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using System.Xml;
+using Microsoft.VisualBasic;
 using Ultima;
 using UoFiddler.Controls.Classes;
 using UoFiddler.Plugin.MultiEditor.Classes;
@@ -65,6 +66,8 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
 
             pictureBoxDrawTiles.MouseWheel += PictureBoxDrawTiles_OnMouseWheel;
             pictureBoxMulti.ContextMenuStrip = null;
+
+            LoadComboboxList();
         }
 
         /// <summary>
@@ -167,7 +170,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             }
 
             string path = Options.OutputPath;
-            
+
             MultiComponentList sdkList = _compList.ConvertToSdk();
 
             switch (type)
@@ -1624,6 +1627,96 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
         private void OnDummyContextMenuOpening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             e.Cancel = true;
+        }
+
+        private void LoadComboboxList()
+        {
+            int max = Art.GetMaxItemId();
+            int min = 0;
+
+            for (int i = min; i < max; i++)
+            {
+                minComboBox.Items.Add($"0x{Convert.ToString(i, 16)}");
+                maxCombobox.Items.Add($"0x{Convert.ToString(i, 16)}");
+            }
+            minComboBox.SelectedIndex = 0;
+            maxCombobox.SelectedIndex = 1;
+
+        }
+
+        private void minComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int max = Art.GetMaxItemId();
+
+            if (int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out int min))
+            {
+                maxCombobox.Items.Clear();
+                try
+                {
+                    for (int i = min + 1; i < max; i++)
+                    {
+                        maxCombobox.Items.Add($"0x{Convert.ToString(i, 16)}");
+                    }
+                }
+                catch
+                {
+                    MessageBox.Show("Error on selecting minimum value");
+                }
+            }
+        }
+
+        private void saveGroupBtn_Click(object sender, EventArgs e)
+        {
+            int max = 0;
+            int min = 0;
+            string name = groupNameTextbox.Text;
+
+            if (!int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out min))
+            {
+                return;
+            }
+
+            if (!int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out max))
+            {
+                return;
+            }
+
+            string path = Options.AppDataPath;
+            string fileName = Path.Combine(path, "plugins/multieditor.xml");
+            if (!File.Exists(fileName))
+            {
+                return;
+            }
+
+            XmlDocument dom = new XmlDocument();
+            dom.Load(fileName);
+
+            XmlElement xTiles = dom["TileGroups"];
+            if (xTiles == null)
+            {
+                return;
+            }
+
+            XmlNode xmlNode = dom.CreateElement(groupNameTextbox.Text);
+
+            xTiles.AppendChild(xmlNode);
+
+            dom.Save(fileName);
+            //xTiles.AppendChild()
+
+            foreach (XmlElement xRootGroup in xTiles)
+            {
+                TreeNode mainNode = new TreeNode
+                {
+                    Text = xRootGroup.GetAttribute("name"),
+                    Tag = null,
+                    ImageIndex = 0
+                };
+
+                XML_AddChildren(mainNode, xRootGroup);
+                treeViewTilesXML.Nodes.Add(mainNode);
+            }
+
         }
     }
 }

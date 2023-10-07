@@ -68,6 +68,14 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox2 = new System.Windows.Forms.GroupBox();
             textBox_SaveToID = new System.Windows.Forms.TextBox();
             BTN_Save = new System.Windows.Forms.Button();
+            tabPage1 = new System.Windows.Forms.TabPage();
+            saveGroupBtn = new System.Windows.Forms.Button();
+            label3 = new System.Windows.Forms.Label();
+            groupNameTextbox = new System.Windows.Forms.TextBox();
+            maxCombobox = new System.Windows.Forms.ComboBox();
+            minComboBox = new System.Windows.Forms.ComboBox();
+            label2 = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
             splitContainer1 = new System.Windows.Forms.SplitContainer();
             splitContainer3 = new System.Windows.Forms.SplitContainer();
             BTN_Trans = new System.Windows.Forms.CheckBox();
@@ -116,6 +124,8 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             toolStripLabelCoord = new System.Windows.Forms.ToolStripLabel();
             toolTip1 = new System.Windows.Forms.ToolTip(components);
             FloatingPreviewPanel = new System.Windows.Forms.Panel();
+            nameTxtbox = new System.Windows.Forms.TextBox();
+            label4 = new System.Windows.Forms.Label();
             TC_MultiEditorToolbox.SuspendLayout();
             tileTab.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer4).BeginInit();
@@ -131,6 +141,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             Save.SuspendLayout();
             groupBox4.SuspendLayout();
             groupBox2.SuspendLayout();
+            tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -161,23 +172,24 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             TC_MultiEditorToolbox.Controls.Add(designTab);
             TC_MultiEditorToolbox.Controls.Add(importTab);
             TC_MultiEditorToolbox.Controls.Add(Save);
+            TC_MultiEditorToolbox.Controls.Add(tabPage1);
             TC_MultiEditorToolbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            TC_MultiEditorToolbox.Location = new System.Drawing.Point(0, 136);
-            TC_MultiEditorToolbox.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            TC_MultiEditorToolbox.Location = new System.Drawing.Point(0, 104);
+            TC_MultiEditorToolbox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             TC_MultiEditorToolbox.Name = "TC_MultiEditorToolbox";
             TC_MultiEditorToolbox.SelectedIndex = 0;
-            TC_MultiEditorToolbox.Size = new System.Drawing.Size(240, 441);
+            TC_MultiEditorToolbox.Size = new System.Drawing.Size(240, 314);
             TC_MultiEditorToolbox.TabIndex = 0;
             // 
             // tileTab
             // 
             tileTab.BackColor = System.Drawing.SystemColors.Window;
             tileTab.Controls.Add(splitContainer4);
-            tileTab.Location = new System.Drawing.Point(4, 29);
-            tileTab.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            tileTab.Location = new System.Drawing.Point(4, 24);
+            tileTab.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             tileTab.Name = "tileTab";
-            tileTab.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            tileTab.Size = new System.Drawing.Size(232, 408);
+            tileTab.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            tileTab.Size = new System.Drawing.Size(232, 286);
             tileTab.TabIndex = 0;
             tileTab.Text = "Tiles";
             tileTab.UseVisualStyleBackColor = true;
@@ -185,8 +197,8 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // splitContainer4
             // 
             splitContainer4.Dock = System.Windows.Forms.DockStyle.Fill;
-            splitContainer4.Location = new System.Drawing.Point(5, 4);
-            splitContainer4.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            splitContainer4.Location = new System.Drawing.Point(4, 3);
+            splitContainer4.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             splitContainer4.Name = "splitContainer4";
             splitContainer4.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -198,9 +210,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             splitContainer4.Panel2.Controls.Add(pictureBoxDrawTiles);
             splitContainer4.Panel2.Controls.Add(vScrollBarDrawTiles);
-            splitContainer4.Size = new System.Drawing.Size(222, 400);
-            splitContainer4.SplitterDistance = 180;
-            splitContainer4.SplitterWidth = 7;
+            splitContainer4.Size = new System.Drawing.Size(224, 280);
+            splitContainer4.SplitterDistance = 126;
+            splitContainer4.SplitterWidth = 5;
             splitContainer4.TabIndex = 0;
             // 
             // treeViewTilesXML
@@ -211,10 +223,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             treeViewTilesXML.ImageIndex = 0;
             treeViewTilesXML.ImageList = imageListTreeView;
             treeViewTilesXML.Location = new System.Drawing.Point(0, 0);
-            treeViewTilesXML.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            treeViewTilesXML.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             treeViewTilesXML.Name = "treeViewTilesXML";
             treeViewTilesXML.SelectedImageIndex = 0;
-            treeViewTilesXML.Size = new System.Drawing.Size(222, 180);
+            treeViewTilesXML.Size = new System.Drawing.Size(224, 126);
             treeViewTilesXML.TabIndex = 0;
             treeViewTilesXML.AfterSelect += TreeViewTilesXML_OnAfterSelect;
             // 
@@ -237,9 +249,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             pictureBoxDrawTiles.ContextMenuStrip = DummyContextMenu;
             pictureBoxDrawTiles.Dock = System.Windows.Forms.DockStyle.Fill;
             pictureBoxDrawTiles.Location = new System.Drawing.Point(0, 0);
-            pictureBoxDrawTiles.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            pictureBoxDrawTiles.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             pictureBoxDrawTiles.Name = "pictureBoxDrawTiles";
-            pictureBoxDrawTiles.Size = new System.Drawing.Size(205, 213);
+            pictureBoxDrawTiles.Size = new System.Drawing.Size(207, 149);
             pictureBoxDrawTiles.TabIndex = 3;
             pictureBoxDrawTiles.TabStop = false;
             pictureBoxDrawTiles.SizeChanged += PictureBoxDrawTiles_OnResize;
@@ -251,9 +263,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // vScrollBarDrawTiles
             // 
             vScrollBarDrawTiles.Dock = System.Windows.Forms.DockStyle.Right;
-            vScrollBarDrawTiles.Location = new System.Drawing.Point(205, 0);
+            vScrollBarDrawTiles.Location = new System.Drawing.Point(207, 0);
             vScrollBarDrawTiles.Name = "vScrollBarDrawTiles";
-            vScrollBarDrawTiles.Size = new System.Drawing.Size(17, 213);
+            vScrollBarDrawTiles.Size = new System.Drawing.Size(17, 149);
             vScrollBarDrawTiles.TabIndex = 0;
             vScrollBarDrawTiles.Scroll += VScrollBarDrawTiles_Scroll;
             // 
@@ -261,11 +273,11 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             designTab.BackColor = System.Drawing.SystemColors.Window;
             designTab.Controls.Add(groupBox1);
-            designTab.Location = new System.Drawing.Point(4, 29);
-            designTab.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            designTab.Location = new System.Drawing.Point(4, 24);
+            designTab.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             designTab.Name = "designTab";
-            designTab.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            designTab.Size = new System.Drawing.Size(266, 386);
+            designTab.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            designTab.Size = new System.Drawing.Size(232, 286);
             designTab.TabIndex = 1;
             designTab.Text = "Design";
             designTab.UseVisualStyleBackColor = true;
@@ -277,11 +289,11 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox1.Controls.Add(numericUpDown_Size_Width);
             groupBox1.Controls.Add(BTN_Resize);
             groupBox1.Controls.Add(numericUpDown_Size_Height);
-            groupBox1.Location = new System.Drawing.Point(8, 9);
-            groupBox1.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            groupBox1.Location = new System.Drawing.Point(7, 7);
+            groupBox1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox1.Name = "groupBox1";
-            groupBox1.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            groupBox1.Size = new System.Drawing.Size(240, 120);
+            groupBox1.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            groupBox1.Size = new System.Drawing.Size(210, 90);
             groupBox1.TabIndex = 3;
             groupBox1.TabStop = false;
             groupBox1.Text = "Multi Size";
@@ -289,10 +301,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // BTN_CreateBlank
             // 
             BTN_CreateBlank.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            BTN_CreateBlank.Location = new System.Drawing.Point(126, 68);
-            BTN_CreateBlank.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_CreateBlank.Location = new System.Drawing.Point(110, 51);
+            BTN_CreateBlank.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_CreateBlank.Name = "BTN_CreateBlank";
-            BTN_CreateBlank.Size = new System.Drawing.Size(105, 36);
+            BTN_CreateBlank.Size = new System.Drawing.Size(92, 27);
             BTN_CreateBlank.TabIndex = 3;
             BTN_CreateBlank.Text = "Create Blank";
             BTN_CreateBlank.UseVisualStyleBackColor = true;
@@ -300,19 +312,19 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // numericUpDown_Size_Width
             // 
-            numericUpDown_Size_Width.Location = new System.Drawing.Point(47, 29);
-            numericUpDown_Size_Width.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Size_Width.Location = new System.Drawing.Point(41, 22);
+            numericUpDown_Size_Width.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Size_Width.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
             numericUpDown_Size_Width.Name = "numericUpDown_Size_Width";
-            numericUpDown_Size_Width.Size = new System.Drawing.Size(70, 27);
+            numericUpDown_Size_Width.Size = new System.Drawing.Size(61, 23);
             numericUpDown_Size_Width.TabIndex = 0;
             // 
             // BTN_Resize
             // 
-            BTN_Resize.Location = new System.Drawing.Point(16, 68);
-            BTN_Resize.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Resize.Location = new System.Drawing.Point(14, 51);
+            BTN_Resize.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Resize.Name = "BTN_Resize";
-            BTN_Resize.Size = new System.Drawing.Size(101, 36);
+            BTN_Resize.Size = new System.Drawing.Size(88, 27);
             BTN_Resize.TabIndex = 2;
             BTN_Resize.Text = "Resize Multi";
             BTN_Resize.UseVisualStyleBackColor = true;
@@ -320,21 +332,21 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // numericUpDown_Size_Height
             // 
-            numericUpDown_Size_Height.Location = new System.Drawing.Point(126, 29);
-            numericUpDown_Size_Height.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Size_Height.Location = new System.Drawing.Point(110, 22);
+            numericUpDown_Size_Height.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Size_Height.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
             numericUpDown_Size_Height.Name = "numericUpDown_Size_Height";
-            numericUpDown_Size_Height.Size = new System.Drawing.Size(70, 27);
+            numericUpDown_Size_Height.Size = new System.Drawing.Size(61, 23);
             numericUpDown_Size_Height.TabIndex = 1;
             // 
             // importTab
             // 
             importTab.BackColor = System.Drawing.SystemColors.Window;
             importTab.Controls.Add(treeViewMultiList);
-            importTab.Location = new System.Drawing.Point(4, 29);
-            importTab.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            importTab.Location = new System.Drawing.Point(4, 24);
+            importTab.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             importTab.Name = "importTab";
-            importTab.Size = new System.Drawing.Size(266, 386);
+            importTab.Size = new System.Drawing.Size(232, 286);
             importTab.TabIndex = 2;
             importTab.Text = "Import";
             importTab.UseVisualStyleBackColor = true;
@@ -346,9 +358,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             treeViewMultiList.HideSelection = false;
             treeViewMultiList.HotTracking = true;
             treeViewMultiList.Location = new System.Drawing.Point(0, 0);
-            treeViewMultiList.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            treeViewMultiList.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             treeViewMultiList.Name = "treeViewMultiList";
-            treeViewMultiList.Size = new System.Drawing.Size(266, 386);
+            treeViewMultiList.Size = new System.Drawing.Size(232, 286);
             treeViewMultiList.TabIndex = 0;
             treeViewMultiList.NodeMouseHover += TreeViewMultiList_NodeMouseHover;
             treeViewMultiList.NodeMouseDoubleClick += TreeViewMultiList_NodeMouseDoubleClick;
@@ -357,11 +369,11 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             Save.Controls.Add(groupBox4);
             Save.Controls.Add(groupBox2);
-            Save.Location = new System.Drawing.Point(4, 29);
-            Save.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            Save.Location = new System.Drawing.Point(4, 24);
+            Save.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Save.Name = "Save";
-            Save.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            Save.Size = new System.Drawing.Size(266, 386);
+            Save.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Save.Size = new System.Drawing.Size(232, 286);
             Save.TabIndex = 3;
             Save.Text = "Save";
             Save.UseVisualStyleBackColor = true;
@@ -375,21 +387,21 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox4.Controls.Add(BTN_Export_UOA);
             groupBox4.Controls.Add(textBox_Export);
             groupBox4.Controls.Add(BTN_Export_Txt);
-            groupBox4.Location = new System.Drawing.Point(9, 109);
-            groupBox4.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            groupBox4.Location = new System.Drawing.Point(8, 82);
+            groupBox4.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox4.Name = "groupBox4";
-            groupBox4.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            groupBox4.Size = new System.Drawing.Size(239, 172);
+            groupBox4.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            groupBox4.Size = new System.Drawing.Size(209, 129);
             groupBox4.TabIndex = 6;
             groupBox4.TabStop = false;
             groupBox4.Text = "Export";
             // 
             // BTN_Export_UOX3
             // 
-            BTN_Export_UOX3.Location = new System.Drawing.Point(75, 116);
-            BTN_Export_UOX3.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Export_UOX3.Location = new System.Drawing.Point(66, 87);
+            BTN_Export_UOX3.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Export_UOX3.Name = "BTN_Export_UOX3";
-            BTN_Export_UOX3.Size = new System.Drawing.Size(86, 36);
+            BTN_Export_UOX3.Size = new System.Drawing.Size(75, 27);
             BTN_Export_UOX3.TabIndex = 5;
             BTN_Export_UOX3.Text = ".uox3";
             BTN_Export_UOX3.UseVisualStyleBackColor = true;
@@ -397,10 +409,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // BTN_Export_CSV
             // 
-            BTN_Export_CSV.Location = new System.Drawing.Point(14, 116);
-            BTN_Export_CSV.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Export_CSV.Location = new System.Drawing.Point(12, 87);
+            BTN_Export_CSV.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Export_CSV.Name = "BTN_Export_CSV";
-            BTN_Export_CSV.Size = new System.Drawing.Size(54, 36);
+            BTN_Export_CSV.Size = new System.Drawing.Size(47, 27);
             BTN_Export_CSV.TabIndex = 4;
             BTN_Export_CSV.Text = ".csv";
             BTN_Export_CSV.UseVisualStyleBackColor = true;
@@ -408,10 +420,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // BTN_Export_WSC
             // 
-            BTN_Export_WSC.Location = new System.Drawing.Point(170, 71);
-            BTN_Export_WSC.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Export_WSC.Location = new System.Drawing.Point(149, 53);
+            BTN_Export_WSC.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Export_WSC.Name = "BTN_Export_WSC";
-            BTN_Export_WSC.Size = new System.Drawing.Size(54, 36);
+            BTN_Export_WSC.Size = new System.Drawing.Size(47, 27);
             BTN_Export_WSC.TabIndex = 3;
             BTN_Export_WSC.Text = ".wsc";
             BTN_Export_WSC.UseVisualStyleBackColor = true;
@@ -419,10 +431,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // BTN_Export_UOA
             // 
-            BTN_Export_UOA.Location = new System.Drawing.Point(74, 71);
-            BTN_Export_UOA.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Export_UOA.Location = new System.Drawing.Point(65, 53);
+            BTN_Export_UOA.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Export_UOA.Name = "BTN_Export_UOA";
-            BTN_Export_UOA.Size = new System.Drawing.Size(87, 36);
+            BTN_Export_UOA.Size = new System.Drawing.Size(76, 27);
             BTN_Export_UOA.TabIndex = 2;
             BTN_Export_UOA.Text = ".uoa.txt";
             BTN_Export_UOA.UseVisualStyleBackColor = true;
@@ -430,19 +442,19 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // textBox_Export
             // 
-            textBox_Export.Location = new System.Drawing.Point(8, 29);
-            textBox_Export.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            textBox_Export.Location = new System.Drawing.Point(7, 22);
+            textBox_Export.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             textBox_Export.Name = "textBox_Export";
-            textBox_Export.Size = new System.Drawing.Size(221, 27);
+            textBox_Export.Size = new System.Drawing.Size(194, 23);
             textBox_Export.TabIndex = 1;
             toolTip1.SetToolTip(textBox_Export, "FileName");
             // 
             // BTN_Export_Txt
             // 
-            BTN_Export_Txt.Location = new System.Drawing.Point(14, 71);
-            BTN_Export_Txt.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Export_Txt.Location = new System.Drawing.Point(12, 53);
+            BTN_Export_Txt.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Export_Txt.Name = "BTN_Export_Txt";
-            BTN_Export_Txt.Size = new System.Drawing.Size(54, 36);
+            BTN_Export_Txt.Size = new System.Drawing.Size(47, 27);
             BTN_Export_Txt.TabIndex = 0;
             BTN_Export_Txt.Text = ".txt";
             BTN_Export_Txt.UseVisualStyleBackColor = true;
@@ -453,40 +465,123 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox2.BackColor = System.Drawing.Color.Transparent;
             groupBox2.Controls.Add(textBox_SaveToID);
             groupBox2.Controls.Add(BTN_Save);
-            groupBox2.Location = new System.Drawing.Point(9, 9);
-            groupBox2.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            groupBox2.Location = new System.Drawing.Point(8, 7);
+            groupBox2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox2.Name = "groupBox2";
-            groupBox2.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            groupBox2.Size = new System.Drawing.Size(239, 91);
+            groupBox2.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            groupBox2.Size = new System.Drawing.Size(209, 68);
             groupBox2.TabIndex = 5;
             groupBox2.TabStop = false;
             groupBox2.Text = "Save";
             // 
             // textBox_SaveToID
             // 
-            textBox_SaveToID.Location = new System.Drawing.Point(122, 33);
-            textBox_SaveToID.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            textBox_SaveToID.Location = new System.Drawing.Point(107, 25);
+            textBox_SaveToID.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             textBox_SaveToID.Name = "textBox_SaveToID";
-            textBox_SaveToID.Size = new System.Drawing.Size(86, 27);
+            textBox_SaveToID.Size = new System.Drawing.Size(76, 23);
             textBox_SaveToID.TabIndex = 1;
             // 
             // BTN_Save
             // 
-            BTN_Save.Location = new System.Drawing.Point(9, 31);
-            BTN_Save.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Save.Location = new System.Drawing.Point(8, 23);
+            BTN_Save.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Save.Name = "BTN_Save";
-            BTN_Save.Size = new System.Drawing.Size(101, 36);
+            BTN_Save.Size = new System.Drawing.Size(88, 27);
             BTN_Save.TabIndex = 0;
             BTN_Save.Text = "Save to ID";
             BTN_Save.UseVisualStyleBackColor = true;
             BTN_Save.Click += BTN_Save_Click;
+            // 
+            // tabPage1
+            // 
+            tabPage1.Controls.Add(saveGroupBtn);
+            tabPage1.Controls.Add(label4);
+            tabPage1.Controls.Add(label3);
+            tabPage1.Controls.Add(nameTxtbox);
+            tabPage1.Controls.Add(groupNameTextbox);
+            tabPage1.Controls.Add(maxCombobox);
+            tabPage1.Controls.Add(minComboBox);
+            tabPage1.Controls.Add(label2);
+            tabPage1.Controls.Add(label1);
+            tabPage1.Location = new System.Drawing.Point(4, 24);
+            tabPage1.Name = "tabPage1";
+            tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            tabPage1.Size = new System.Drawing.Size(232, 286);
+            tabPage1.TabIndex = 4;
+            tabPage1.Text = "Add Group";
+            tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // saveGroupBtn
+            // 
+            saveGroupBtn.Location = new System.Drawing.Point(12, 186);
+            saveGroupBtn.Name = "saveGroupBtn";
+            saveGroupBtn.Size = new System.Drawing.Size(75, 23);
+            saveGroupBtn.TabIndex = 8;
+            saveGroupBtn.Text = "Save Group";
+            saveGroupBtn.UseVisualStyleBackColor = true;
+            saveGroupBtn.Click += saveGroupBtn_Click;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(12, 18);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(62, 15);
+            label3.TabIndex = 7;
+            label3.Text = "Sub group";
+            // 
+            // groupNameTextbox
+            // 
+            groupNameTextbox.Location = new System.Drawing.Point(82, 15);
+            groupNameTextbox.Name = "groupNameTextbox";
+            groupNameTextbox.Size = new System.Drawing.Size(100, 23);
+            groupNameTextbox.TabIndex = 6;
+            groupNameTextbox.Text = "UOSea";
+            // 
+            // maxCombobox
+            // 
+            maxCombobox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            maxCombobox.FormattingEnabled = true;
+            maxCombobox.Location = new System.Drawing.Point(82, 144);
+            maxCombobox.Name = "maxCombobox";
+            maxCombobox.Size = new System.Drawing.Size(121, 23);
+            maxCombobox.TabIndex = 5;
+            // 
+            // minComboBox
+            // 
+            minComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            minComboBox.FormattingEnabled = true;
+            minComboBox.Location = new System.Drawing.Point(82, 101);
+            minComboBox.Name = "minComboBox";
+            minComboBox.Size = new System.Drawing.Size(121, 23);
+            minComboBox.TabIndex = 4;
+            minComboBox.SelectedIndexChanged += minComboBox_SelectedIndexChanged;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(12, 147);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(62, 15);
+            label2.TabIndex = 3;
+            label2.Text = "last to add";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(12, 104);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(64, 15);
+            label1.TabIndex = 2;
+            label1.Text = "first to add";
             // 
             // splitContainer1
             // 
             splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
             splitContainer1.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             splitContainer1.Location = new System.Drawing.Point(0, 0);
-            splitContainer1.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            splitContainer1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             splitContainer1.Name = "splitContainer1";
             // 
             // splitContainer1.Panel1
@@ -497,9 +592,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             splitContainer1.Panel2.Controls.Add(splitContainer2);
             splitContainer1.Panel2.Controls.Add(toolStrip1);
-            splitContainer1.Size = new System.Drawing.Size(923, 640);
+            splitContainer1.Size = new System.Drawing.Size(808, 480);
             splitContainer1.SplitterDistance = 240;
-            splitContainer1.SplitterWidth = 6;
+            splitContainer1.SplitterWidth = 5;
             splitContainer1.TabIndex = 1;
             // 
             // splitContainer3
@@ -508,7 +603,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             splitContainer3.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             splitContainer3.IsSplitterFixed = true;
             splitContainer3.Location = new System.Drawing.Point(0, 0);
-            splitContainer3.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            splitContainer3.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             splitContainer3.Name = "splitContainer3";
             splitContainer3.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -529,9 +624,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             splitContainer3.Panel2.Controls.Add(TC_MultiEditorToolbox);
             splitContainer3.Panel2.Controls.Add(collapsibleSplitter1);
             splitContainer3.Panel2.Controls.Add(Selectedpanel);
-            splitContainer3.Size = new System.Drawing.Size(240, 640);
+            splitContainer3.Size = new System.Drawing.Size(240, 480);
             splitContainer3.SplitterDistance = 60;
-            splitContainer3.SplitterWidth = 3;
+            splitContainer3.SplitterWidth = 2;
             splitContainer3.TabIndex = 1;
             // 
             // BTN_Trans
@@ -540,10 +635,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Trans.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Trans.ImageKey = "TransButton.bmp";
             BTN_Trans.ImageList = imageListTools;
-            BTN_Trans.Location = new System.Drawing.Point(117, 40);
-            BTN_Trans.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Trans.Location = new System.Drawing.Point(102, 30);
+            BTN_Trans.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Trans.Name = "BTN_Trans";
-            BTN_Trans.Size = new System.Drawing.Size(27, 32);
+            BTN_Trans.Size = new System.Drawing.Size(24, 24);
             BTN_Trans.TabIndex = 15;
             toolTip1.SetToolTip(BTN_Trans, "Switch Transparent");
             BTN_Trans.UseVisualStyleBackColor = true;
@@ -576,10 +671,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Pipette.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Pipette.ImageKey = "PipetteButton.bmp";
             BTN_Pipette.ImageList = imageListTools;
-            BTN_Pipette.Location = new System.Drawing.Point(112, 4);
-            BTN_Pipette.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Pipette.Location = new System.Drawing.Point(98, 3);
+            BTN_Pipette.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Pipette.Name = "BTN_Pipette";
-            BTN_Pipette.Size = new System.Drawing.Size(27, 32);
+            BTN_Pipette.Size = new System.Drawing.Size(24, 24);
             BTN_Pipette.TabIndex = 14;
             toolTip1.SetToolTip(BTN_Pipette, "Pick A Tile");
             BTN_Pipette.UseVisualStyleBackColor = true;
@@ -592,10 +687,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Floor.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Floor.ImageKey = "VirtualFloorButton.bmp";
             BTN_Floor.ImageList = imageListTools;
-            BTN_Floor.Location = new System.Drawing.Point(6, 40);
-            BTN_Floor.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Floor.Location = new System.Drawing.Point(5, 30);
+            BTN_Floor.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Floor.Name = "BTN_Floor";
-            BTN_Floor.Size = new System.Drawing.Size(27, 32);
+            BTN_Floor.Size = new System.Drawing.Size(24, 24);
             BTN_Floor.TabIndex = 13;
             toolTip1.SetToolTip(BTN_Floor, "Draw Virtual Floor");
             BTN_Floor.UseVisualStyleBackColor = true;
@@ -608,10 +703,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Z.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Z.ImageKey = "AltitudeButton.bmp";
             BTN_Z.ImageList = imageListTools;
-            BTN_Z.Location = new System.Drawing.Point(149, 4);
-            BTN_Z.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Z.Location = new System.Drawing.Point(130, 3);
+            BTN_Z.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Z.Name = "BTN_Z";
-            BTN_Z.Size = new System.Drawing.Size(27, 32);
+            BTN_Z.Size = new System.Drawing.Size(24, 24);
             BTN_Z.TabIndex = 12;
             toolTip1.SetToolTip(BTN_Z, "Apply Z Level");
             BTN_Z.UseVisualStyleBackColor = true;
@@ -624,10 +719,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Remove.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Remove.ImageKey = "RemoveButton.bmp";
             BTN_Remove.ImageList = imageListTools;
-            BTN_Remove.Location = new System.Drawing.Point(78, 4);
-            BTN_Remove.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Remove.Location = new System.Drawing.Point(68, 3);
+            BTN_Remove.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Remove.Name = "BTN_Remove";
-            BTN_Remove.Size = new System.Drawing.Size(27, 32);
+            BTN_Remove.Size = new System.Drawing.Size(24, 24);
             BTN_Remove.TabIndex = 11;
             toolTip1.SetToolTip(BTN_Remove, "Remove A Tile");
             BTN_Remove.UseVisualStyleBackColor = true;
@@ -640,10 +735,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Draw.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Draw.ImageKey = "DrawButton.bmp";
             BTN_Draw.ImageList = imageListTools;
-            BTN_Draw.Location = new System.Drawing.Point(41, 4);
-            BTN_Draw.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Draw.Location = new System.Drawing.Point(36, 3);
+            BTN_Draw.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Draw.Name = "BTN_Draw";
-            BTN_Draw.Size = new System.Drawing.Size(27, 32);
+            BTN_Draw.Size = new System.Drawing.Size(24, 24);
             BTN_Draw.TabIndex = 10;
             toolTip1.SetToolTip(BTN_Draw, "Draw A Tile");
             BTN_Draw.UseVisualStyleBackColor = true;
@@ -658,10 +753,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             BTN_Select.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             BTN_Select.ImageKey = "SelectButton.bmp";
             BTN_Select.ImageList = imageListTools;
-            BTN_Select.Location = new System.Drawing.Point(6, 4);
-            BTN_Select.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            BTN_Select.Location = new System.Drawing.Point(5, 3);
+            BTN_Select.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             BTN_Select.Name = "BTN_Select";
-            BTN_Select.Size = new System.Drawing.Size(27, 32);
+            BTN_Select.Size = new System.Drawing.Size(24, 24);
             BTN_Select.TabIndex = 9;
             toolTip1.SetToolTip(BTN_Select, "Select A Tile");
             BTN_Select.UseVisualStyleBackColor = true;
@@ -670,23 +765,23 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // numericUpDown_Floor
             // 
-            numericUpDown_Floor.Location = new System.Drawing.Point(41, 43);
-            numericUpDown_Floor.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Floor.Location = new System.Drawing.Point(36, 32);
+            numericUpDown_Floor.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Floor.Maximum = new decimal(new int[] { 127, 0, 0, 0 });
             numericUpDown_Floor.Minimum = new decimal(new int[] { 128, 0, 0, int.MinValue });
             numericUpDown_Floor.Name = "numericUpDown_Floor";
-            numericUpDown_Floor.Size = new System.Drawing.Size(66, 27);
+            numericUpDown_Floor.Size = new System.Drawing.Size(58, 23);
             numericUpDown_Floor.TabIndex = 8;
             numericUpDown_Floor.ValueChanged += NumericUpDown_Floor_Changed;
             // 
             // numericUpDown_Z
             // 
-            numericUpDown_Z.Location = new System.Drawing.Point(184, 8);
-            numericUpDown_Z.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Z.Location = new System.Drawing.Point(161, 6);
+            numericUpDown_Z.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Z.Maximum = new decimal(new int[] { 127, 0, 0, 0 });
             numericUpDown_Z.Minimum = new decimal(new int[] { 128, 0, 0, int.MinValue });
             numericUpDown_Z.Name = "numericUpDown_Z";
-            numericUpDown_Z.Size = new System.Drawing.Size(66, 27);
+            numericUpDown_Z.Size = new System.Drawing.Size(58, 23);
             numericUpDown_Z.TabIndex = 5;
             // 
             // collapsibleSplitter1
@@ -697,8 +792,8 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             collapsibleSplitter1.ControlToHide = Selectedpanel;
             collapsibleSplitter1.Dock = System.Windows.Forms.DockStyle.Top;
             collapsibleSplitter1.ExpandParentForm = false;
-            collapsibleSplitter1.Location = new System.Drawing.Point(0, 128);
-            collapsibleSplitter1.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            collapsibleSplitter1.Location = new System.Drawing.Point(0, 96);
+            collapsibleSplitter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             collapsibleSplitter1.Name = "collapsibleSplitter1";
             collapsibleSplitter1.Size = new System.Drawing.Size(240, 8);
             collapsibleSplitter1.TabIndex = 5;
@@ -712,9 +807,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             Selectedpanel.Controls.Add(groupBox3);
             Selectedpanel.Dock = System.Windows.Forms.DockStyle.Top;
             Selectedpanel.Location = new System.Drawing.Point(0, 0);
-            Selectedpanel.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            Selectedpanel.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Selectedpanel.Name = "Selectedpanel";
-            Selectedpanel.Size = new System.Drawing.Size(240, 128);
+            Selectedpanel.Size = new System.Drawing.Size(240, 96);
             Selectedpanel.TabIndex = 6;
             // 
             // groupBox3
@@ -723,11 +818,11 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox3.Controls.Add(numericUpDown_Selected_Z);
             groupBox3.Controls.Add(numericUpDown_Selected_Y);
             groupBox3.Controls.Add(numericUpDown_Selected_X);
-            groupBox3.Location = new System.Drawing.Point(15, 4);
-            groupBox3.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            groupBox3.Location = new System.Drawing.Point(13, 3);
+            groupBox3.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox3.Name = "groupBox3";
-            groupBox3.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            groupBox3.Size = new System.Drawing.Size(239, 116);
+            groupBox3.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            groupBox3.Size = new System.Drawing.Size(209, 87);
             groupBox3.TabIndex = 0;
             groupBox3.TabStop = false;
             groupBox3.Text = "Selected Tile X,Y,Z";
@@ -735,10 +830,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // DynamiccheckBox
             // 
             DynamiccheckBox.AutoSize = true;
-            DynamiccheckBox.Location = new System.Drawing.Point(134, 72);
-            DynamiccheckBox.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            DynamiccheckBox.Location = new System.Drawing.Point(117, 54);
+            DynamiccheckBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             DynamiccheckBox.Name = "DynamiccheckBox";
-            DynamiccheckBox.Size = new System.Drawing.Size(85, 24);
+            DynamiccheckBox.Size = new System.Drawing.Size(69, 19);
             DynamiccheckBox.TabIndex = 3;
             DynamiccheckBox.Text = "Invisible";
             DynamiccheckBox.UseVisualStyleBackColor = true;
@@ -746,30 +841,30 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             // numericUpDown_Selected_Z
             // 
-            numericUpDown_Selected_Z.Location = new System.Drawing.Point(26, 71);
-            numericUpDown_Selected_Z.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Selected_Z.Location = new System.Drawing.Point(23, 53);
+            numericUpDown_Selected_Z.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Selected_Z.Maximum = new decimal(new int[] { 127, 0, 0, 0 });
             numericUpDown_Selected_Z.Minimum = new decimal(new int[] { 128, 0, 0, int.MinValue });
             numericUpDown_Selected_Z.Name = "numericUpDown_Selected_Z";
-            numericUpDown_Selected_Z.Size = new System.Drawing.Size(81, 27);
+            numericUpDown_Selected_Z.Size = new System.Drawing.Size(71, 23);
             numericUpDown_Selected_Z.TabIndex = 2;
             numericUpDown_Selected_Z.ValueChanged += NumericUpDown_Selected_Z_Changed;
             // 
             // numericUpDown_Selected_Y
             // 
-            numericUpDown_Selected_Y.Location = new System.Drawing.Point(134, 31);
-            numericUpDown_Selected_Y.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Selected_Y.Location = new System.Drawing.Point(117, 23);
+            numericUpDown_Selected_Y.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Selected_Y.Name = "numericUpDown_Selected_Y";
-            numericUpDown_Selected_Y.Size = new System.Drawing.Size(81, 27);
+            numericUpDown_Selected_Y.Size = new System.Drawing.Size(71, 23);
             numericUpDown_Selected_Y.TabIndex = 1;
             numericUpDown_Selected_Y.ValueChanged += NumericUpDown_Selected_Y_Changed;
             // 
             // numericUpDown_Selected_X
             // 
-            numericUpDown_Selected_X.Location = new System.Drawing.Point(26, 31);
-            numericUpDown_Selected_X.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            numericUpDown_Selected_X.Location = new System.Drawing.Point(23, 23);
+            numericUpDown_Selected_X.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             numericUpDown_Selected_X.Name = "numericUpDown_Selected_X";
-            numericUpDown_Selected_X.Size = new System.Drawing.Size(81, 27);
+            numericUpDown_Selected_X.Size = new System.Drawing.Size(71, 23);
             numericUpDown_Selected_X.TabIndex = 0;
             numericUpDown_Selected_X.ValueChanged += NumericUpDown_Selected_X_Changed;
             // 
@@ -779,7 +874,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             splitContainer2.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             splitContainer2.IsSplitterFixed = true;
             splitContainer2.Location = new System.Drawing.Point(0, 0);
-            splitContainer2.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            splitContainer2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             splitContainer2.Name = "splitContainer2";
             splitContainer2.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -793,18 +888,18 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             splitContainer2.Panel2.Controls.Add(pictureBoxMulti);
             splitContainer2.Panel2.Controls.Add(hScrollBar);
             splitContainer2.Panel2.Controls.Add(vScrollBar);
-            splitContainer2.Size = new System.Drawing.Size(677, 613);
+            splitContainer2.Size = new System.Drawing.Size(563, 455);
             splitContainer2.SplitterDistance = 30;
-            splitContainer2.SplitterWidth = 7;
+            splitContainer2.SplitterWidth = 5;
             splitContainer2.TabIndex = 2;
             // 
             // MaxHeightTrackBar
             // 
             MaxHeightTrackBar.Dock = System.Windows.Forms.DockStyle.Fill;
             MaxHeightTrackBar.Location = new System.Drawing.Point(0, 0);
-            MaxHeightTrackBar.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            MaxHeightTrackBar.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             MaxHeightTrackBar.Name = "MaxHeightTrackBar";
-            MaxHeightTrackBar.Size = new System.Drawing.Size(677, 30);
+            MaxHeightTrackBar.Size = new System.Drawing.Size(563, 30);
             MaxHeightTrackBar.TabIndex = 0;
             toolTip1.SetToolTip(MaxHeightTrackBar, "Max Height Displayed");
             MaxHeightTrackBar.ValueChanged += MaxHeightTrackBarOnValueChanged;
@@ -812,9 +907,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // splitter1
             // 
             splitter1.Location = new System.Drawing.Point(0, 0);
-            splitter1.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            splitter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             splitter1.Name = "splitter1";
-            splitter1.Size = new System.Drawing.Size(5, 559);
+            splitter1.Size = new System.Drawing.Size(4, 403);
             splitter1.TabIndex = 3;
             splitter1.TabStop = false;
             // 
@@ -824,9 +919,9 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             pictureBoxMulti.ContextMenuStrip = DummyContextMenu;
             pictureBoxMulti.Dock = System.Windows.Forms.DockStyle.Fill;
             pictureBoxMulti.Location = new System.Drawing.Point(0, 0);
-            pictureBoxMulti.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            pictureBoxMulti.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             pictureBoxMulti.Name = "pictureBoxMulti";
-            pictureBoxMulti.Size = new System.Drawing.Size(660, 559);
+            pictureBoxMulti.Size = new System.Drawing.Size(546, 403);
             pictureBoxMulti.TabIndex = 0;
             pictureBoxMulti.TabStop = false;
             pictureBoxMulti.SizeChanged += PictureBoxMultiOnResize;
@@ -838,18 +933,18 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // hScrollBar
             // 
             hScrollBar.Dock = System.Windows.Forms.DockStyle.Bottom;
-            hScrollBar.Location = new System.Drawing.Point(0, 559);
+            hScrollBar.Location = new System.Drawing.Point(0, 403);
             hScrollBar.Name = "hScrollBar";
-            hScrollBar.Size = new System.Drawing.Size(660, 17);
+            hScrollBar.Size = new System.Drawing.Size(546, 17);
             hScrollBar.TabIndex = 2;
             hScrollBar.ValueChanged += ScrollBarsValueChanged;
             // 
             // vScrollBar
             // 
             vScrollBar.Dock = System.Windows.Forms.DockStyle.Right;
-            vScrollBar.Location = new System.Drawing.Point(660, 0);
+            vScrollBar.Location = new System.Drawing.Point(546, 0);
             vScrollBar.Name = "vScrollBar";
-            vScrollBar.Size = new System.Drawing.Size(17, 576);
+            vScrollBar.Size = new System.Drawing.Size(17, 420);
             vScrollBar.TabIndex = 1;
             vScrollBar.ValueChanged += ScrollBarsValueChanged;
             // 
@@ -859,10 +954,10 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             toolStrip1.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
             toolStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { toolStripDropDownButton1, toolStripSeparator2, DrawTileLabel, toolStripSeparator1, SelectedTileLabel, toolStripLabelCoord });
-            toolStrip1.Location = new System.Drawing.Point(0, 613);
+            toolStrip1.Location = new System.Drawing.Point(0, 455);
             toolStrip1.Name = "toolStrip1";
             toolStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            toolStrip1.Size = new System.Drawing.Size(677, 27);
+            toolStrip1.Size = new System.Drawing.Size(563, 25);
             toolStrip1.TabIndex = 3;
             toolStrip1.Text = "toolStrip1";
             // 
@@ -872,21 +967,21 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             toolStripDropDownButton1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { UndoItems, showWalkablesToolStripMenuItem, showDoubleSurfaceMenuItem, removeAllTransToolStripMenuItem });
             toolStripDropDownButton1.ImageTransparentColor = System.Drawing.Color.Magenta;
             toolStripDropDownButton1.Name = "toolStripDropDownButton1";
-            toolStripDropDownButton1.Size = new System.Drawing.Size(53, 24);
+            toolStripDropDownButton1.Size = new System.Drawing.Size(45, 22);
             toolStripDropDownButton1.Text = "Misc";
             // 
             // UndoItems
             // 
             UndoItems.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] { UndoItem0, UndoItem1, UndoItem2, UndoItem3, UndoItem4, UndoItem5, UndoItem6, UndoItem7, UndoItem8, UndoItem9 });
             UndoItems.Name = "UndoItems";
-            UndoItems.Size = new System.Drawing.Size(238, 26);
+            UndoItems.Size = new System.Drawing.Size(189, 22);
             UndoItems.Text = "Undo";
             UndoItems.DropDownOpening += UndoList_BeforeOpening;
             // 
             // UndoItem0
             // 
             UndoItem0.Name = "UndoItem0";
-            UndoItem0.Size = new System.Drawing.Size(110, 26);
+            UndoItem0.Size = new System.Drawing.Size(89, 22);
             UndoItem0.Tag = 0;
             UndoItem0.Text = "---";
             UndoItem0.Click += Undo_onClick;
@@ -894,7 +989,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem1
             // 
             UndoItem1.Name = "UndoItem1";
-            UndoItem1.Size = new System.Drawing.Size(110, 26);
+            UndoItem1.Size = new System.Drawing.Size(89, 22);
             UndoItem1.Tag = 1;
             UndoItem1.Text = "---";
             UndoItem1.Click += Undo_onClick;
@@ -902,7 +997,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem2
             // 
             UndoItem2.Name = "UndoItem2";
-            UndoItem2.Size = new System.Drawing.Size(110, 26);
+            UndoItem2.Size = new System.Drawing.Size(89, 22);
             UndoItem2.Tag = 2;
             UndoItem2.Text = "---";
             UndoItem2.Click += Undo_onClick;
@@ -910,7 +1005,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem3
             // 
             UndoItem3.Name = "UndoItem3";
-            UndoItem3.Size = new System.Drawing.Size(110, 26);
+            UndoItem3.Size = new System.Drawing.Size(89, 22);
             UndoItem3.Tag = 3;
             UndoItem3.Text = "---";
             UndoItem3.Click += Undo_onClick;
@@ -918,7 +1013,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem4
             // 
             UndoItem4.Name = "UndoItem4";
-            UndoItem4.Size = new System.Drawing.Size(110, 26);
+            UndoItem4.Size = new System.Drawing.Size(89, 22);
             UndoItem4.Tag = 4;
             UndoItem4.Text = "---";
             UndoItem4.Click += Undo_onClick;
@@ -926,7 +1021,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem5
             // 
             UndoItem5.Name = "UndoItem5";
-            UndoItem5.Size = new System.Drawing.Size(110, 26);
+            UndoItem5.Size = new System.Drawing.Size(89, 22);
             UndoItem5.Tag = 5;
             UndoItem5.Text = "---";
             UndoItem5.Click += Undo_onClick;
@@ -934,7 +1029,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem6
             // 
             UndoItem6.Name = "UndoItem6";
-            UndoItem6.Size = new System.Drawing.Size(110, 26);
+            UndoItem6.Size = new System.Drawing.Size(89, 22);
             UndoItem6.Tag = 6;
             UndoItem6.Text = "---";
             UndoItem6.Click += Undo_onClick;
@@ -942,7 +1037,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem7
             // 
             UndoItem7.Name = "UndoItem7";
-            UndoItem7.Size = new System.Drawing.Size(110, 26);
+            UndoItem7.Size = new System.Drawing.Size(89, 22);
             UndoItem7.Tag = 7;
             UndoItem7.Text = "---";
             UndoItem7.Click += Undo_onClick;
@@ -950,7 +1045,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem8
             // 
             UndoItem8.Name = "UndoItem8";
-            UndoItem8.Size = new System.Drawing.Size(110, 26);
+            UndoItem8.Size = new System.Drawing.Size(89, 22);
             UndoItem8.Tag = 8;
             UndoItem8.Text = "---";
             UndoItem8.Click += Undo_onClick;
@@ -958,7 +1053,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // UndoItem9
             // 
             UndoItem9.Name = "UndoItem9";
-            UndoItem9.Size = new System.Drawing.Size(110, 26);
+            UndoItem9.Size = new System.Drawing.Size(89, 22);
             UndoItem9.Tag = 9;
             UndoItem9.Text = "---";
             UndoItem9.Click += Undo_onClick;
@@ -967,7 +1062,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             showWalkablesToolStripMenuItem.CheckOnClick = true;
             showWalkablesToolStripMenuItem.Name = "showWalkablesToolStripMenuItem";
-            showWalkablesToolStripMenuItem.Size = new System.Drawing.Size(238, 26);
+            showWalkablesToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             showWalkablesToolStripMenuItem.Text = "Show Walkable tiles";
             showWalkablesToolStripMenuItem.Click += BTN_ShowWalkables_Click;
             // 
@@ -975,21 +1070,21 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             showDoubleSurfaceMenuItem.CheckOnClick = true;
             showDoubleSurfaceMenuItem.Name = "showDoubleSurfaceMenuItem";
-            showDoubleSurfaceMenuItem.Size = new System.Drawing.Size(238, 26);
+            showDoubleSurfaceMenuItem.Size = new System.Drawing.Size(189, 22);
             showDoubleSurfaceMenuItem.Text = "Show double surface";
             showDoubleSurfaceMenuItem.Click += BTN_ShowDoubleSurface;
             // 
             // removeAllTransToolStripMenuItem
             // 
             removeAllTransToolStripMenuItem.Name = "removeAllTransToolStripMenuItem";
-            removeAllTransToolStripMenuItem.Size = new System.Drawing.Size(238, 26);
+            removeAllTransToolStripMenuItem.Size = new System.Drawing.Size(189, 22);
             removeAllTransToolStripMenuItem.Text = "Reset transparent tiles";
             removeAllTransToolStripMenuItem.Click += BTN_ShowAllTrans;
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(6, 27);
+            toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
             // 
             // DrawTileLabel
             // 
@@ -1002,19 +1097,19 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(6, 27);
+            toolStripSeparator1.Size = new System.Drawing.Size(6, 25);
             // 
             // SelectedTileLabel
             // 
             SelectedTileLabel.Name = "SelectedTileLabel";
-            SelectedTileLabel.Size = new System.Drawing.Size(27, 24);
+            SelectedTileLabel.Size = new System.Drawing.Size(21, 22);
             SelectedTileLabel.Text = "ID:";
             // 
             // toolStripLabelCoord
             // 
             toolStripLabelCoord.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             toolStripLabelCoord.Name = "toolStripLabelCoord";
-            toolStripLabelCoord.Size = new System.Drawing.Size(39, 24);
+            toolStripLabelCoord.Size = new System.Drawing.Size(31, 22);
             toolStripLabelCoord.Text = "0,0,0";
             toolStripLabelCoord.ToolTipText = "Coordinates";
             // 
@@ -1022,22 +1117,39 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             // 
             FloatingPreviewPanel.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             FloatingPreviewPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            FloatingPreviewPanel.Location = new System.Drawing.Point(334, 103);
-            FloatingPreviewPanel.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            FloatingPreviewPanel.Location = new System.Drawing.Point(292, 77);
+            FloatingPreviewPanel.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             FloatingPreviewPanel.Name = "FloatingPreviewPanel";
-            FloatingPreviewPanel.Size = new System.Drawing.Size(266, 153);
+            FloatingPreviewPanel.Size = new System.Drawing.Size(233, 115);
             FloatingPreviewPanel.TabIndex = 4;
+            // 
+            // nameTxtbox
+            // 
+            nameTxtbox.Location = new System.Drawing.Point(82, 53);
+            nameTxtbox.Name = "nameTxtbox";
+            nameTxtbox.Size = new System.Drawing.Size(100, 23);
+            nameTxtbox.TabIndex = 6;
+            nameTxtbox.Text = "Test";
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new System.Drawing.Point(12, 56);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(39, 15);
+            label4.TabIndex = 7;
+            label4.Text = "Name";
             // 
             // MultiEditorControl
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(FloatingPreviewPanel);
             Controls.Add(splitContainer1);
             DoubleBuffered = true;
-            Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Name = "MultiEditorControl";
-            Size = new System.Drawing.Size(923, 640);
+            Size = new System.Drawing.Size(808, 480);
             Load += OnLoad;
             TC_MultiEditorToolbox.ResumeLayout(false);
             tileTab.ResumeLayout(false);
@@ -1056,6 +1168,8 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
             groupBox4.PerformLayout();
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
+            tabPage1.ResumeLayout(false);
+            tabPage1.PerformLayout();
             splitContainer1.Panel1.ResumeLayout(false);
             splitContainer1.Panel2.ResumeLayout(false);
             splitContainer1.Panel2.PerformLayout();
@@ -1163,5 +1277,15 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
 
         private System.Windows.Forms.Button BTN_Export_CSV;
         private System.Windows.Forms.Button BTN_Export_UOX3;
+        private System.Windows.Forms.TabPage tabPage1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TextBox groupNameTextbox;
+        private System.Windows.Forms.ComboBox maxCombobox;
+        private System.Windows.Forms.ComboBox minComboBox;
+        private System.Windows.Forms.Button saveGroupBtn;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TextBox nameTxtbox;
     }
 }
