@@ -13,12 +13,16 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
+using System.Security.Policy;
 using System.Windows.Forms;
 using System.Xml;
+using System.Xml.Serialization;
 using Microsoft.VisualBasic;
 using Ultima;
 using UoFiddler.Controls.Classes;
 using UoFiddler.Plugin.MultiEditor.Classes;
+using UOSeaFiddlerTest;
 
 namespace UoFiddler.Plugin.MultiEditor.UserControls
 {
@@ -1332,6 +1336,7 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
 
         private void XML_InitializeToolBox()
         {
+            treeViewTilesXML.Nodes.Clear();
             string path = Options.AppDataPath;
             string fileName = Path.Combine(path, "plugins/multieditor.xml");
             if (!File.Exists(fileName))
@@ -1646,40 +1651,33 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
 
         private void minComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int max = Art.GetMaxItemId();
+            ushort max = (ushort)Art.GetMaxItemId();
 
-            if (int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out int min))
+
+            ushort min = Convert.ToUInt16((string)minComboBox.SelectedItem, 16);
+
+            maxCombobox.Items.Clear();
+            try
             {
-                maxCombobox.Items.Clear();
-                try
+                for (int i = min + 1; i < max; i++)
                 {
-                    for (int i = min + 1; i < max; i++)
-                    {
-                        maxCombobox.Items.Add($"0x{Convert.ToString(i, 16)}");
-                    }
-                }
-                catch
-                {
-                    MessageBox.Show("Error on selecting minimum value");
+                    maxCombobox.Items.Add($"0x{Convert.ToString(i, 16)}");
                 }
             }
+            catch
+            {
+            }
+
         }
 
         private void saveGroupBtn_Click(object sender, EventArgs e)
         {
-            int max = 0;
-            int min = 0;
-            string name = groupNameTextbox.Text;
-
-            if (!int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out min))
-            {
-                return;
-            }
-
-            if (!int.TryParse(minComboBox.SelectedItem.ToString().Replace("0x", ""), out max))
-            {
-                return;
-            }
+            ushort max = 0;
+            ushort min = 0;
+            string name = nameTxtbox.Text;
+            string groupBox = groupNameTextbox.Text;
+            min = Convert.ToUInt16((string)minComboBox.SelectedItem, 16);
+            max = Convert.ToUInt16((string)maxCombobox.SelectedItem, 16);
 
             string path = Options.AppDataPath;
             string fileName = Path.Combine(path, "plugins/multieditor.xml");
@@ -1688,35 +1686,62 @@ namespace UoFiddler.Plugin.MultiEditor.UserControls
                 return;
             }
 
-            XmlDocument dom = new XmlDocument();
-            dom.Load(fileName);
-
-            XmlElement xTiles = dom["TileGroups"];
-            if (xTiles == null)
+            XmlSerializer serializer = new XmlSerializer(typeof(TileGroups));
+            TileGroups groups;
+            using (Stream reader = new FileStream(fileName, FileMode.Open))
             {
-                return;
+                // Call the Deserialize method to restore the object's state.
+                groups = (TileGroups)serializer.Deserialize(reader);
             }
 
-            XmlNode xmlNode = dom.CreateElement(groupNameTextbox.Text);
-
-            xTiles.AppendChild(xmlNode);
-
-            dom.Save(fileName);
-            //xTiles.AppendChild()
-
-            foreach (XmlElement xRootGroup in xTiles)
+            try
             {
-                TreeNode mainNode = new TreeNode
+                TileGroupsGroupSubgroupEntry[] arrayToAdd = new TileGroupsGroupSubgroupEntry[max - min + 1];
+
+                for (ushort i = min; i < max; i++)
                 {
-                    Text = xRootGroup.GetAttribute("name"),
-                    Tag = null,
-                    ImageIndex = 0
+                    arrayToAdd[i - min] = new TileGroupsGroupSubgroupEntry()
+                    {
+                        index = i,
+                    };
+                }
+
+                TileGroupsGroupSubgroup seaHatsSubGroup = new TileGroupsGroupSubgroup()
+                {
+                    name = name,
+                    entry = arrayToAdd
                 };
 
-                XML_AddChildren(mainNode, xRootGroup);
-                treeViewTilesXML.Nodes.Add(mainNode);
-            }
+                TileGroupsGroup SeaHatsCustomGroup;
 
+                if ((SeaHatsCustomGroup = groups.group.FirstOrDefault(x => x.name == groupBox)) == null)
+                {
+                    //SE non esiste, lo creo
+                    SeaHatsCustomGroup = new TileGroupsGroup()
+                    {
+                        name = groupBox,
+                        subgroup = new TileGroupsGroupSubgroup[] { seaHatsSubGroup }
+                    };
+
+                    groups.group = groups.group.Append(SeaHatsCustomGroup).ToArray();
+                }
+                else
+                {
+                    var groupToExend = groups.group.FirstOrDefault(x => x.name == groupBox);
+
+                    groupToExend.subgroup = groupToExend.subgroup.Append(seaHatsSubGroup).ToArray();
+                }
+
+                using (StreamWriter toWrite = new StreamWriter(fileName, false))
+                {
+                    serializer.Serialize(toWrite, groups);
+                }
+
+                XML_InitializeToolBox();
+            }
+            catch
+            {
+            }
         }
     }
 }

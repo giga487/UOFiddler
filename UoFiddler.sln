@@ -31,6 +31,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UoFiddler.Plugin.UopPacker"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UoFiddler.Plugin.ImageParser", "UoFiddler.Plugin.ImageParser\UoFiddler.Plugin.ImageParser.csproj", "{1C72AC10-57FE-4F33-B217-B5F848DD66E9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UOSeaFiddlerTest", "UOSeaFiddlerTest\UOSeaFiddlerTest.csproj", "{0D21FC96-4BD5-4854-897D-D058109A4247}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,6 +163,18 @@ Global
 		{1C72AC10-57FE-4F33-B217-B5F848DD66E9}.Release|x64.Build.0 = Release|Any CPU
 		{1C72AC10-57FE-4F33-B217-B5F848DD66E9}.Release|x86.ActiveCfg = Release|Any CPU
 		{1C72AC10-57FE-4F33-B217-B5F848DD66E9}.Release|x86.Build.0 = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|x64.Build.0 = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Debug|x86.Build.0 = Debug|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|x64.ActiveCfg = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|x64.Build.0 = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|x86.ActiveCfg = Release|Any CPU
+		{0D21FC96-4BD5-4854-897D-D058109A4247}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
