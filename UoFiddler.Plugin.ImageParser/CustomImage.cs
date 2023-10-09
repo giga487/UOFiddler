@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -41,6 +42,26 @@ namespace UoFiddler.Plugin.ImageParser
         {
         }
 
+        public CustomImage(Bitmap bitmap)
+        {
+            _originalImage = bitmap;
+            Image = bitmap;
+        }
+
+        public void Save()
+        {
+            _originalImage = new Bitmap(Image);
+        }
+
+        public static void SetBetterGraphics(Graphics graphics)
+        {
+            graphics.CompositingQuality = CompositingQuality.HighQuality;
+            graphics.SmoothingMode = SmoothingMode.HighQuality;
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+        }
+
         public Bitmap Stretch(int width, int height) 
         {
             Image = new Bitmap(_originalImage, new System.Drawing.Size(width, height));
@@ -67,6 +88,56 @@ namespace UoFiddler.Plugin.ImageParser
         public int YMinOrg { get; private set; }
         public int ZMax { get; private set; }
         public int ZMin { get; private set; }
+
+        public Bitmap FillWithTileMatrixFilledByLine()
+        {
+            //var color = System.Drawing.Color.FromArgb(92, 32, 192, 32);
+            var color = System.Drawing.Color.FromArgb(255, 00, 00, 0);
+            Bitmap tileData = GetTileDataBitmap(color);
+            Bitmap verticalLine = GetVerticaLineDataBitmap(color);
+
+            int width = Image.Width;
+            int height = Image.Height;
+            int tileDataWidth = tileData.Width;
+            int tileDataHeight = tileData.Height;
+
+            //int xStep = (int)Math.Floor((double)width / tileDataWidth);
+            //int yStep = (int)Math.Floor((double)height / tileDataHeight);
+            //
+            int xStep = 50;
+            int yStep = 50;
+            Bitmap newBitmap = new Bitmap(width + 44, height + 44);
+            Rectangle rectangle = new Rectangle(0, 0, width, height);
+
+            using (Graphics g = Graphics.FromImage(newBitmap))
+            {
+                g.DrawImage(Image, rectangle);
+
+                for (int x = 0; x < xStep; x++)
+                {
+                    for (int y = 0; y < yStep; y++)
+                    {
+                        g.DrawImage(tileData, new System.Drawing.Point(x * tileDataWidth, y * tileDataHeight));
+
+                        using (System.Drawing.Brush floorBrush = new SolidBrush(color))
+                        {
+                            Point[] drawFloorPoint = new Point[2];
+                            drawFloorPoint[0].X = 22 + x * 22;
+                            drawFloorPoint[0].Y = 0 + y * tileDataHeight;
+                            drawFloorPoint[1].X = 22 + x * 22;
+                            drawFloorPoint[1].Y = 44 + y * tileDataHeight;
+
+                            g.FillPolygon(floorBrush, drawFloorPoint);
+                            g.DrawPolygon(Pens.White, drawFloorPoint);
+                        }
+
+                        g.Save();
+                    }
+                }
+            }
+
+            return newBitmap;
+        }
 
         public Bitmap FillWithTileMatrix()
         {
@@ -444,6 +515,35 @@ namespace UoFiddler.Plugin.ImageParser
             return initialBitmap;
         }
 
+        public static Bitmap GetVerticaLineDataBitmap(System.Drawing.Color color)
+        {
+            Bitmap _floorBmp = null;
+
+            if (_floorBmp != null)
+            {
+                return _floorBmp;
+            }
+
+            _floorBmp = new Bitmap(44, 44);
+
+            using (Graphics g = Graphics.FromImage(_floorBmp))
+            {
+                //
+                using (System.Drawing.Brush floorBrush = new SolidBrush(color))
+                {
+                    Point[] drawFloorPoint = new Point[4];
+                    drawFloorPoint[0].X = 22;
+                    drawFloorPoint[0].Y = 0;
+                    drawFloorPoint[1].X = 22;
+                    drawFloorPoint[1].Y = 44;
+
+                    g.FillPolygon(floorBrush, drawFloorPoint);
+                    g.DrawPolygon(Pens.White, drawFloorPoint);
+                }
+            }
+
+            return _floorBmp;
+        }
 
         public static Bitmap GetTileDataBitmap(System.Drawing.Color color)
         {

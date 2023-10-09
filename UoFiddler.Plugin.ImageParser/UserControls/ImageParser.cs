@@ -13,9 +13,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using Ultima;
 using UoFiddler.Plugin.ImageParser;
 using UoFiddler.Plugin.MultiEditor.Classes;
@@ -35,7 +37,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private void loadImagebtn_Click(object sender, EventArgs e)
         {
             OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Filter = "Image files (*.jpg)|*.jpg|All Files (*.*)|*.*";
+            dlg.Filter = "JPG (*.jpg)|*.jpg|PNG (*.png)|*.png|Bitmap (*.bmp)|*.bmp|All Files (*.*)|*.*";
 
             if (dlg.ShowDialog() == DialogResult.OK)
             {
@@ -57,13 +59,20 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             string filename = (string)imageLoadedCombobox.SelectedItem;
 
-            if (Images.TryGetValue(filename, out var image) && Int32.TryParse(widthTxt.Text, out int width) && Int32.TryParse(heightTxt.Text, out int height))
+            try
             {
-                pictureBoxImage.Image = image.Stretch(width, height);
+                if (Images.TryGetValue(filename, out var image) && Int32.TryParse(widthTxt.Text, out int width) && Int32.TryParse(heightTxt.Text, out int height))
+                {
+                    pictureBoxImage.Image = image.Stretch(width, height);
 
-            };
+                };
 
-            pictureBoxImage.Invalidate();
+                pictureBoxImage.Invalidate();
+            }
+            catch
+            {
+
+            }
         }
 
 
@@ -143,11 +152,12 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 int xOffset = image.Image.Width + 100;
                 using (Graphics g = Graphics.FromImage(newBitmap))
                 {
+                    CustomImage.SetBetterGraphics(g);
                     g.DrawImage(image.Image, new Rectangle(0 + xOffset, 0, image.Image.Width, image.Image.Height));
 
                     foreach (var keyValueBitmap in TileSplitted)
                     {
-                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X , keyValueBitmap.Key.Y , 44, 44);
+                        Rectangle rect = new Rectangle(keyValueBitmap.Key.X + 5, keyValueBitmap.Key.Y + 5, 44, 44);
                         g.DrawImage(keyValueBitmap.Value, rect);
                     }
                 }
@@ -174,9 +184,134 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                         keyValue.Value.Save(saveFileDialog1.FileName + $"_{keyValue.Key.X}_{keyValue.Key.Y}.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
                     }
                 }
+            }
+        }
+
+        private void gridBtn_Click(object sender, EventArgs e)
+        {
+            string filename = (string)imageLoadedCombobox.SelectedItem;
+
+            if (Images.TryGetValue(filename, out var image))
+                pictureBoxImage.Image = image.Image;
+
+            pictureBoxImage.Image = image.FillWithTileMatrix();
+        }
+
+        private void savePictureBtn_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog1 = new SaveFileDialog();
+            saveFileDialog1.Filter = "JPeg Image|*.jpg|Bitmap Image|*.bmp|png Image|*.png";
+            saveFileDialog1.Title = "Save an Image File";
+            saveFileDialog1.ShowDialog();
+
+            string filename = (string)imageLoadedCombobox.SelectedItem;
+
+            if (filename is null)
+                return;
+
+            try
+            {
+                if (Images.TryGetValue(filename, out var image))
+                {
+                    if (saveFileDialog1.FileName != "")
+                    {
+                        if (saveFileDialog1.FileName.Contains(".jpg"))
+                            image.Image.Save(saveFileDialog1.FileName, System.Drawing.Imaging.ImageFormat.Jpeg);
+                        if (saveFileDialog1.FileName.Contains(".png"))
+                            image.Image.Save(saveFileDialog1.FileName, System.Drawing.Imaging.ImageFormat.Png);
+                        if (saveFileDialog1.FileName.Contains(".bmp"))
+                            image.Image.Save(saveFileDialog1.FileName, System.Drawing.Imaging.ImageFormat.Bmp);
+
+                    }
+                }
+            }
+            catch
+            {
+
+            }
+
+            // If the file name is not an empty string open it for saving.
+
+        }
 
 
 
+        private void createGridOnTrasparentBtn_Click(object sender, EventArgs e)
+        {
+
+            if (Int32.TryParse(widthTxt.Text, out int width) && Int32.TryParse(heightTxt.Text, out int height))
+            {
+                CustomImage customImage = new CustomImage(new Bitmap(width, height));
+
+                using (Graphics g = Graphics.FromImage(customImage.Image))
+                {
+                    CustomImage.SetBetterGraphics(g);
+
+                    g.Clear(Color.Transparent);
+                    g.DrawImage(customImage.FillWithTileMatrix(), new Rectangle(0, 0, width, height));
+
+                    g.Save();
+                }
+
+                customImage.Save();
+
+                try
+                {
+                    string gridName = "grid image";
+                    Images[gridName] = customImage;
+
+                    if (!imageLoadedCombobox.Items.Contains(gridName))
+                    {
+                        imageLoadedCombobox.Items.Add(gridName);
+                    }
+
+                    imageLoadedCombobox.SelectedItem = gridName;
+
+                    pictureBoxImage.Image = customImage.Image;
+                }
+                catch
+                {
+
+                }
+            }
+        }
+
+        private void gridWithRectLine_Click(object sender, EventArgs e)
+        {
+            if (Int32.TryParse(widthTxt.Text, out int width) && Int32.TryParse(heightTxt.Text, out int height))
+            {
+                CustomImage customImage = new CustomImage(new Bitmap(width, height));
+
+                using (Graphics g = Graphics.FromImage(customImage.Image))
+                {
+                    CustomImage.SetBetterGraphics(g);
+
+                    g.Clear(Color.Transparent);
+                    g.DrawImage(customImage.FillWithTileMatrixFilledByLine(), new Rectangle(0, 0, width, height));
+
+                    g.Save();
+                }
+
+                customImage.Save();
+
+                try
+                {
+                    string gridName = "grid image";
+                    Images[gridName] = customImage;
+
+                    if (!imageLoadedCombobox.Items.Contains(gridName))
+                    {
+                        imageLoadedCombobox.Items.Add(gridName);
+                    }
+
+                    imageLoadedCombobox.SelectedItem = gridName;
+
+                    pictureBoxImage.Image = customImage.Image;
+                }
+                catch
+                {
+
+                }
             }
         }
     }

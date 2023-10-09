@@ -35,22 +35,22 @@ namespace UoFiddler.Plugin.ExamplePlugin
         /// <summary>
         /// Name of the plugin
         /// </summary>
-        public override string Name { get; } = "ImageParserPlugin";
+        public override string Name { get; } = "ImageParser Plugin";
 
         /// <summary>
         /// Description of the Plugin's purpose
         /// </summary>
-        public override string Description { get; } = "This is example plugin.";
+        public override string Description { get; } = "This plugin is used for parsing image splitted for tile";
 
         /// <summary>
         /// Author of the plugin
         /// </summary>
-        public override string Author { get; } = "Turley";
+        public override string Author { get; } = "Giga487";
 
         /// <summary>
         /// Version of the plugin
         /// </summary>
-        public override string Version { get; } = "1.0.0";
+        public override string Version { get; } = "1.0.1";
 
         /// <summary>
         /// Host of the plugin.
@@ -72,7 +72,7 @@ namespace UoFiddler.Plugin.ExamplePlugin
             TabPage page = new TabPage
             {
                 Tag = tabControl.TabCount + 1, // at end used for undock/dock feature to define the order
-                Text = "ImageParserPlugin"
+                Text = "ImageParser"
             };
             page.Controls.Add(new ImageParserBase());
             tabControl.TabPages.Add(page);
@@ -82,7 +82,7 @@ namespace UoFiddler.Plugin.ExamplePlugin
         {
             ToolStripMenuItem item = new ToolStripMenuItem
             {
-                Text = "ImageParserPlugin"
+                Text = "ImageParser"
             };
             item.Click += ItemClick;
             toolStrip.DropDownItems.Add(item);
