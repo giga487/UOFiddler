@@ -3,15 +3,15 @@
 		<OutputType>WinExe</OutputType>
 		<ApplicationIcon>Resources\UOFiddlerIcon.ico</ApplicationIcon>
 		<StartupObject>UoFiddler.Program</StartupObject>
-		<TargetFramework>net7.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AssemblyTitle>UoFiddler</AssemblyTitle>
 		<Product>UoFiddler</Product>
-		<Copyright>Copyright © 2023</Copyright>
-		<AssemblyVersion>4.10.9</AssemblyVersion>
-		<FileVersion>4.10.9</FileVersion>
-		<Version>4.10.9</Version>
+		<Copyright>Copyright © 2024</Copyright>
+		<AssemblyVersion>4.15.1</AssemblyVersion>
+		<FileVersion>4.15.1</FileVersion>
+		<Version>4.15.1</Version>
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
 	</PropertyGroup>
 	<PropertyGroup>
@@ -150,9 +150,15 @@
 		</None>
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Octokit" Version="7.1.0" />
-		<PackageReference Include="Serilog" Version="3.0.1" />
-		<PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-		<PackageReference Include="System.Resources.Extensions" Version="7.0.0" />
+		<PackageReference Include="Octokit" Version="13.0.1" />
+		<PackageReference Include="Serilog" Version="4.0.1" />
+		<PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+		<PackageReference Include="System.Drawing.Common" Version="8.0.8" />
+		<PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Update="old-changelog.txt">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 </Project>

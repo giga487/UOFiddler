@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<AssemblyName>MassImport</AssemblyName>
-		<TargetFramework>net7.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AssemblyTitle>MassImportPlugin</AssemblyTitle>
 		<Product>MassImportPlugin</Product>
-		<Copyright>Copyright © 2023</Copyright>
+		<Copyright>Copyright © 2024</Copyright>
 		<AssemblyVersion>1.1.0.0</AssemblyVersion>
 		<FileVersion>1.1.0.0</FileVersion>
 	</PropertyGroup>
@@ -25,6 +25,9 @@
 		<OutputPath>..\UoFiddler\bin\$(Configuration)\plugins\</OutputPath>
 		<GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
 	</PropertyGroup>
+	<ItemGroup>
+	  <PackageReference Include="System.Drawing.Common" Version="8.0.8" />
+	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Forms\MassImportForm.cs">
 			<SubType>Form</SubType>
