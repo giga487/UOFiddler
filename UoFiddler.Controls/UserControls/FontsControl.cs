@@ -33,6 +33,8 @@ namespace UoFiddler.Controls.UserControls
             setOffsetsToolStripMenuItem.Visible = false;
 
             splitContainer2.SplitterDistance = splitContainer2.Height - 40;
+
+            ControlEvents.FontLoaderReloadEvent += ControlEvents_FontLoaderReloadEvent;
         }
 
         private bool _loaded;
@@ -49,7 +51,13 @@ namespace UoFiddler.Controls.UserControls
                 OnLoad(this, EventArgs.Empty);
             }
         }
-
+        private void ControlEvents_FontLoaderReloadEvent()
+        {
+            if (_loaded)
+            {
+                OnLoad(this, EventArgs.Empty);
+            }
+        }
         /// <summary>
         /// Refreshes view if Offset of Unicode char is changed
         /// </summary>
@@ -99,6 +107,9 @@ namespace UoFiddler.Controls.UserControls
 
                 for (int i = 0; i < AsciiText.Fonts.Length; ++i)
                 {
+                    if (AsciiText.Fonts[i] is null)
+                        continue;
+
                     node = new TreeNode(i.ToString())
                     {
                         Tag = i

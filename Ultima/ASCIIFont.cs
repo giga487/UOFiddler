@@ -12,6 +12,13 @@ namespace Ultima
         public Bitmap[] Characters { get; set; }
         public int Height { get; set; }
 
+        public AsciiFont(byte header, AsciiFont font)
+        {
+            Header = header;
+            Height = 0;
+            Unk = font.Unk;
+            Characters = font.Characters;
+        }
         public AsciiFont(byte header)
         {
             Header = header;
@@ -66,7 +73,7 @@ namespace Ultima
 
     public static class AsciiText
     {
-        public static readonly AsciiFont[] Fonts = new AsciiFont[10];
+        public static readonly AsciiFont[] Fonts = new AsciiFont[20];
 
         static AsciiText()
         {
@@ -91,9 +98,15 @@ namespace Ultima
                 fixed (byte* bin = buffer)
                 {
                     byte* read = bin;
-                    for (int i = 0; i < 10; ++i)
+                    for (int i = 0; i < Fonts.Length; ++i)
                     {
                         byte header = *read++;
+
+                        if (header == 0)
+                        {
+                            continue;
+                        }
+
                         Fonts[i] = new AsciiFont(header);
 
                         for (int k = 0; k < 224; ++k)
@@ -144,12 +157,35 @@ namespace Ultima
             }
         }
 
+        public static bool FreeFontIndex(out int freeFont)
+        {
+            freeFont = -1;
+
+            for (int i = 0; i < AsciiText.Fonts.Length; i++)
+            {
+                if (AsciiText.Fonts[i] is null)
+                {
+                    freeFont = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static unsafe void Save(string fileName)
         {
             using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write, FileShare.Write))
             using (var bin = new BinaryWriter(fs))
             {
-                for (int i = 0; i < 10; ++i)
+                int lastFont = Fonts.Length - 1;
+
+                if (AsciiText.FreeFontIndex(out int freefont))
+                {
+                    lastFont = freefont - 1;
+                }
+
+                for (int i = 0; i < freefont; ++i)
                 {
                     bin.Write(Fonts[i].Header);
                     for (int k = 0; k < 224; ++k)

@@ -38,7 +38,7 @@ namespace UoFiddler.Controls.Classes
         public delegate void AlwaysOnTopChangeHandler(bool value);
 
         public delegate void ProgressChangeHandler();
-
+        public delegate void FontReloadHandler();
         /// <summary>
         /// Fired when map diff file usage is switched
         /// </summary>
@@ -104,6 +104,15 @@ namespace UoFiddler.Controls.Classes
         /// </summary>
         public static event ProgressChangeHandler ProgressChangeEvent;
 
+        /// <summary>
+        /// Fired on reload files
+        /// </summary>
+        public static event FontReloadHandler FontLoaderReloadEvent;
+
+        public static void FontLoaderReload()
+        {
+            FontLoaderReloadEvent?.Invoke();
+        }
         public static void FireMapDiffChangeEvent()
         {
             MapDiffChangeEvent?.Invoke();
@@ -120,6 +129,11 @@ namespace UoFiddler.Controls.Classes
         }
 
         public static void FireFilePathChangeEvent()
+        {
+            FilePathChangeEvent?.Invoke();
+        }
+
+        public static void LoadFontEvent()
         {
             FilePathChangeEvent?.Invoke();
         }

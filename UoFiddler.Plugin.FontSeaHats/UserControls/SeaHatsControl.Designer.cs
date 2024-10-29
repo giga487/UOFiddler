@@ -41,6 +41,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             fontPage = new System.Windows.Forms.TabPage();
+            AddFontBtn = new System.Windows.Forms.Button();
             _pictureBox = new System.Windows.Forms.PictureBox();
             createButton = new System.Windows.Forms.Button();
             FontCreator = new System.Windows.Forms.Button();
@@ -65,6 +66,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // fontPage
             // 
+            fontPage.Controls.Add(AddFontBtn);
             fontPage.Controls.Add(_pictureBox);
             fontPage.Controls.Add(createButton);
             fontPage.Controls.Add(FontCreator);
@@ -79,6 +81,15 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.UseVisualStyleBackColor = true;
             fontPage.Click += fontPage_Click;
             // 
+            // AddFontBtn
+            // 
+            AddFontBtn.Location = new System.Drawing.Point(85, 352);
+            AddFontBtn.Name = "AddFontBtn";
+            AddFontBtn.Size = new System.Drawing.Size(118, 23);
+            AddFontBtn.TabIndex = 4;
+            AddFontBtn.Text = "Create ";
+            AddFontBtn.Click += AddFontBtn_Click;
+            // 
             // _pictureBox
             // 
             _pictureBox.Location = new System.Drawing.Point(209, 40);
@@ -86,6 +97,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             _pictureBox.Size = new System.Drawing.Size(568, 335);
             _pictureBox.TabIndex = 3;
             _pictureBox.TabStop = false;
+            _pictureBox.Paint += _pictureBox_Paint_1;
             // 
             // createButton
             // 
@@ -161,5 +173,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.FontDialog fontDialog1;
         private System.Windows.Forms.Button createButton;
         private System.Windows.Forms.PictureBox _pictureBox;
+        private System.Windows.Forms.Button AddFontBtn;
     }
 }
