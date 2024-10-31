@@ -22,18 +22,27 @@ using static System.Net.Mime.MediaTypeNames;
 using System.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 
 namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 {
     public partial class SeaHatsControl : UserControl
     {
+        string _firstNumber => " !\"#$%&'[]*+',./0123456789:;<=>?@";
+        string _stringLetter => "abcdefghijklmnopqrstuvwxyz";
+        string _charUseful => "[\\] - ";
+
+        string lastString { get; set; } = string.Empty;
         public SeaHatsControl()
         {
             InitializeComponent();
 
+            lastString = _firstNumber + _stringLetter.ToUpper() + _charUseful + _stringLetter;
+
+
             LoadFont();
-            label1.Text = _exampleStringLetter; ;
+            label1.Text = _stringLetter; ;
 
             _pictureBox = new PictureBox
             {
@@ -78,8 +87,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         }
 
-        string _exampleStringLetter => "abcdefghijklmnopqrstuvwxyz";
-        string _charUseul => "[];:!?";
         FontDialog _fontDialog { get; set; } = null;
         private void FontCreator_Click(object sender, EventArgs e)
         {
@@ -88,9 +95,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 _font = _fontDialog.Font;
                 label1.Font = _font;
-                label1.Text = _exampleStringLetter;
+                label1.Text = _stringLetter;
 
-                _pictureBox.Invalidate();
+                _pictureBox.Refresh();
             }
 
             //var fontDialogResult = _fontDialog.
@@ -98,16 +105,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         System.Drawing.Font _font { get; set; } = null;
 
-
-        private void createButton_Click(object sender, EventArgs e)
+        private void DrawButton_Click(object sender, EventArgs e)
         {
             if (_font is not null)
             {
-                _pictureBox.Refresh();
+                _pictureBox.Invalidate();
             }
 
         }
 
+        List<Bitmap> _listBitmap = new List<Bitmap>();
         private async void _pictureBox_Paint_1(object sender, PaintEventArgs e)
         {
 
@@ -117,15 +124,13 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 //Font font = new Font("Arial", 16);
                 int x = 0;
                 int y = 0;
-                char[] charArray = _exampleStringLetter.ToCharArray(); 
-                char[] usefulArray = _charUseul.ToCharArray();
-                char[] charArrayUpper = _exampleStringLetter.ToUpper().ToCharArray();
 
-                var array = charArray.Concat(usefulArray).Concat(charArrayUpper).ToArray();
+                var array = lastString.ToCharArray();
 
                 int border = 5;
                 int i = 0;
 
+                _listBitmap.Clear();
                 foreach (char c in array)
                 {
                     SizeF size = g.MeasureString(c.ToString(), _font);
@@ -134,30 +139,42 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                     try
                     {
+
+                        //Scrittura su bitmap
                         using (Bitmap bitmap = new Bitmap((int)size.Width, (int)size.Height))
                         {
+                            System.Drawing.Brush rectanglebrush = System.Drawing.Brushes.Blue;
+                            var pen = new System.Drawing.Pen(brush);
+                            pen.PenType = System.Drawing.Drawing2D.PenType.SolidColor;
+                            x += bitmap.Width;
+                            Point positionInPicturebox = new Point(x, y);
+
+                            e.Graphics.DrawRectangle(new System.Drawing.Pen(brush), new Rectangle(positionInPicturebox, bitmap.Size));
+                            e.Graphics.DrawString(c.ToString(), _font, brush, positionInPicturebox);
+
                             using (Graphics g2 = Graphics.FromImage(bitmap))
                             {
-                                //g2.Clear(System.Drawing.Color.Blue);
-                                x = (int)(0);
-                                PointF position = new PointF(x, y);
+                                g2.Clear(System.Drawing.Color.Blue);
+   
+                                PointF position = new PointF(0, 0);
                                 g2.DrawString(c.ToString(), _font, brush, position);
                             }
 
-                            string nam = string.Empty;
-                            if (charArrayUpper.Contains(c))
-                            {
-                                nam = $"{c.ToString()}_UPPER.tiff";
-                                bitmap.Save(nam, System.Drawing.Imaging.ImageFormat.Tiff);
-                            }
-                            else
-                            {
-                                nam = $"{c.ToString()}.tiff";
-                                bitmap.Save(nam, System.Drawing.Imaging.ImageFormat.Tiff);
-                            }
+                            _listBitmap.Add(bitmap);
 
-                            AsciiText.Fonts[10].Characters[i++] = bitmap;
+                            //string nam = string.Empty;
+                            //if (array.Contains(c))
+                            //{
+                            //    nam = $"{c.ToString()}_UPPER.tiff";
+                            //    bitmap.Save(nam, System.Drawing.Imaging.ImageFormat.Tiff);
+                            //}
+                            //else
+                            //{
+                            //    nam = $"{c.ToString()}.tiff";
+                            //    bitmap.Save(nam, System.Drawing.Imaging.ImageFormat.Tiff);
+                            //}
 
+                            //AsciiText.Fonts[10].Characters[i++] = bitmap;
                         }
                     }
                     catch
@@ -176,6 +193,32 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 lastFont = AsciiText.Fonts[freefont - 1];
                 AsciiText.Fonts[freefont] = new AsciiFont((byte)freefont, lastFont);
+
+                MessageBox.Show($"You have created the {freefont} of ASCII font copied from {lastFont.Header}");
+
+                ControlEvents.FontLoaderReload();
+            }
+        }
+
+        private void AutoFillBtn_Click(object sender, EventArgs e)
+        {
+            AsciiFont lastFont = null;
+
+            if (AsciiText.FreeFontIndex(out int freefont))
+            {
+                lastFont = AsciiText.Fonts[freefont - 1];
+                AsciiText.Fonts[freefont] = new AsciiFont((byte)freefont, lastFont);
+
+                for (int i = 0; i < _listBitmap.Count; i++)
+                {
+                    if (_listBitmap[i] == null)
+                    {
+                        continue;
+                    }
+
+                    AsciiText.Fonts[freefont].ReplaceCharacter(i, _listBitmap[i]);
+                }
+
 
                 MessageBox.Show($"You have created the {freefont} of ASCII font copied from {lastFont.Header}");
 

@@ -41,9 +41,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             fontPage = new System.Windows.Forms.TabPage();
+            autoFillFontBtn = new System.Windows.Forms.Button();
             AddFontBtn = new System.Windows.Forms.Button();
             _pictureBox = new System.Windows.Forms.PictureBox();
-            createButton = new System.Windows.Forms.Button();
+            DrawBtn = new System.Windows.Forms.Button();
             FontCreator = new System.Windows.Forms.Button();
             label1 = new System.Windows.Forms.Label();
             fontListBox = new System.Windows.Forms.ListBox();
@@ -66,9 +67,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // fontPage
             // 
+            fontPage.Controls.Add(autoFillFontBtn);
             fontPage.Controls.Add(AddFontBtn);
             fontPage.Controls.Add(_pictureBox);
-            fontPage.Controls.Add(createButton);
+            fontPage.Controls.Add(DrawBtn);
             fontPage.Controls.Add(FontCreator);
             fontPage.Controls.Add(label1);
             fontPage.Controls.Add(fontListBox);
@@ -80,6 +82,15 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.Text = "Font";
             fontPage.UseVisualStyleBackColor = true;
             fontPage.Click += fontPage_Click;
+            // 
+            // autoFillFontBtn
+            // 
+            autoFillFontBtn.Location = new System.Drawing.Point(85, 319);
+            autoFillFontBtn.Name = "autoFillFontBtn";
+            autoFillFontBtn.Size = new System.Drawing.Size(118, 27);
+            autoFillFontBtn.TabIndex = 5;
+            autoFillFontBtn.Text = "Auto Fill Font";
+            autoFillFontBtn.Click += AutoFillBtn_Click;
             // 
             // AddFontBtn
             // 
@@ -99,15 +110,15 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             _pictureBox.TabStop = false;
             _pictureBox.Paint += _pictureBox_Paint_1;
             // 
-            // createButton
+            // DrawBtn
             // 
-            createButton.Location = new System.Drawing.Point(209, 3);
-            createButton.Name = "createButton";
-            createButton.Size = new System.Drawing.Size(75, 23);
-            createButton.TabIndex = 2;
-            createButton.Text = "Draw";
-            createButton.UseVisualStyleBackColor = true;
-            createButton.Click += createButton_Click;
+            DrawBtn.Location = new System.Drawing.Point(209, 3);
+            DrawBtn.Name = "DrawBtn";
+            DrawBtn.Size = new System.Drawing.Size(75, 23);
+            DrawBtn.TabIndex = 2;
+            DrawBtn.Text = "Draw";
+            DrawBtn.UseVisualStyleBackColor = true;
+            DrawBtn.Click += DrawButton_Click;
             // 
             // FontCreator
             // 
@@ -171,8 +182,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button FontCreator;
         private System.Windows.Forms.FontDialog fontDialog1;
-        private System.Windows.Forms.Button createButton;
+        private System.Windows.Forms.Button DrawBtn;
         private System.Windows.Forms.PictureBox _pictureBox;
         private System.Windows.Forms.Button AddFontBtn;
+        private System.Windows.Forms.Button autoFillFontBtn;
     }
 }
