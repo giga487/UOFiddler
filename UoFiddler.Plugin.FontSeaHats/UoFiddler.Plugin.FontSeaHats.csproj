@@ -30,9 +30,7 @@
 		<Compile Update="Forms\ExampleForm.Designer.cs">
 			<DependentUpon>ExampleForm.cs</DependentUpon>
 		</Compile>
-		<Compile Update="UserControls\SeaHatsControl.cs">
-			<SubType>UserControl</SubType>
-		</Compile>
+		<Compile Update="UserControls\SeaHatsControl.cs" />
 		<Compile Update="UserControls\SeaHatsControl.Designer.cs">
 			<DependentUpon>SeaHatsControl.cs</DependentUpon>
 		</Compile>

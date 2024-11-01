@@ -46,10 +46,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             _pictureBox = new System.Windows.Forms.PictureBox();
             DrawBtn = new System.Windows.Forms.Button();
             FontCreator = new System.Windows.Forms.Button();
-            label1 = new System.Windows.Forms.Label();
             fontListBox = new System.Windows.Forms.ListBox();
             otherStuffsPage = new System.Windows.Forms.TabPage();
             fontDialog1 = new System.Windows.Forms.FontDialog();
+            reloadBtn = new System.Windows.Forms.Button();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
@@ -62,22 +62,22 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             tabControl1.Location = new System.Drawing.Point(0, 3);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new System.Drawing.Size(785, 409);
+            tabControl1.Size = new System.Drawing.Size(2068, 499);
             tabControl1.TabIndex = 0;
             // 
             // fontPage
             // 
+            fontPage.Controls.Add(reloadBtn);
             fontPage.Controls.Add(autoFillFontBtn);
             fontPage.Controls.Add(AddFontBtn);
             fontPage.Controls.Add(_pictureBox);
             fontPage.Controls.Add(DrawBtn);
             fontPage.Controls.Add(FontCreator);
-            fontPage.Controls.Add(label1);
             fontPage.Controls.Add(fontListBox);
             fontPage.Location = new System.Drawing.Point(4, 24);
             fontPage.Name = "fontPage";
             fontPage.Padding = new System.Windows.Forms.Padding(3);
-            fontPage.Size = new System.Drawing.Size(777, 381);
+            fontPage.Size = new System.Drawing.Size(2060, 471);
             fontPage.TabIndex = 0;
             fontPage.Text = "Font";
             fontPage.UseVisualStyleBackColor = true;
@@ -105,7 +105,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             _pictureBox.Location = new System.Drawing.Point(209, 40);
             _pictureBox.Name = "_pictureBox";
-            _pictureBox.Size = new System.Drawing.Size(568, 335);
+            _pictureBox.Size = new System.Drawing.Size(1826, 335);
             _pictureBox.TabIndex = 3;
             _pictureBox.TabStop = false;
             _pictureBox.Paint += _pictureBox_Paint_1;
@@ -129,33 +129,34 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             FontCreator.Text = "Create ";
             FontCreator.Click += FontCreator_Click;
             // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(299, 10);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(99, 15);
-            label1.TabIndex = 1;
-            label1.Text = "ABCDEFGHILMIN";
-            // 
             // fontListBox
             // 
             fontListBox.FormattingEnabled = true;
             fontListBox.ItemHeight = 15;
             fontListBox.Location = new System.Drawing.Point(6, 40);
             fontListBox.Name = "fontListBox";
-            fontListBox.Size = new System.Drawing.Size(197, 184);
+            fontListBox.Size = new System.Drawing.Size(197, 214);
             fontListBox.TabIndex = 0;
+            fontListBox.SelectedIndexChanged += fontListBox_SelectedIndexChanged;
             // 
             // otherStuffsPage
             // 
             otherStuffsPage.Location = new System.Drawing.Point(4, 24);
             otherStuffsPage.Name = "otherStuffsPage";
             otherStuffsPage.Padding = new System.Windows.Forms.Padding(3);
-            otherStuffsPage.Size = new System.Drawing.Size(777, 381);
+            otherStuffsPage.Size = new System.Drawing.Size(2060, 471);
             otherStuffsPage.TabIndex = 1;
             otherStuffsPage.Text = "Not Implemented Yet";
             otherStuffsPage.UseVisualStyleBackColor = true;
+            // 
+            // reloadBtn
+            // 
+            reloadBtn.Location = new System.Drawing.Point(125, 286);
+            reloadBtn.Name = "reloadBtn";
+            reloadBtn.Size = new System.Drawing.Size(78, 27);
+            reloadBtn.TabIndex = 6;
+            reloadBtn.Text = "Reload";
+            reloadBtn.Click += reloadBtn_Click;
             // 
             // SeaHatsControl
             // 
@@ -165,10 +166,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             DoubleBuffered = true;
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Name = "SeaHatsControl";
-            Size = new System.Drawing.Size(785, 412);
+            Size = new System.Drawing.Size(2071, 635);
             tabControl1.ResumeLayout(false);
             fontPage.ResumeLayout(false);
-            fontPage.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).EndInit();
             ResumeLayout(false);
         }
@@ -179,12 +179,12 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.TabPage fontPage;
         private System.Windows.Forms.TabPage otherStuffsPage;
         private System.Windows.Forms.ListBox fontListBox;
-        private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button FontCreator;
         private System.Windows.Forms.FontDialog fontDialog1;
         private System.Windows.Forms.Button DrawBtn;
         private System.Windows.Forms.PictureBox _pictureBox;
         private System.Windows.Forms.Button AddFontBtn;
         private System.Windows.Forms.Button autoFillFontBtn;
+        private System.Windows.Forms.Button reloadBtn;
     }
 }
