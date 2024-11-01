@@ -169,7 +169,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     //    heightOffset = -(int)(Math.Ceiling(size.Height * 0.3));
                     //}
 
-                    PointF position = new PointF(posX - leftOffset, heightOffset);
+                    PointF position = new PointF(posX + leftOffset, heightOffset);
                     g2.DrawString(c.ToString(), _font, brush, position, format1);
                 }
             }
@@ -181,7 +181,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             return drawn;
         }
 
-        public List<Bitmap> CreateChars(Bitmap bmp)
+        public List<Bitmap> CreateChars(Bitmap bmp, double leftOffset, System.Drawing.Brush brush)
         {
             List<Bitmap> chars = new List<Bitmap>();
 
@@ -204,7 +204,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 int i = 0;
 
                 int lastWidth = 0;
-                _listBitmap = new List<Bitmap>();
 
                 //int Width = 0;
                 //int MaxHeight = 0;
@@ -225,8 +224,21 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     }
                 }
 
+                foreach (char toAnalyze in array)
+                {
+                    var charBmp = CreateChar(bmp, toAnalyze, System.Drawing.Brushes.Green, SpaceWidth, leftOffset, 0);
+
+                    if (charBmp is not null)
+                    {
+                        chars.Add(charBmp);
+                    }
+                }
+
+
+                return chars;
                 //MaxHeight = (int)Math.Ceiling((double)MaxHeight * 0.8); ;
 
+                /*
                 foreach (char toAnalyze in array)
                 {
                     char c = toAnalyze;
@@ -236,7 +248,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     if (c == 0)
                         continue;
 
-                    /* metodo alternativo */
+#region metodoAlternativo
                     RectangleF layoutRect = new RectangleF(0, 0, 100, 100);
                     StringFormat format = new StringFormat();
 
@@ -250,7 +262,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     RectangleF bounds = regions[0].GetBounds(g);
 
                     Size size = new Size((int)bounds.Width, (int)bounds.Height);
-                    /* fine metodo alternativo */
+#endregion
 
                     System.Drawing.Brush brush = System.Drawing.Brushes.Gray;
                     System.Drawing.Brush violetBrush = new System.Drawing.SolidBrush(System.Drawing.Color.Violet);
@@ -338,6 +350,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             }
 
             return chars;
+                */
+            }
+
+            return null;
         }
 
 
@@ -347,7 +363,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
             _pictureBox.Image = bmp;
 
-            _listBitmap = CreateChars(bmp);
+            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.Black);
 
             ControlEvents.FontLoaderReload();
             _pictureBox.Refresh();
@@ -502,14 +518,21 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         }
 
-        double xOffset = 0; 
+        double xOffset = 0;
         private void trackBar1_ValueChanged(object sender, EventArgs e)
         {
             int value = trackBar1.Value;
 
             xOffset = (double)value / 10;
 
+            Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
 
+            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.Black);
+            _pictureBox.Invalidate();
+        }
+
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
 
         }
     }

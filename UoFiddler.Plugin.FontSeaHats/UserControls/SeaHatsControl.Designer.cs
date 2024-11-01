@@ -41,6 +41,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             fontPage = new System.Windows.Forms.TabPage();
+            label1 = new System.Windows.Forms.Label();
+            trackBar1 = new System.Windows.Forms.TrackBar();
             clearBtn = new System.Windows.Forms.Button();
             reloadBtn = new System.Windows.Forms.Button();
             autoFillFontBtn = new System.Windows.Forms.Button();
@@ -51,12 +53,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontListBox = new System.Windows.Forms.ListBox();
             otherStuffsPage = new System.Windows.Forms.TabPage();
             fontDialog1 = new System.Windows.Forms.FontDialog();
-            trackBar1 = new System.Windows.Forms.TrackBar();
-            label1 = new System.Windows.Forms.Label();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
             SuspendLayout();
             // 
             // tabControl1
@@ -89,6 +89,25 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.Text = "Font";
             fontPage.UseVisualStyleBackColor = true;
             fontPage.Click += fontPage_Click;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(265, 411);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(69, 15);
+            label1.TabIndex = 8;
+            label1.Text = "Char mover";
+            // 
+            // trackBar1
+            // 
+            trackBar1.Location = new System.Drawing.Point(209, 381);
+            trackBar1.Minimum = -10;
+            trackBar1.Name = "trackBar1";
+            trackBar1.Size = new System.Drawing.Size(175, 45);
+            trackBar1.TabIndex = 1;
+            trackBar1.Scroll += trackBar1_Scroll;
+            trackBar1.ValueChanged += trackBar1_ValueChanged;
             // 
             // clearBtn
             // 
@@ -174,24 +193,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             otherStuffsPage.Text = "Not Implemented Yet";
             otherStuffsPage.UseVisualStyleBackColor = true;
             // 
-            // trackBar1
-            // 
-            trackBar1.Location = new System.Drawing.Point(209, 381);
-            trackBar1.Minimum = -10;
-            trackBar1.Name = "trackBar1";
-            trackBar1.Size = new System.Drawing.Size(175, 45);
-            trackBar1.TabIndex = 1;
-            trackBar1.ValueChanged += trackBar1_ValueChanged;
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(265, 411);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(69, 15);
-            label1.TabIndex = 8;
-            label1.Text = "Char mover";
-            // 
             // SeaHatsControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -204,8 +205,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             tabControl1.ResumeLayout(false);
             fontPage.ResumeLayout(false);
             fontPage.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)_pictureBox).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBar1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_pictureBox).EndInit();
             ResumeLayout(false);
         }
 
