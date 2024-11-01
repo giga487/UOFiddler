@@ -23,6 +23,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Windows.Shapes;
 using System.Reflection;
+using System.Runtime.InteropServices;
+
 
 
 namespace UoFiddler.Plugin.ExamplePlugin.UserControls
@@ -37,7 +39,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         public int FirstAsciiValue = 33;//33;
         public int MaxAsciiValue = 126;
-        public int SpaceReference = 73; // 73 I, 79 O
+        public int SpaceReference = 79; // 73 I, 79 O
 
         public string TextToCheck = "AGLI IRTI COLLI, IL MAESTRALE FA COSE";
         public SeaHatsControl()
@@ -58,8 +60,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color.White
             };
-
-            Invalidate();
 
         }
 
@@ -112,10 +112,79 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         System.Drawing.Font _font { get; set; } = null;
 
-        private void DrawButton_Click(object sender, EventArgs e)
+
+        public Bitmap CreateChar(Bitmap bmp, Char c, System.Drawing.Brush brush, int spaceWidth, double lOffset, float heightOffset)
         {
-            Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
-            _pictureBox.Image = bmp;
+            if (c == 0)
+                return null;
+
+            Bitmap drawn = null;
+
+            Graphics g = Graphics.FromImage(bmp);
+            //SizeF size = g.MeasureString(c.ToString(), _font);
+
+            /* metodo alternativo */
+            RectangleF layoutRect = new RectangleF(0, 0, 100, 100);
+            StringFormat format = new StringFormat();
+
+            CharacterRange[] characterRanges = { new CharacterRange(0, 1) };
+            format.SetMeasurableCharacterRanges(characterRanges);
+            format.Alignment = StringAlignment.Near;
+
+            Region[] regions = g.MeasureCharacterRanges($"{c}", _font, layoutRect, format);
+
+            g.MeasureCharacterRanges(c.ToString(), _font, layoutRect, format);
+            RectangleF bounds = regions[0].GetBounds(g);
+
+            Size size = new Size((int)bounds.Width, (int)bounds.Height);
+            /* fine metodo alternativo di misurazione */
+
+            try
+            {
+                drawn = new Bitmap((int)(size.Width), (int)(size.Height));
+                if (c == 32)
+                {
+                    drawn = new Bitmap((int)(spaceWidth), (int)(size.Height));
+                }
+
+                StringFormat format1 = new StringFormat()
+                {
+                    Alignment = StringAlignment.Near,
+                };
+
+                int leftOffset = (int)(Math.Round(drawn.Width * lOffset, 0));
+
+                using (Graphics g2 = Graphics.FromImage(drawn))
+                {
+                    g2.Clear(System.Drawing.Color.Transparent);
+
+                    float posX = 0;
+
+                    //if ( c == '6' || c == '8')
+                    //{
+                    //    heightOffset = (int)(Math.Ceiling(size.Height * 0.08));
+                    //}
+                    //else if ((c >= 65 && c < 91))
+                    //{
+                    //    heightOffset = -(int)(Math.Ceiling(size.Height * 0.3));
+                    //}
+
+                    PointF position = new PointF(posX - leftOffset, heightOffset);
+                    g2.DrawString(c.ToString(), _font, brush, position, format1);
+                }
+            }
+            catch
+            {
+
+            }
+
+            return drawn;
+        }
+
+        public List<Bitmap> CreateChars(Bitmap bmp)
+        {
+            List<Bitmap> chars = new List<Bitmap>();
+
             Graphics g = Graphics.FromImage(bmp);
 
             if (_font is not null)
@@ -129,7 +198,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 int sizeToAdd = 224 - array.Length;
                 var newCharArray = new char[sizeToAdd];
 
-                array = [..array, ..newCharArray];
+                array = [.. array, .. newCharArray];
 
                 int border = 2;
                 int i = 0;
@@ -138,42 +207,50 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 _listBitmap = new List<Bitmap>();
 
                 //int Width = 0;
-                int MaxHeight = 0;
+                //int MaxHeight = 0;
                 int SpaceWidth = 0;
 
                 foreach (char c in array)
                 {
                     SizeF size = g.MeasureString(c.ToString(), _font);
 
-                    if (size.Height > MaxHeight)
-                    {
-                        MaxHeight = (int)size.Height;
-                    }
+                    //if (size.Height > MaxHeight)
+                    //{
+                    //    MaxHeight = (int)size.Height;
+                    //}
 
                     if (c == SpaceReference)
                     {
-                        SpaceWidth = (int)(Math.Round(size.Width * 0.8, 0));
+                        SpaceWidth = (int)(Math.Round(size.Width * 0.7 * 0.4, 0));
                     }
                 }
+
+                //MaxHeight = (int)Math.Ceiling((double)MaxHeight * 0.8); ;
 
                 foreach (char toAnalyze in array)
                 {
                     char c = toAnalyze;
 
-                    SizeF size = g.MeasureString(c.ToString(), _font);
+                    //SizeF size = g.MeasureString(c.ToString(), _font);
 
-                    //RectangleF layoutRect = new RectangleF(10, 10, 300, 50);
-                    //StringFormat format = new StringFormat();
+                    if (c == 0)
+                        continue;
 
-                    //CharacterRange[] characterRanges = { new CharacterRange(0, 1) };
-                    //format.SetMeasurableCharacterRanges(characterRanges);
+                    /* metodo alternativo */
+                    RectangleF layoutRect = new RectangleF(0, 0, 100, 100);
+                    StringFormat format = new StringFormat();
 
-                    //Region[] regions = g.MeasureCharacterRanges($"{c}", _font, layoutRect, format);
+                    CharacterRange[] characterRanges = { new CharacterRange(0, 1) };
+                    format.SetMeasurableCharacterRanges(characterRanges);
+                    format.Alignment = StringAlignment.Near;
 
-                    //g.MeasureCharacterRanges(c.ToString(), _font, layoutRect, format);
-                    //RectangleF bounds = regions[0].GetBounds(g);
+                    Region[] regions = g.MeasureCharacterRanges($"{c}", _font, layoutRect, format);
 
-                    //Size boundsSize = new Size((int)bounds.Width, Height);
+                    g.MeasureCharacterRanges(c.ToString(), _font, layoutRect, format);
+                    RectangleF bounds = regions[0].GetBounds(g);
+
+                    Size size = new Size((int)bounds.Width, (int)bounds.Height);
+                    /* fine metodo alternativo */
 
                     System.Drawing.Brush brush = System.Drawing.Brushes.Gray;
                     System.Drawing.Brush violetBrush = new System.Drawing.SolidBrush(System.Drawing.Color.Violet);
@@ -183,18 +260,18 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                         //Scrittura su bitmap
                         //Bitmap bitmap = new Bitmap(boundsSize.Width, boundsSize.Height))
 
-                        if (c == 0)
+                        //if (c == 0)
+                        //{
+                        //    c = (char)32;
+                        //}
+
+                        Bitmap bitmap = new Bitmap((int)(size.Width), (int)(size.Height));
+                        if (c == 32)
                         {
-                            c = ' ';
+                            bitmap = new Bitmap((int)(SpaceWidth), (int)(size.Height));
                         }
 
-                        Bitmap bitmap = new Bitmap((int)(size.Width * 0.7), MaxHeight);
-                        if (c == ' ')
-                        {
-                            bitmap = new Bitmap((int)(SpaceWidth), MaxHeight);
-                        }
-
-                        int leftOffset = (int)(Math.Round(bitmap.Width * 0.15, 0));
+                        int leftOffset = (int)(Math.Round(bitmap.Width * xOffset, 0));
                         int heightOffset = 0;
 
                         System.Drawing.Brush rectanglebrush = System.Drawing.Brushes.Blue;
@@ -221,8 +298,13 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                         var rectangle = new System.Drawing.Rectangle(positionInPicturebox, bitmap.Size);
                         //var rectangle = new Rectangle(positionInPicturebox, boundsSize);
 
+                        StringFormat format1 = new StringFormat()
+                        {
+                            Alignment = StringAlignment.Near,
+                        };
+
                         g.DrawRectangle(new System.Drawing.Pen(violetBrush), rectangle);
-                        g.DrawString(c.ToString(), _font, brush, positionLetter);
+                        g.DrawString(c.ToString(), _font, brush, positionLetter, format1);
 
                         using (Graphics g2 = Graphics.FromImage(bitmap))
                         {
@@ -230,20 +312,20 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                             float posX = 0;
 
-                            if ( c == '6' || c == '8')
-                            {
-                                heightOffset = (int)(Math.Ceiling(size.Height * 0.08));
-                            }
-                            else if ((c >= 65 && c < 91) || c == '6' || c == '8')
-                            {
-                                heightOffset = (int)(Math.Ceiling(size.Height * 0.05));
-                            }
+                            //if ( c == '6' || c == '8')
+                            //{
+                            //    heightOffset = (int)(Math.Ceiling(size.Height * 0.08));
+                            //}
+                            //else if ((c >= 65 && c < 91))
+                            //{
+                            //    heightOffset = -(int)(Math.Ceiling(size.Height * 0.3));
+                            //}
 
                             PointF position = new PointF(posX - leftOffset, heightOffset);
-                            g2.DrawString(c.ToString(), _font, brush, position);
+                            g2.DrawString(c.ToString(), _font, brush, position, format1);
                         }
 
-                        _listBitmap.Add(bitmap);
+                        chars.Add(bitmap);
 
                         lastWidth = (int)bitmap.Width + border;
 
@@ -255,6 +337,19 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 }
             }
 
+            return chars;
+        }
+
+
+
+        private void DrawButton_Click(object sender, EventArgs e)
+        {
+            Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
+            _pictureBox.Image = bmp;
+
+            _listBitmap = CreateChars(bmp);
+
+            ControlEvents.FontLoaderReload();
             _pictureBox.Refresh();
         }
 
@@ -298,8 +393,39 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 lastWidth = (int)characterBitmap.Width + border;
             }
 
-        }
+            char[] test = "Perche' Con Quella C Aspirata E Quel Senso Dell'Umorismo Da 4 Soldi I Toscani Hanno Devastato Questo Paese, E Questo Lo Devi Scrivere, Per favore ZYJKX!".ToCharArray();
 
+            int yTest = 1;
+            int xTest = 0;
+            i = 1;
+
+            foreach (var characterBitmap in test)
+            {
+                if (AsciiText.Fonts[_selected] is null)
+                {
+                    break;
+                }
+                var bitmap = AsciiText.Fonts[_selected].GetBitmap(characterBitmap);
+                PointF point = new PointF(xTest, yTest);
+
+                if (characterBitmap == 32)
+                {
+
+                }
+                if (i++ % 90 == 0)
+                {
+                    yTest += (int)bitmap.Height;
+                    xTest = 0;
+
+                    point = new PointF(xTest, yTest);
+                }
+
+
+                e.Graphics.DrawRectangle(new System.Drawing.Pen(violetBrush), new RectangleF(point, bitmap.Size));
+                e.Graphics.DrawImage(bitmap, point);
+                xTest += bitmap.Width;
+            }
+        }
         private void AddFontBtn_Click(object sender, EventArgs e)
         {
             AsciiFont lastFont = null;
@@ -352,9 +478,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void fontListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int index = fontListBox.SelectedIndex;
+            _selected = fontListBox.SelectedIndex;
 
-            _listBitmap = AsciiText.Fonts[index]?.Characters.ToList();
+            _listBitmap = AsciiText.Fonts[_selected]?.Characters.ToList();
 
             _pictureBox.Update();
         }
@@ -366,13 +492,24 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void button1_Click(object sender, EventArgs e)
         {
-            int index = fontListBox.SelectedIndex;
+            _selected = fontListBox.SelectedIndex;
 
-            if (index != -1)
+            if (_selected != -1)
             {
-                AsciiText.Fonts[index].ClearBitmaps();
+                AsciiText.Fonts[_selected].ClearBitmaps();
                 ControlEvents.FontLoaderReload();
             }
+
+        }
+
+        double xOffset = 0; 
+        private void trackBar1_ValueChanged(object sender, EventArgs e)
+        {
+            int value = trackBar1.Value;
+
+            xOffset = (double)value / 10;
+
+
 
         }
     }
