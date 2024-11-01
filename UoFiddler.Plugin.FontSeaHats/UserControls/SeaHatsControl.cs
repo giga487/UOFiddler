@@ -29,7 +29,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 {
     public partial class SeaHatsControl : UserControl
     {
-        int sevenElement = 0x39;
         string _firstNumber => " !\"#$%&'[]*+',./0123456789:;<=>?@";
         string _stringLetter => "abcdefghijklmnopqrstuvwxyz";
         string _charUseful => "[\\]^-'";
@@ -38,7 +37,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         public int FirstAsciiValue = 33;//33;
         public int MaxAsciiValue = 126;
-        public int SpaceReference = 79; // O
+        public int SpaceReference = 73; // 73 I, 79 O
 
         public string TextToCheck = "AGLI IRTI COLLI, IL MAESTRALE FA COSE";
         public SeaHatsControl()
@@ -127,11 +126,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                 var array = lastString.ToCharArray();
 
+                int sizeToAdd = 224 - array.Length;
+                var newCharArray = new char[sizeToAdd];
+
+                array = [..array, ..newCharArray];
+
                 int border = 2;
                 int i = 0;
 
                 int lastWidth = 0;
-                _listBitmap.Clear();
+                _listBitmap = new List<Bitmap>();
 
                 //int Width = 0;
                 int MaxHeight = 0;
@@ -152,8 +156,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     }
                 }
 
-                foreach (char c in array)
+                foreach (char toAnalyze in array)
                 {
+                    char c = toAnalyze;
+
                     SizeF size = g.MeasureString(c.ToString(), _font);
 
                     //RectangleF layoutRect = new RectangleF(10, 10, 300, 50);
@@ -176,6 +182,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     {
                         //Scrittura su bitmap
                         //Bitmap bitmap = new Bitmap(boundsSize.Width, boundsSize.Height))
+
+                        if (c == 0)
+                        {
+                            c = ' ';
+                        }
 
                         Bitmap bitmap = new Bitmap((int)(size.Width * 0.7), MaxHeight);
                         if (c == ' ')
@@ -219,7 +230,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                             float posX = 0;
 
-                            if (c >= 65 && c < 91)
+                            if ( c == '6' || c == '8')
+                            {
+                                heightOffset = (int)(Math.Ceiling(size.Height * 0.08));
+                            }
+                            else if ((c >= 65 && c < 91) || c == '6' || c == '8')
                             {
                                 heightOffset = (int)(Math.Ceiling(size.Height * 0.05));
                             }
@@ -246,7 +261,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         int _selected = 0;
 
         List<Bitmap> _listBitmap = new List<Bitmap>();
-        private async void _pictureBox_Paint_1(object sender, PaintEventArgs e)
+        private void _pictureBox_Paint_1(object sender, PaintEventArgs e)
         {
             int x = 0;
             int y = 30;
@@ -263,6 +278,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
             foreach (var characterBitmap in _listBitmap)
             {
+                if (characterBitmap is null)
+                {
+                    continue;
+                }
+
                 x += lastWidth;
                 if (i++ % 40 == 0)
                 {
@@ -297,29 +317,37 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void AutoFillBtn_Click(object sender, EventArgs e)
         {
-            AsciiFont lastFont = null;
+            AsciiFont defaultFont = AsciiText.Fonts[0];
 
-            if (AsciiText.FreeFontIndex(out int freefont))
+            int index = fontListBox.SelectedIndex;
+
+            if (index == -1 && AsciiText.FreeFontIndex(out int freefont))
             {
-                lastFont = AsciiText.Fonts[freefont - 1];
-                AsciiText.Fonts[freefont] = new AsciiFont((byte)freefont, lastFont);
-                _selected = freefont;
+                index = freefont;
+            }
 
-                for (int i = 0; i < _listBitmap.Count; i++)
+            var result = MessageBox.Show($"You are copying the font at the {index} font", "overriding?", MessageBoxButtons.YesNo);
+
+            if (result == DialogResult.No)
+            {
+                return;
+            }
+
+            AsciiText.Fonts[index] = new AsciiFont((byte)index, defaultFont);
+            AsciiText.Fonts[index].ClearBitmaps();
+
+            for (int i = 0; i < _listBitmap.Count; i++)
+            {
+                if (_listBitmap[i] == null)
                 {
-                    if (_listBitmap[i] == null)
-                    {
-                        continue;
-                    }
-
-                    AsciiText.Fonts[freefont].ReplaceCharacter(i, _listBitmap[i]);
+                    continue;
                 }
 
-
-                MessageBox.Show($"You have created the {freefont} of ASCII font copied from {lastFont.Header}");
-
-                ControlEvents.FontLoaderReload();
+                AsciiText.Fonts[index].ReplaceCharacter(i, _listBitmap[i]);
             }
+
+            ControlEvents.FontLoaderReload();
+
         }
 
         private void fontListBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -334,6 +362,18 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private void reloadBtn_Click(object sender, EventArgs e)
         {
             ControlEvents.FontLoaderReload();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            int index = fontListBox.SelectedIndex;
+
+            if (index != -1)
+            {
+                AsciiText.Fonts[index].ClearBitmaps();
+                ControlEvents.FontLoaderReload();
+            }
+
         }
     }
 }

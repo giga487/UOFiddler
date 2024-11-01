@@ -41,6 +41,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             fontPage = new System.Windows.Forms.TabPage();
+            clearBtn = new System.Windows.Forms.Button();
+            reloadBtn = new System.Windows.Forms.Button();
             autoFillFontBtn = new System.Windows.Forms.Button();
             AddFontBtn = new System.Windows.Forms.Button();
             _pictureBox = new System.Windows.Forms.PictureBox();
@@ -49,7 +51,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontListBox = new System.Windows.Forms.ListBox();
             otherStuffsPage = new System.Windows.Forms.TabPage();
             fontDialog1 = new System.Windows.Forms.FontDialog();
-            reloadBtn = new System.Windows.Forms.Button();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
@@ -67,6 +68,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // fontPage
             // 
+            fontPage.Controls.Add(clearBtn);
             fontPage.Controls.Add(reloadBtn);
             fontPage.Controls.Add(autoFillFontBtn);
             fontPage.Controls.Add(AddFontBtn);
@@ -83,20 +85,38 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.UseVisualStyleBackColor = true;
             fontPage.Click += fontPage_Click;
             // 
+            // clearBtn
+            // 
+            clearBtn.Location = new System.Drawing.Point(6, 286);
+            clearBtn.Name = "clearBtn";
+            clearBtn.Size = new System.Drawing.Size(102, 38);
+            clearBtn.TabIndex = 7;
+            clearBtn.Text = "Clear Selected Font";
+            clearBtn.Click += button1_Click;
+            // 
+            // reloadBtn
+            // 
+            reloadBtn.Location = new System.Drawing.Point(125, 286);
+            reloadBtn.Name = "reloadBtn";
+            reloadBtn.Size = new System.Drawing.Size(78, 27);
+            reloadBtn.TabIndex = 6;
+            reloadBtn.Text = "Reload";
+            reloadBtn.Click += reloadBtn_Click;
+            // 
             // autoFillFontBtn
             // 
-            autoFillFontBtn.Location = new System.Drawing.Point(85, 319);
+            autoFillFontBtn.Location = new System.Drawing.Point(125, 319);
             autoFillFontBtn.Name = "autoFillFontBtn";
-            autoFillFontBtn.Size = new System.Drawing.Size(118, 27);
+            autoFillFontBtn.Size = new System.Drawing.Size(78, 27);
             autoFillFontBtn.TabIndex = 5;
             autoFillFontBtn.Text = "Auto Fill Font";
             autoFillFontBtn.Click += AutoFillBtn_Click;
             // 
             // AddFontBtn
             // 
-            AddFontBtn.Location = new System.Drawing.Point(85, 352);
+            AddFontBtn.Location = new System.Drawing.Point(125, 352);
             AddFontBtn.Name = "AddFontBtn";
-            AddFontBtn.Size = new System.Drawing.Size(118, 23);
+            AddFontBtn.Size = new System.Drawing.Size(78, 23);
             AddFontBtn.TabIndex = 4;
             AddFontBtn.Text = "Create ";
             AddFontBtn.Click += AddFontBtn_Click;
@@ -135,7 +155,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontListBox.ItemHeight = 15;
             fontListBox.Location = new System.Drawing.Point(6, 40);
             fontListBox.Name = "fontListBox";
-            fontListBox.Size = new System.Drawing.Size(197, 214);
+            fontListBox.Size = new System.Drawing.Size(197, 229);
             fontListBox.TabIndex = 0;
             fontListBox.SelectedIndexChanged += fontListBox_SelectedIndexChanged;
             // 
@@ -148,15 +168,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             otherStuffsPage.TabIndex = 1;
             otherStuffsPage.Text = "Not Implemented Yet";
             otherStuffsPage.UseVisualStyleBackColor = true;
-            // 
-            // reloadBtn
-            // 
-            reloadBtn.Location = new System.Drawing.Point(125, 286);
-            reloadBtn.Name = "reloadBtn";
-            reloadBtn.Size = new System.Drawing.Size(78, 27);
-            reloadBtn.TabIndex = 6;
-            reloadBtn.Text = "Reload";
-            reloadBtn.Click += reloadBtn_Click;
             // 
             // SeaHatsControl
             // 
@@ -186,5 +197,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button AddFontBtn;
         private System.Windows.Forms.Button autoFillFontBtn;
         private System.Windows.Forms.Button reloadBtn;
+        private System.Windows.Forms.Button clearBtn;
     }
 }

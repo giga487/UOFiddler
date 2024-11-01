@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -17,13 +18,28 @@ namespace Ultima
             Header = header;
             Height = 0;
             Unk = font.Unk;
-            Characters = font.Characters;
+
+            List<Bitmap> toCopy = new List<Bitmap>();
+            foreach (var c in font.Characters)
+            {
+                if (c is null)
+                    continue;
+
+                toCopy.Add(new Bitmap((System.Drawing.Image)c, c.Size));
+            }
+
+            Characters = toCopy.ToArray();
         }
         public AsciiFont(byte header)
         {
             Header = header;
             Height = 0;
             Unk = new byte[224];
+            Characters = new Bitmap[224];
+        }
+
+        public void ClearBitmaps()
+        {
             Characters = new Bitmap[224];
         }
 
