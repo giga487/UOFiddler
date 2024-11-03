@@ -206,6 +206,11 @@ namespace Ultima
                     bin.Write(Fonts[i].Header);
                     for (int k = 0; k < 224; ++k)
                     {
+                        if(Fonts[i].Characters[k] == null)
+                        {
+                            continue;
+                        }
+
                         bin.Write((byte)Fonts[i].Characters[k].Width);
                         bin.Write((byte)Fonts[i].Characters[k].Height);
                         bin.Write(Fonts[i].Unk[k]);

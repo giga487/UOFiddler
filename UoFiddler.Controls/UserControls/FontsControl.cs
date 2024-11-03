@@ -405,7 +405,14 @@ namespace UoFiddler.Controls.UserControls
 
                 // draw using font from uo if character exists
                 var font = (int)treeView.SelectedNode.Tag;
-                e.Graphics.DrawImage(AsciiText.Fonts[font].Characters[_fonts[i]], new Point(e.Bounds.X + 2, e.Bounds.Y + 2));
+
+                try
+                {
+                    e.Graphics.DrawImage(AsciiText.Fonts[font].Characters[_fonts[i]], new Point(e.Bounds.X + 2, e.Bounds.Y + 2));
+                }
+                catch(Exception ex)
+                {
+                }
             }
         }
 

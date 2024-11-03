@@ -226,7 +226,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                 foreach (char toAnalyze in array)
                 {
-                    var charBmp = CreateChar(bmp, toAnalyze, System.Drawing.Brushes.Green, SpaceWidth, leftOffset, 0);
+                    var charBmp = CreateChar(bmp, toAnalyze, System.Drawing.Brushes.Gray, SpaceWidth, leftOffset, 0);
 
                     if (charBmp is not null)
                     {
@@ -478,18 +478,24 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             AsciiText.Fonts[index] = new AsciiFont((byte)index, defaultFont);
             AsciiText.Fonts[index].ClearBitmaps();
 
-            for (int i = 0; i < _listBitmap.Count; i++)
+            try
             {
-                if (_listBitmap[i] == null)
+                for (int i = 0; i < _listBitmap.Count; i++)
                 {
-                    continue;
+                    if (_listBitmap[i] == null)
+                    {
+                        continue;
+                    }
+
+                    AsciiText.Fonts[index].ReplaceCharacter(i, _listBitmap[i]);
                 }
 
-                AsciiText.Fonts[index].ReplaceCharacter(i, _listBitmap[i]);
+                ControlEvents.FontLoaderReload();
             }
+            catch(Exception ex)
+            {
 
-            ControlEvents.FontLoaderReload();
-
+            }
         }
 
         private void fontListBox_SelectedIndexChanged(object sender, EventArgs e)
