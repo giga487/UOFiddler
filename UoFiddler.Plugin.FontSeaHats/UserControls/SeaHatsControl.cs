@@ -24,6 +24,8 @@ using System.Collections.Generic;
 using System.Windows.Shapes;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using UoFiddler.Plugin.FontSeaHats.QuestSH;
+using UoFiddler.Plugin.FontSeaHats.UserControls;
 
 
 
@@ -39,9 +41,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         public int FirstAsciiValue = 33;//33;
         public int MaxAsciiValue = 126;
-        public int SpaceReference = 79; // 73 I, 79 O
+        public char SpaceReference = (char)73; // 73 I, 79 O
 
-        public string TextToCheck = "AGLI IRTI COLLI, IL MAESTRALE FA COSE";
+        QuestSeaHatsManager _questManager { get; set; } = null;
         public SeaHatsControl()
         {
             InitializeComponent();
@@ -61,6 +63,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 BackColor = System.Drawing.Color.White
             };
 
+            _questManager = new QuestSeaHatsManager("");
+            _questManager.ChangeDataRequest += _questManager_ChangeDataRequest;
         }
 
         private void OnClickSayHello(object sender, EventArgs e)
@@ -112,17 +116,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         System.Drawing.Font _font { get; set; } = null;
 
-
-        public Bitmap CreateChar(Bitmap bmp, Char c, System.Drawing.Brush brush, int spaceWidth, double lOffset, float heightOffset)
+        public Size CharSize(char c, Graphics g)
         {
-            if (c == 0)
-                return null;
-
-            Bitmap drawn = null;
-
-            Graphics g = Graphics.FromImage(bmp);
-            //SizeF size = g.MeasureString(c.ToString(), _font);
-
             /* metodo alternativo */
             RectangleF layoutRect = new RectangleF(0, 0, 100, 100);
             StringFormat format = new StringFormat();
@@ -136,15 +131,34 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             g.MeasureCharacterRanges(c.ToString(), _font, layoutRect, format);
             RectangleF bounds = regions[0].GetBounds(g);
 
-            Size size = new Size((int)bounds.Width, (int)bounds.Height);
+            return new Size((int)bounds.Width, (int)bounds.Height);
             /* fine metodo alternativo di misurazione */
+        }
+
+
+        public Bitmap CreateChar(Bitmap bmp, Char c, System.Drawing.Brush brush, double lOffset, Size spaceSize, float heightOffset)
+        {
+            if (c == 0)
+                return null;
+
+            Bitmap drawn = null;
+
+            Graphics g = Graphics.FromImage(bmp);
+            //SizeF size = g.MeasureString(c.ToString(), _font);
+
+            Size size = CharSize(c, g);
 
             try
             {
-                drawn = new Bitmap((int)(size.Width), (int)(size.Height));
+
                 if (c == 32)
                 {
-                    drawn = new Bitmap((int)(spaceWidth), (int)(size.Height));
+                    drawn = new Bitmap((int)(spaceSize.Width), (int)(spaceSize.Height));
+                }
+                else
+                {
+                    drawn = new Bitmap((int)(size.Width), (int)(size.Height));
+
                 }
 
                 StringFormat format1 = new StringFormat()
@@ -205,28 +219,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                 int lastWidth = 0;
 
-                //int Width = 0;
-                //int MaxHeight = 0;
-                int SpaceWidth = 0;
-
-                foreach (char c in array)
-                {
-                    SizeF size = g.MeasureString(c.ToString(), _font);
-
-                    //if (size.Height > MaxHeight)
-                    //{
-                    //    MaxHeight = (int)size.Height;
-                    //}
-
-                    if (c == SpaceReference)
-                    {
-                        SpaceWidth = (int)(Math.Round(size.Width * 0.7 * 0.4, 0));
-                    }
-                }
+                Size space = CharSize((char)SpaceReference, g);
 
                 foreach (char toAnalyze in array)
                 {
-                    var charBmp = CreateChar(bmp, toAnalyze, System.Drawing.Brushes.Gray, SpaceWidth, leftOffset, 0);
+                    var charBmp = CreateChar(bmp, toAnalyze, brush, leftOffset, space, 0);
 
                     if (charBmp is not null)
                     {
@@ -363,7 +360,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
             _pictureBox.Image = bmp;
 
-            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.Black);
+
+
+            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.DarkGray);
 
             ControlEvents.FontLoaderReload();
             _pictureBox.Refresh();
@@ -492,7 +491,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                 ControlEvents.FontLoaderReload();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
 
             }
@@ -539,6 +538,63 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
+
+        }
+
+        private void questIDListBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        public void RefillQuestTitle()
+        {
+            questIDListBox.Items.Clear();
+            questGroupBox.TabPages.Clear();
+
+            foreach (var questData in _questManager.Quest.Values)
+            {
+                questIDListBox.Items.Add(questData.QuestName);
+
+                foreach(var idStep in questData.Steps)
+                {
+                    var tabPage = new TabPage()
+                    {
+                        Text = idStep.Value.StepName
+                    };
+
+                    tabPage.Controls.Add(new QuestControl(idStep.Value));
+
+                    questGroupBox.TabPages.Add(tabPage);
+                }
+            }
+        }
+
+
+        private void _questManager_ChangeDataRequest(object sender, AddResult e)
+        {
+            RefillQuestTitle();
+        }
+
+        private void newQuest_Click(object sender, EventArgs e)
+        {
+            var result = _questManager.AddQuest();
+
+            if (result is not null)
+            {
+                RefillQuestTitle();
+            }
+        }
+
+        private void addStepBtn_Click(object sender, EventArgs e)
+        {
+            if (questIDListBox.SelectedItem is not null)
+            {
+                var questData = _questManager.GetQuest((string)questIDListBox.SelectedItem);
+
+                bool value = _questManager.AddStep(questData.ID);
+                RefillQuestTitle();
+            }
+           
 
         }
     }

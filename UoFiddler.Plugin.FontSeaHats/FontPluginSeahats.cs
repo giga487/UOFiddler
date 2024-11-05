@@ -73,7 +73,7 @@ namespace UoFiddler.Plugin.FontSeaHatsPlugin
             TabPage page = new TabPage
             {
                 Tag = tabControl.TabCount + 1, // at end used for undock/dock feature to define the order
-                Text = "FontSeaHats"
+                Text = "SeaHats"
             };
 
             page.Controls.Add(new SeaHatsControl());
@@ -84,7 +84,7 @@ namespace UoFiddler.Plugin.FontSeaHatsPlugin
         {
             ToolStripMenuItem item = new ToolStripMenuItem
             {
-                Text = "FontSeaHats"
+                Text = "SeaHats"
             };
 
             item.Click += ItemClick;

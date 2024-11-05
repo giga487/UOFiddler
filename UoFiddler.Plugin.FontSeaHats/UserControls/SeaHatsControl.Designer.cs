@@ -51,22 +51,32 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             DrawBtn = new System.Windows.Forms.Button();
             FontCreator = new System.Windows.Forms.Button();
             fontListBox = new System.Windows.Forms.ListBox();
-            otherStuffsPage = new System.Windows.Forms.TabPage();
+            QuestPage = new System.Windows.Forms.TabPage();
+            removeStepBtn = new System.Windows.Forms.Button();
+            addStepBtn = new System.Windows.Forms.Button();
+            questGroupBox = new System.Windows.Forms.TabControl();
+            tabPage1 = new System.Windows.Forms.TabPage();
+            deleteButton = new System.Windows.Forms.Button();
+            newQuest = new System.Windows.Forms.Button();
+            label2 = new System.Windows.Forms.Label();
+            questIDListBox = new System.Windows.Forms.ListBox();
             fontDialog1 = new System.Windows.Forms.FontDialog();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
+            QuestPage.SuspendLayout();
+            questGroupBox.SuspendLayout();
             SuspendLayout();
             // 
             // tabControl1
             // 
             tabControl1.Controls.Add(fontPage);
-            tabControl1.Controls.Add(otherStuffsPage);
+            tabControl1.Controls.Add(QuestPage);
             tabControl1.Location = new System.Drawing.Point(0, 3);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new System.Drawing.Size(2068, 499);
+            tabControl1.Size = new System.Drawing.Size(2068, 524);
             tabControl1.TabIndex = 0;
             // 
             // fontPage
@@ -84,7 +94,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.Location = new System.Drawing.Point(4, 24);
             fontPage.Name = "fontPage";
             fontPage.Padding = new System.Windows.Forms.Padding(3);
-            fontPage.Size = new System.Drawing.Size(2060, 471);
+            fontPage.Size = new System.Drawing.Size(2060, 496);
             fontPage.TabIndex = 0;
             fontPage.Text = "Font";
             fontPage.UseVisualStyleBackColor = true;
@@ -183,15 +193,98 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontListBox.TabIndex = 0;
             fontListBox.SelectedIndexChanged += fontListBox_SelectedIndexChanged;
             // 
-            // otherStuffsPage
+            // QuestPage
             // 
-            otherStuffsPage.Location = new System.Drawing.Point(4, 24);
-            otherStuffsPage.Name = "otherStuffsPage";
-            otherStuffsPage.Padding = new System.Windows.Forms.Padding(3);
-            otherStuffsPage.Size = new System.Drawing.Size(2060, 471);
-            otherStuffsPage.TabIndex = 1;
-            otherStuffsPage.Text = "Not Implemented Yet";
-            otherStuffsPage.UseVisualStyleBackColor = true;
+            QuestPage.Controls.Add(removeStepBtn);
+            QuestPage.Controls.Add(addStepBtn);
+            QuestPage.Controls.Add(questGroupBox);
+            QuestPage.Controls.Add(deleteButton);
+            QuestPage.Controls.Add(newQuest);
+            QuestPage.Controls.Add(label2);
+            QuestPage.Controls.Add(questIDListBox);
+            QuestPage.Location = new System.Drawing.Point(4, 24);
+            QuestPage.Name = "QuestPage";
+            QuestPage.Padding = new System.Windows.Forms.Padding(3);
+            QuestPage.Size = new System.Drawing.Size(2060, 496);
+            QuestPage.TabIndex = 1;
+            QuestPage.Text = "Quest";
+            QuestPage.UseVisualStyleBackColor = true;
+            // 
+            // removeStepBtn
+            // 
+            removeStepBtn.Location = new System.Drawing.Point(276, 128);
+            removeStepBtn.Name = "removeStepBtn";
+            removeStepBtn.Size = new System.Drawing.Size(88, 23);
+            removeStepBtn.TabIndex = 8;
+            removeStepBtn.Text = "Remove step";
+            removeStepBtn.UseVisualStyleBackColor = true;
+            // 
+            // addStepBtn
+            // 
+            addStepBtn.Location = new System.Drawing.Point(276, 99);
+            addStepBtn.Name = "addStepBtn";
+            addStepBtn.Size = new System.Drawing.Size(88, 23);
+            addStepBtn.TabIndex = 7;
+            addStepBtn.Text = "Add Step";
+            addStepBtn.UseVisualStyleBackColor = true;
+            addStepBtn.Click += addStepBtn_Click;
+            // 
+            // questGroupBox
+            // 
+            questGroupBox.Controls.Add(tabPage1);
+            questGroupBox.Location = new System.Drawing.Point(370, 24);
+            questGroupBox.Name = "questGroupBox";
+            questGroupBox.SelectedIndex = 0;
+            questGroupBox.Size = new System.Drawing.Size(827, 447);
+            questGroupBox.TabIndex = 6;
+            // 
+            // tabPage1
+            // 
+            tabPage1.Location = new System.Drawing.Point(4, 24);
+            tabPage1.Name = "tabPage1";
+            tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            tabPage1.Size = new System.Drawing.Size(819, 419);
+            tabPage1.TabIndex = 0;
+            tabPage1.Text = "tabPage1";
+            tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // deleteButton
+            // 
+            deleteButton.Location = new System.Drawing.Point(276, 70);
+            deleteButton.Name = "deleteButton";
+            deleteButton.Size = new System.Drawing.Size(88, 23);
+            deleteButton.TabIndex = 5;
+            deleteButton.Text = "Delete";
+            deleteButton.UseVisualStyleBackColor = true;
+            // 
+            // newQuest
+            // 
+            newQuest.Location = new System.Drawing.Point(276, 41);
+            newQuest.Name = "newQuest";
+            newQuest.Size = new System.Drawing.Size(88, 23);
+            newQuest.TabIndex = 4;
+            newQuest.Text = "New";
+            newQuest.UseVisualStyleBackColor = true;
+            newQuest.Click += newQuest_Click;
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(6, 24);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(72, 15);
+            label2.TabIndex = 2;
+            label2.Text = "QUEST TITLE";
+            // 
+            // questIDListBox
+            // 
+            questIDListBox.FormattingEnabled = true;
+            questIDListBox.ItemHeight = 15;
+            questIDListBox.Location = new System.Drawing.Point(6, 41);
+            questIDListBox.Name = "questIDListBox";
+            questIDListBox.Size = new System.Drawing.Size(264, 424);
+            questIDListBox.TabIndex = 1;
+            questIDListBox.SelectedIndexChanged += questIDListBox_SelectedIndexChanged;
             // 
             // SeaHatsControl
             // 
@@ -207,6 +300,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trackBar1).EndInit();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).EndInit();
+            QuestPage.ResumeLayout(false);
+            QuestPage.PerformLayout();
+            questGroupBox.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -214,7 +310,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage fontPage;
-        private System.Windows.Forms.TabPage otherStuffsPage;
+        private System.Windows.Forms.TabPage QuestPage;
         private System.Windows.Forms.ListBox fontListBox;
         private System.Windows.Forms.Button FontCreator;
         private System.Windows.Forms.FontDialog fontDialog1;
@@ -226,5 +322,14 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button clearBtn;
         private System.Windows.Forms.TrackBar trackBar1;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ListBox questIDListBox;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Button deleteButton;
+        private System.Windows.Forms.Button newQuest;
+        private System.Windows.Forms.Button removeStepBtn;
+        private System.Windows.Forms.Button addStepBtn;
+        private System.Windows.Forms.TabControl questGroupBox;
+        private System.Windows.Forms.TabPage tabPage1;
+        private FontSeaHats.UserControls.QuestControl questControl1;
     }
 }
