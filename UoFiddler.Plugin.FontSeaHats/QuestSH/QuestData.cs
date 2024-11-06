@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 {
@@ -38,26 +39,28 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
     {
         public string StepName { get; set; } = string.Empty;
         public int Step { get; set; } = -1;
-        private QuestDataInfo _own { get; set; } = null;
-        public QuestDataInfo Own => _own;
+        public QuestDataInfo Own { get; set; } = null;
         public string Text { get; set; }
         public List<string> StepObjective { get; set; } = new List<string>();
         public QuestType_T Type { get; set; } = QuestType_T.Default;
+
+        public QuestDataStep()
+        {
+        
+        }
 
         public QuestDataStep(QuestDataStep toCopy)
         {
             StepName = toCopy.StepName;
             StepObjective = toCopy.StepObjective;
             Step = toCopy.Step;
-            _own = toCopy.Own;
             Type = toCopy.Type;
             Text = toCopy.Text;
+            Own = toCopy.Own;
         }
         public QuestDataStep(QuestDataInfo parent)
         {
-            _own = parent;
-
-
+            Own = parent;
         }
     }
 
@@ -73,7 +76,8 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
     {
         Primary,
         SecondaryQuest,
-        Daily
+        Daily,
+        Worker
     }
     public class QuestDataInfo
     {
@@ -82,19 +86,33 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         public string QuestName { get; set; } = "DEFAULT NAME";
         public ushort ID { get; set; } = 0;
         public QuestPriority_T Priority { get; set; }
-        public Dictionary<int, QuestDataStep> Steps { get; } = new Dictionary<int, QuestDataStep>();
+        public Dictionary<int, QuestDataStep> Steps { get; set; } = new Dictionary<int, QuestDataStep>();
 
         public int GetFreeStep()
         {
             if (Steps.Keys.Count > 0)
-                return Steps.Keys.Max() + 1;
+            {
+                int max = Steps.Keys
+                    .OrderByDescending(n => n)
+                    .Distinct()
+                    .Skip(1)
+                    .FirstOrDefault();
+
+                return max + 1;
+            }
             else
                 return 1;
         }
 
         public bool AddStep(QuestDataStep step)
         {
-            int index = GetFreeStep();
+            int index = step.Step;
+
+            if (step.Step == -1)
+            {
+                index = GetFreeStep();
+            }
+
 
             if (!Steps.TryAdd(index, step))
             {
@@ -103,7 +121,11 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             else
             {
                 step.Step = index;
-                step.StepName = $"STEP {index}";
+
+                if (string.IsNullOrEmpty(step.StepName))
+                {
+                    step.StepName = $"STEP {index}";
+                }
             }
 
             return true;

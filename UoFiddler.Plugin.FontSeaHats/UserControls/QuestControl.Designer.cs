@@ -41,12 +41,18 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         {
             stepLabel = new System.Windows.Forms.Label();
             questIdlabel = new System.Windows.Forms.Label();
-            textBox3 = new System.Windows.Forms.TextBox();
+            stepText = new System.Windows.Forms.TextBox();
             titleTextbox = new System.Windows.Forms.TextBox();
             label6 = new System.Windows.Forms.Label();
             label7 = new System.Windows.Forms.Label();
             stepNameTextbox = new System.Windows.Forms.TextBox();
             saveBtn = new System.Windows.Forms.Button();
+            resetStepBtn = new System.Windows.Forms.Button();
+            removeStepBtn = new System.Windows.Forms.Button();
+            questPriorityCB = new System.Windows.Forms.ComboBox();
+            steptype = new System.Windows.Forms.ComboBox();
+            label1 = new System.Windows.Forms.Label();
+            label2 = new System.Windows.Forms.Label();
             SuspendLayout();
             // 
             // stepLabel
@@ -67,13 +73,14 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             questIdlabel.TabIndex = 16;
             questIdlabel.Text = "Quest ID: X";
             // 
-            // textBox3
+            // stepText
             // 
-            textBox3.Location = new System.Drawing.Point(13, 109);
-            textBox3.Multiline = true;
-            textBox3.Name = "textBox3";
-            textBox3.Size = new System.Drawing.Size(387, 277);
-            textBox3.TabIndex = 15;
+            stepText.Location = new System.Drawing.Point(13, 109);
+            stepText.Multiline = true;
+            stepText.Name = "stepText";
+            stepText.Size = new System.Drawing.Size(387, 277);
+            stepText.TabIndex = 15;
+            stepText.TextChanged += stepText_TextChanged;
             // 
             // titleTextbox
             // 
@@ -109,6 +116,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             stepNameTextbox.Name = "stepNameTextbox";
             stepNameTextbox.Size = new System.Drawing.Size(256, 23);
             stepNameTextbox.TabIndex = 11;
+            stepNameTextbox.TextChanged += stepNameTextbox_TextChanged;
             // 
             // saveBtn
             // 
@@ -120,15 +128,79 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             saveBtn.UseVisualStyleBackColor = true;
             saveBtn.Click += saveBtn_Click;
             // 
+            // resetStepBtn
+            // 
+            resetStepBtn.Location = new System.Drawing.Point(560, 351);
+            resetStepBtn.Name = "resetStepBtn";
+            resetStepBtn.Size = new System.Drawing.Size(75, 43);
+            resetStepBtn.TabIndex = 19;
+            resetStepBtn.Text = "Reset Step";
+            resetStepBtn.UseVisualStyleBackColor = true;
+            resetStepBtn.Click += resetStepBtn_Click;
+            // 
+            // removeStepBtn
+            // 
+            removeStepBtn.Location = new System.Drawing.Point(406, 351);
+            removeStepBtn.Name = "removeStepBtn";
+            removeStepBtn.Size = new System.Drawing.Size(75, 43);
+            removeStepBtn.TabIndex = 20;
+            removeStepBtn.Text = "Remove Step";
+            removeStepBtn.UseVisualStyleBackColor = true;
+            removeStepBtn.Click += removeStepBtn_Click;
+            // 
+            // questPriorityCB
+            // 
+            questPriorityCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            questPriorityCB.FormattingEnabled = true;
+            questPriorityCB.Location = new System.Drawing.Point(595, 67);
+            questPriorityCB.Name = "questPriorityCB";
+            questPriorityCB.Size = new System.Drawing.Size(121, 23);
+            questPriorityCB.TabIndex = 21;
+            questPriorityCB.SelectedIndexChanged += questPriorityCB_SelectedIndexChanged;
+            // 
+            // steptype
+            // 
+            steptype.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            steptype.FormattingEnabled = true;
+            steptype.Location = new System.Drawing.Point(595, 127);
+            steptype.Name = "steptype";
+            steptype.Size = new System.Drawing.Size(121, 23);
+            steptype.TabIndex = 22;
+            steptype.SelectedIndexChanged += steptype_SelectedIndexChanged;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(637, 52);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(79, 15);
+            label1.TabIndex = 23;
+            label1.Text = "Quest Priority";
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(660, 109);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(56, 15);
+            label2.TabIndex = 24;
+            label2.Text = "Step type";
+            // 
             // QuestControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.SystemColors.ActiveCaption;
+            Controls.Add(label2);
+            Controls.Add(label1);
+            Controls.Add(steptype);
+            Controls.Add(questPriorityCB);
+            Controls.Add(removeStepBtn);
+            Controls.Add(resetStepBtn);
             Controls.Add(saveBtn);
             Controls.Add(stepLabel);
             Controls.Add(questIdlabel);
-            Controls.Add(textBox3);
+            Controls.Add(stepText);
             Controls.Add(titleTextbox);
             Controls.Add(label6);
             Controls.Add(label7);
@@ -143,11 +215,17 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private System.Windows.Forms.Label stepLabel;
         private System.Windows.Forms.Label questIdlabel;
-        private System.Windows.Forms.TextBox textBox3;
+        private System.Windows.Forms.TextBox stepText;
         private System.Windows.Forms.TextBox titleTextbox;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox stepNameTextbox;
         private System.Windows.Forms.Button saveBtn;
+        private System.Windows.Forms.Button resetStepBtn;
+        private System.Windows.Forms.Button removeStepBtn;
+        private System.Windows.Forms.ComboBox questPriorityCB;
+        private System.Windows.Forms.ComboBox steptype;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
     }
 }

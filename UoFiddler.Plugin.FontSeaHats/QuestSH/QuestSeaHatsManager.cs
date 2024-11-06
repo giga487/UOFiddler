@@ -15,7 +15,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
+using Newtonsoft.Json;
+using System.Windows.Forms;
 
 namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 {
@@ -27,31 +28,148 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
     public class QuestSeaHatsManager
     {
-        public event EventHandler<AddResult> ChangeDataRequest;
-        public IReadOnlyDictionary<ushort, QuestDataInfo> Quest => _questDatas;
-        private Dictionary<ushort, QuestDataInfo> _questDatas { get; set; } = new Dictionary<ushort, QuestDataInfo>();
-        public string FileName => "Quest.JSON";
-        public QuestSeaHatsManager(string path)
+        public event EventHandler<AddResult> QuestListChangeRequest;
+        public event EventHandler<AddResult> StepListChangeRequest;
+        public Dictionary<ushort, QuestDataInfo> Quests { get; set; } = new Dictionary<ushort, QuestDataInfo>();
+        public string FileQuests { get; set; } = "Quests.JSon";
+        public int MaxStep { get; private set; } = 5;
+
+        public QuestSeaHatsManager()
         {
-            if (!Directory.Exists(path))
+            if (!File.Exists(FileQuests))
             {
-                MessageBox.Show($"Path is not exist: {path}");
+                SaveJsonQuest(FileQuests);
+                MessageBox.Show($"File is created: {FileQuests}");
             }
-
-            string file = Path.Combine(path, FileName);
-
-            if (!File.Exists(file))
+            else
             {
-                File.Create(file).Close();
-                MessageBox.Show($"File is created: {file}");
+                LoadQuestJson(FileQuests);
             }
+        }
+
+        public void ChangeQuestPriority(string title, QuestPriority_T prio)
+        {
+            var result = Quests.Where(t => t.Value.QuestName == title).FirstOrDefault();
+            result.Value.Priority = prio;
+
+            OnQuestListChangeRequest(new AddResult());
+        }
+
+        public void ChangeMaxStep(int value)
+        {
+            MaxStep = value;
         }
 
         public QuestDataInfo GetQuest(string title)
         {
-            var result = Quest.Where(t => t.Value.QuestName == title).FirstOrDefault();
+            var result = Quests.Where(t => t.Value.QuestName == title).FirstOrDefault();
 
             return result.Value;
+        }
+
+        public bool DeleteQuest(ushort questId)
+        {
+            if (Quests.ContainsKey(questId))
+            {
+                if (Quests.Remove(questId))
+                {
+                    OnQuestListChangeRequest(new AddResult());
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private string _lastPath { get; set; } = string.Empty;
+
+        public bool SaveJsonQuest(string file)
+        {
+
+            JsonSerializer serializer = new JsonSerializer();
+            serializer.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            serializer.NullValueHandling = NullValueHandling.Ignore;
+
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(file))
+                using (JsonWriter writer = new JsonTextWriter(sw))
+                {
+                    FileQuests = file;
+                    writer.Formatting = Formatting.Indented;
+                    serializer.Serialize(writer, Quests);
+                    // {"ExpiryDate":new Date(1230375600000),"Price":0}
+                }
+
+                return true;
+            }
+            catch
+            { 
+            }
+
+            return false;
+        }
+
+        public bool LoadQuestJson(string file)
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    var toDeserialize = File.ReadAllText(file);
+                    Dictionary<ushort, QuestDataInfo> deseriazed = JsonConvert.DeserializeObject<Dictionary<ushort, QuestDataInfo>>(toDeserialize);
+
+                    //Allineamento quest
+                    foreach (var quest in deseriazed.Values)
+                    {
+                        foreach (var step in quest.Steps)
+                        {
+                            step.Value.Own = quest;
+                        }
+                    }
+
+                    Quests = deseriazed;
+
+                    OnQuestListChangeRequest(new AddResult());
+
+                    return true;
+                }
+            }
+            catch
+            {
+
+            }
+
+            return false;
+        }
+        public void OnQuestListChangeRequest(AddResult data)
+        {
+            if (QuestListChangeRequest is not null)
+            {
+                QuestListChangeRequest.Invoke(this, data);
+            }
+        }
+
+        public void OnStepListChangeRequest(AddResult data)
+        {
+            if (StepListChangeRequest is not null)
+            {
+                StepListChangeRequest.Invoke(this, data);
+            }
+        }
+
+        public bool DeleteStep(ushort questId, int stepId)
+        {
+            if (Quests.TryGetValue(questId, out var questData) && questData.Steps.ContainsKey(stepId))
+            {
+                if (questData.Steps.Remove(stepId))
+                {
+                    OnStepListChangeRequest(new AddResult());
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public ushort GetFreeId()
@@ -59,7 +177,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             ushort result = 0;
             try
             {
-                result = (ushort)(_questDatas.Keys.Max() + 1);
+                result = (ushort)(Quests.Keys.Max() + 1);
             }
             catch(Exception ex)
             {
@@ -69,27 +187,77 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             return result;
         }
 
-        public void ChangeTitleName(string title, ushort index)
+        //public void ChangeStepName(ushort questId, int stepId, string title)
+        //{
+        //    if (_questDatas.TryGetValue(questId, out var questData) && questData.Steps.TryGetValue(stepId, out var step))
+        //    {
+        //        step.StepName = title;
+        //        ChangeDataRequest.Invoke(this, new AddResult() { QuestData = questData });
+        //    }
+        //}
+
+        public void UpdateStep(ushort questId, QuestDataStep step)
         {
+            if (Quests.TryGetValue(questId, out var questData))
+            {
+                if (step is not null)
+                {
+                    foreach (var valueDict in FixedSteps)
+                    {
+                        if (step.Step == valueDict.Key)
+                        {
+                            step.StepName = valueDict.Value;
+                        }
+                    }
 
+                    questData.Steps[step.Step] = step;
+                    OnStepListChangeRequest(new AddResult());
+                }
+            }
+        }
 
+        public void ChangeTitleName(ushort questId, string title)
+        {
+            if (Quests.TryGetValue(questId, out var questData))
+            {
+                questData.QuestName = title;
 
-
+                OnQuestListChangeRequest(new AddResult() { QuestData = questData });
+            }
         }
 
         public bool AddStep(ushort questIndex)
         {
-            if(_questDatas.TryGetValue(questIndex, out var questData))
+            if(Quests.TryGetValue(questIndex, out var questData))
             {
-                questData.AddStep(new QuestDataStep(questData));
+                int nextStep = questData.GetFreeStep();
+                if (nextStep > MaxStep)
+                {
+                    MessageBox.Show("can't add the step, the maxium step quest is reached");
+                    return false;
+                }
 
-                ChangeDataRequest.Invoke(this, new AddResult() {QuestData = questData});
-
-                return true;
+                if(questData.AddStep(new QuestDataStep(questData)))
+                {
+                    questData.Steps = questData.Steps.OrderBy(entry => entry.Key).ToDictionary(entry => entry.Key, entry => entry.Value);
+                    OnStepListChangeRequest(new AddResult());
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show("can't add the step");
+                }
             }
 
             return false;
         }
+ 
+        public Dictionary<int, string> FixedSteps { get; private set; } = new Dictionary<int, string>()
+        {
+            { 0, "Init"},
+            {Int32.MaxValue, "Finish" }
+        };
+
 
         public AddResult AddQuest()
         {
@@ -100,7 +268,13 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                 ID = newId
             };
 
-            if (_questDatas.TryAdd(newId, questDataInfo))
+            int stepId = 0;
+            questDataInfo.AddStep(new QuestDataStep(questDataInfo) { Step = stepId, StepName = FixedSteps[stepId] });
+
+            stepId = Int32.MaxValue;
+            questDataInfo.AddStep(new QuestDataStep(questDataInfo) { Step = stepId, StepName = FixedSteps[stepId] });
+
+            if (Quests.TryAdd(newId, questDataInfo))
             {
                 return new AddResult()
                 {

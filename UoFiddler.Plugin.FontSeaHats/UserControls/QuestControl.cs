@@ -24,31 +24,56 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 {
     public partial class QuestControl : UserControl
     {
-        public event EventHandler<QuestStepUpdated> InvalidateStep;
-
         QuestDataStep tempDataInfo { get; set; } = null;
         QuestDataStep datasInfo { get; set; } = null;
 
         public string QuestIdLabel { get; set; } = "QuestID: ";
-        public string SteIdLabel { get; set; } = "StepID: ";
-        public QuestControl(QuestDataStep data)
+        public string StepIdLabel { get; set; } = "StepID: ";
+
+        string tempTitle { get; set; } = string.Empty;
+        string tempStepName { get; set; } = string.Empty;
+        string tempStepText { get; set; } = string.Empty;
+        QuestSeaHatsManager _manager { get; set; } = null;
+        public QuestControl(QuestDataStep data, QuestSeaHatsManager manager)
         {
             InitializeComponent();
 
             datasInfo = data;
 
-            tempDataInfo = new QuestDataStep(data);
-
-            stepLabel.Text = $"{SteIdLabel}{data.Step}";
+            stepLabel.Text = $"{StepIdLabel}{data.Step}";
             questIdlabel.Text = $"{QuestIdLabel}{data.Own.ID}";
-            titleTextbox.Text = $"{data.Own.QuestName}";
-            stepNameTextbox.Text = $"{data.StepName}";
+
+            ResetTempData(datasInfo);
+
+            _manager = manager;
+
+            foreach (var value in Enum.GetValues(typeof(QuestPriority_T)))
+            {
+                questPriorityCB.Items.Add(value);
+            }
+
+            questPriorityCB.SelectedIndex = (int)data.Own.Priority;
+
+            foreach (var value in Enum.GetValues(typeof(QuestType_T)))
+            {
+                steptype.Items.Add(value);
+            }
+
+            steptype.SelectedIndex = (int)data.Type;
+        }
+
+        public void ResetTempData(QuestDataStep data)
+        {
+            tempTitle = titleTextbox.Text = $"{data.Own.QuestName}";
+            tempStepName = stepNameTextbox.Text = $"{data.StepName}";
+            tempStepText = stepText.Text = data.Text;
+            questPriorityCB.SelectedItem = data.Own.Priority;
+            steptype.SelectedItem = data.Type;
         }
 
         private void titleTextbox_TextChanged(object sender, EventArgs e)
         {
-            string textTitle = titleTextbox.Text;
-            tempDataInfo.Own.QuestName = textTitle;
+            tempTitle = titleTextbox.Text;
         }
 
         private void saveBtn_Click(object sender, EventArgs e)
@@ -56,10 +81,53 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             Apply();
         }
 
-        public void Apply()
+        public void Apply(bool update = true)
         {
-            datasInfo = new QuestDataStep(tempDataInfo);
-            InvalidateStep.Invoke(this, new QuestStepUpdated(datasInfo.Own.ID, datasInfo.Step));
+            if (update)
+            {
+                datasInfo.Own.Priority = (QuestPriority_T)questPriorityCB.SelectedIndex;
+
+                var questStep = new QuestDataStep(datasInfo);
+                questStep.StepName = tempStepName;
+                questStep.Text = tempStepText;
+                questStep.Type = (QuestType_T)steptype.SelectedIndex;
+
+                _manager.UpdateStep(datasInfo.Own.ID, questStep);
+
+                _manager.ChangeTitleName(datasInfo.Own.ID, tempTitle);
+            }
+
+            //_manager.ChangeStepName(datasInfo.Own.ID, datasInfo.Step, tempStepName);
+        }
+
+        private void stepNameTextbox_TextChanged(object sender, EventArgs e)
+        {
+            tempStepName = stepNameTextbox.Text;
+        }
+
+        private void stepText_TextChanged(object sender, EventArgs e)
+        {
+            tempStepText = stepText.Text;
+        }
+
+        private void resetStepBtn_Click(object sender, EventArgs e)
+        {
+            ResetTempData(datasInfo);
+        }
+
+        private void removeStepBtn_Click(object sender, EventArgs e)
+        {
+            _manager.DeleteStep(datasInfo.Own.ID, datasInfo.Step);
+        }
+
+        private void questPriorityCB_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void steptype_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

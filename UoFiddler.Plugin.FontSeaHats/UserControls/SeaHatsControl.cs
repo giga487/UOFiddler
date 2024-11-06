@@ -26,8 +26,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using UoFiddler.Plugin.FontSeaHats.QuestSH;
 using UoFiddler.Plugin.FontSeaHats.UserControls;
-
-
+using System.IO;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json;
 
 namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 {
@@ -63,8 +64,15 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 BackColor = System.Drawing.Color.White
             };
 
-            _questManager = new QuestSeaHatsManager("");
-            _questManager.ChangeDataRequest += _questManager_ChangeDataRequest;
+            _questManager = new QuestSeaHatsManager();
+            _questManager.QuestListChangeRequest += _questManager_UpdateQuestsRequest;
+            _questManager.StepListChangeRequest += _questManager_StepListChangeRequest;
+            for (int i = 0; i < 100; i++)
+            {
+                maxStepCombo.Items.Add(i);
+            }
+
+            maxStepCombo.SelectedIndex = 4;
         }
 
         private void OnClickSayHello(object sender, EventArgs e)
@@ -543,36 +551,99 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void questIDListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (questIDListBox.SelectedIndex != -1)
+            {
+                string selectedName = string.Empty;
+                if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
+                {
+                    string name = _questManager.Quests.Values.First().QuestName;
+                    selectedName = name;
+                }
 
+                var questData2 = _questManager.GetQuest(selectedName);
+
+                RefillQuestControl(questData2);
+            }
+        }
+
+        public void RefillQuestControl(QuestDataInfo dataInfo)
+        {
+            questGroupBox.TabPages.Clear();
+            if (dataInfo is null)
+            {
+                return;
+            }
+
+            foreach (var idStep in dataInfo.Steps)
+            {
+                var tabPage = new TabPage()
+                {
+                    Text = idStep.Value.StepName
+                };
+
+                tabPage.Controls.Add(new QuestControl(idStep.Value, _questManager));
+
+                questGroupBox.TabPages.Add(tabPage);
+            }
         }
 
         public void RefillQuestTitle()
         {
             questIDListBox.Items.Clear();
-            questGroupBox.TabPages.Clear();
 
-            foreach (var questData in _questManager.Quest.Values)
+            foreach (var questData in _questManager.Quests.Values)
             {
                 questIDListBox.Items.Add(questData.QuestName);
+            }
 
-                foreach(var idStep in questData.Steps)
+            QuestDataInfo questData2 = null;
+            string selectedName = string.Empty;
+            if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
+            {
+                try
                 {
-                    var tabPage = new TabPage()
-                    {
-                        Text = idStep.Value.StepName
-                    };
-
-                    tabPage.Controls.Add(new QuestControl(idStep.Value));
-
-                    questGroupBox.TabPages.Add(tabPage);
+                    string name = _questManager.Quests.Values.First().QuestName;
+                    selectedName = name;
+                    questData2 = _questManager.GetQuest(selectedName);
                 }
+                catch
+                {
+
+                }
+            }
+            else
+            {
+                var questName = (string)questIDListBox.Items[lastIndex];
+                questData2 = _questManager.GetQuest(questName);
+            }
+
+            RefillQuestControl(questData2);
+        }
+
+        private void _questManager_StepListChangeRequest(object sender, AddResult e)
+        {
+            string selectedName = string.Empty;
+            if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
+            {
+                string name = _questManager.Quests.Values.First().QuestName;
+                selectedName = name;
             }
         }
 
-
-        private void _questManager_ChangeDataRequest(object sender, AddResult e)
+        short lastIndex = -1;
+        private void _questManager_UpdateQuestsRequest(object sender, AddResult e)
         {
+            lastIndex = (short)questIDListBox.SelectedIndex;
             RefillQuestTitle();
+
+            try
+            {
+                questIDListBox.SelectedIndex = lastIndex;
+            }
+            catch
+            {
+                questIDListBox.SelectedIndex = questIDListBox.Items.Count - 1;
+            }
         }
 
         private void newQuest_Click(object sender, EventArgs e)
@@ -592,9 +663,94 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 var questData = _questManager.GetQuest((string)questIDListBox.SelectedItem);
 
                 bool value = _questManager.AddStep(questData.ID);
-                RefillQuestTitle();
+                RefillQuestControl(questData);
             }
-           
+        }
+
+        private void maxStepCombo_SelectedValueChanged(object sender, EventArgs e)
+        {
+            if (maxStepCombo.SelectedValue is not null)
+                _questManager.ChangeMaxStep((int)maxStepCombo.SelectedValue);
+        }
+
+        private void deleteButton_Click(object sender, EventArgs e)
+        {
+            var questData = _questManager.GetQuest((string)questIDListBox.SelectedItem);
+            try
+            {
+                _questManager.DeleteQuest(questData.ID);
+            }
+            catch
+            {
+
+            }
+        }
+
+        public string filePath { get; private set; } = string.Empty;
+
+        private void saveBtn_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog1 = new SaveFileDialog();
+
+            saveFileDialog1.Filter = "json files (*.json)|*.json|All files (*.*)|*.*";
+            saveFileDialog1.FilterIndex = 0;
+            saveFileDialog1.RestoreDirectory = true;
+
+            if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                if (!string.IsNullOrEmpty(saveFileDialog1.FileName))
+                {
+                    filePath = new DirectoryInfo(saveFileDialog1.FileName).Root.FullName;
+
+                    _questManager.SaveJsonQuest(saveFileDialog1.FileName);
+                }
+
+            }
+        }
+
+        private void loadBtn_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+
+            if (string.IsNullOrEmpty(filePath))
+            {
+                filePath = "c:\\";
+            }
+
+            openFileDialog.InitialDirectory = _questManager.FileQuests;
+            openFileDialog.Filter = "json files (*.json)|*.json|All files (*.*)|*.*";
+            openFileDialog.FilterIndex = 0;
+            openFileDialog.RestoreDirectory = true;
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                filePath = new DirectoryInfo(openFileDialog.FileName).Root.FullName;
+                _questManager.LoadQuestJson(openFileDialog.FileName);
+            }
+
+            try
+            {
+                questIDListBox.SelectedIndex = 0;
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+
+        }
+
+        private void tabControl1_Selecting(object sender, TabControlCancelEventArgs e)
+        {
+            if (e.TabPageIndex == 1)
+            {
+                _questManager.OnQuestListChangeRequest(new AddResult());
+            }
+
 
         }
     }

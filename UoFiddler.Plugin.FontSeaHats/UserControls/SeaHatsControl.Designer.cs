@@ -52,7 +52,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             FontCreator = new System.Windows.Forms.Button();
             fontListBox = new System.Windows.Forms.ListBox();
             QuestPage = new System.Windows.Forms.TabPage();
-            removeStepBtn = new System.Windows.Forms.Button();
+            loadBtn = new System.Windows.Forms.Button();
+            saveBtn = new System.Windows.Forms.Button();
+            label3 = new System.Windows.Forms.Label();
+            maxStepCombo = new System.Windows.Forms.ComboBox();
             addStepBtn = new System.Windows.Forms.Button();
             questGroupBox = new System.Windows.Forms.TabControl();
             tabPage1 = new System.Windows.Forms.TabPage();
@@ -78,6 +81,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             tabControl1.SelectedIndex = 0;
             tabControl1.Size = new System.Drawing.Size(2068, 524);
             tabControl1.TabIndex = 0;
+            tabControl1.SelectedIndexChanged += tabControl1_SelectedIndexChanged;
+            tabControl1.Selecting += tabControl1_Selecting;
             // 
             // fontPage
             // 
@@ -195,7 +200,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // QuestPage
             // 
-            QuestPage.Controls.Add(removeStepBtn);
+            QuestPage.Controls.Add(loadBtn);
+            QuestPage.Controls.Add(saveBtn);
+            QuestPage.Controls.Add(label3);
+            QuestPage.Controls.Add(maxStepCombo);
             QuestPage.Controls.Add(addStepBtn);
             QuestPage.Controls.Add(questGroupBox);
             QuestPage.Controls.Add(deleteButton);
@@ -210,14 +218,44 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             QuestPage.Text = "Quest";
             QuestPage.UseVisualStyleBackColor = true;
             // 
-            // removeStepBtn
+            // loadBtn
             // 
-            removeStepBtn.Location = new System.Drawing.Point(276, 128);
-            removeStepBtn.Name = "removeStepBtn";
-            removeStepBtn.Size = new System.Drawing.Size(88, 23);
-            removeStepBtn.TabIndex = 8;
-            removeStepBtn.Text = "Remove step";
-            removeStepBtn.UseVisualStyleBackColor = true;
+            loadBtn.Location = new System.Drawing.Point(280, 412);
+            loadBtn.Name = "loadBtn";
+            loadBtn.Size = new System.Drawing.Size(88, 23);
+            loadBtn.TabIndex = 12;
+            loadBtn.Text = "Load";
+            loadBtn.UseVisualStyleBackColor = true;
+            loadBtn.Click += loadBtn_Click;
+            // 
+            // saveBtn
+            // 
+            saveBtn.Location = new System.Drawing.Point(280, 441);
+            saveBtn.Name = "saveBtn";
+            saveBtn.Size = new System.Drawing.Size(88, 23);
+            saveBtn.TabIndex = 11;
+            saveBtn.Text = "Save";
+            saveBtn.UseVisualStyleBackColor = true;
+            saveBtn.Click += saveBtn_Click;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(312, 176);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(56, 15);
+            label3.TabIndex = 10;
+            label3.Text = "Max Step";
+            // 
+            // maxStepCombo
+            // 
+            maxStepCombo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            maxStepCombo.FormattingEnabled = true;
+            maxStepCombo.Location = new System.Drawing.Point(300, 194);
+            maxStepCombo.Name = "maxStepCombo";
+            maxStepCombo.Size = new System.Drawing.Size(64, 23);
+            maxStepCombo.TabIndex = 9;
+            maxStepCombo.SelectedValueChanged += maxStepCombo_SelectedValueChanged;
             // 
             // addStepBtn
             // 
@@ -256,6 +294,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             deleteButton.TabIndex = 5;
             deleteButton.Text = "Delete";
             deleteButton.UseVisualStyleBackColor = true;
+            deleteButton.Click += deleteButton_Click;
             // 
             // newQuest
             // 
@@ -326,10 +365,13 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button deleteButton;
         private System.Windows.Forms.Button newQuest;
-        private System.Windows.Forms.Button removeStepBtn;
         private System.Windows.Forms.Button addStepBtn;
         private System.Windows.Forms.TabControl questGroupBox;
         private System.Windows.Forms.TabPage tabPage1;
         private FontSeaHats.UserControls.QuestControl questControl1;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.ComboBox maxStepCombo;
+        private System.Windows.Forms.Button saveBtn;
+        private System.Windows.Forms.Button loadBtn;
     }
 }
