@@ -20,7 +20,13 @@ using System.Windows.Forms;
 
 namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 {
-    public class AddResult
+    public class StepListEventArgs
+    {
+        public bool Success { get; set; } = false;
+        public QuestDataStep StepData { get; set; } = null;
+    }
+
+    public class QuestListEventArgs
     {
         public bool Success { get; set; } = false;
         public QuestDataInfo QuestData { get; set; } = null;
@@ -28,8 +34,8 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
     public class QuestSeaHatsManager
     {
-        public event EventHandler<AddResult> QuestListChangeRequest;
-        public event EventHandler<AddResult> StepListChangeRequest;
+        public event EventHandler<QuestListEventArgs> QuestListChangeRequest;
+        public event EventHandler<StepListEventArgs> StepListChangeRequest;
         public Dictionary<ushort, QuestDataInfo> Quests { get; set; } = new Dictionary<ushort, QuestDataInfo>();
         public string FileQuests { get; set; } = "Quests.JSon";
         public int MaxStep { get; private set; } = 5;
@@ -52,7 +58,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             var result = Quests.Where(t => t.Value.QuestName == title).FirstOrDefault();
             result.Value.Priority = prio;
 
-            OnQuestListChangeRequest(new AddResult());
+            OnQuestListChangeRequest(new QuestListEventArgs());
         }
 
         public void ChangeMaxStep(int value)
@@ -73,7 +79,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             {
                 if (Quests.Remove(questId))
                 {
-                    OnQuestListChangeRequest(new AddResult());
+                    OnQuestListChangeRequest(new QuestListEventArgs());
                     return true;
                 }
             }
@@ -122,15 +128,12 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                     //Allineamento quest
                     foreach (var quest in deseriazed.Values)
                     {
-                        foreach (var step in quest.Steps)
-                        {
-                            step.Value.Own = quest;
-                        }
+                        quest.SetStepParent(quest);
                     }
 
-                    Quests = deseriazed;
+                    Quests = deseriazed.OrderBy(t => t.Key).ToDictionary<ushort, QuestDataInfo>();
 
-                    OnQuestListChangeRequest(new AddResult());
+                    OnQuestListChangeRequest(new QuestListEventArgs());
 
                     return true;
                 }
@@ -142,7 +145,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
             return false;
         }
-        public void OnQuestListChangeRequest(AddResult data)
+        public void OnQuestListChangeRequest(QuestListEventArgs data)
         {
             if (QuestListChangeRequest is not null)
             {
@@ -150,7 +153,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             }
         }
 
-        public void OnStepListChangeRequest(AddResult data)
+        public void OnStepListChangeRequest(StepListEventArgs data)
         {
             if (StepListChangeRequest is not null)
             {
@@ -164,7 +167,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             {
                 if (questData.Steps.Remove(stepId))
                 {
-                    OnStepListChangeRequest(new AddResult());
+                    OnStepListChangeRequest(new StepListEventArgs());
                     return true;
                 }
             }
@@ -211,18 +214,48 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                     }
 
                     questData.Steps[step.Step] = step;
-                    OnStepListChangeRequest(new AddResult());
+                    OnStepListChangeRequest(new StepListEventArgs() { StepData = step});
                 }
             }
         }
 
+
+        public bool CloneQuest(string questTitle)
+        {
+            return CloneQuest(GetQuest(questTitle).ID);
+        }
+
+        public bool CloneQuest(ushort questId)
+        {
+            ushort newId = GetFreeId();
+
+            if (Quests.TryGetValue(questId, out var questData))
+            {
+                QuestDataInfo questDataInfo = new QuestDataInfo(questData)
+                {
+                    ID = newId,
+                    QuestName = $"CLONED_{questData.QuestName}"
+                };
+
+                questDataInfo.SetStepParent(questDataInfo);
+
+                if (Quests.TryAdd(newId, questDataInfo))
+                {
+                    OnQuestListChangeRequest(new QuestListEventArgs() { QuestData = questDataInfo });
+                    return true;
+                }
+            }
+
+            return false;
+
+        }
         public void ChangeTitleName(ushort questId, string title)
         {
             if (Quests.TryGetValue(questId, out var questData))
             {
                 questData.QuestName = title;
 
-                OnQuestListChangeRequest(new AddResult() { QuestData = questData });
+                OnQuestListChangeRequest(new QuestListEventArgs() { QuestData = questData });
             }
         }
 
@@ -240,7 +273,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                 if(questData.AddStep(new QuestDataStep(questData)))
                 {
                     questData.Steps = questData.Steps.OrderBy(entry => entry.Key).ToDictionary(entry => entry.Key, entry => entry.Value);
-                    OnStepListChangeRequest(new AddResult());
+                    OnStepListChangeRequest(new StepListEventArgs());
                     return true;
                 }
                 else
@@ -259,7 +292,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         };
 
 
-        public AddResult AddQuest()
+        public QuestListEventArgs AddQuest()
         {
             ushort newId = GetFreeId();
 
@@ -276,7 +309,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
             if (Quests.TryAdd(newId, questDataInfo))
             {
-                return new AddResult()
+                return new QuestListEventArgs()
                 {
                     Success = true,
                     QuestData = questDataInfo

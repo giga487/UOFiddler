@@ -43,7 +43,8 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         public string Text { get; set; }
         public List<string> StepObjective { get; set; } = new List<string>();
         public QuestType_T Type { get; set; } = QuestType_T.Default;
-
+        public string Notes { get; set; } = string.Empty;
+        public string NpcGumpText { get; set; } = string.Empty;
         public QuestDataStep()
         {
         
@@ -57,6 +58,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             Type = toCopy.Type;
             Text = toCopy.Text;
             Own = toCopy.Own;
+            Notes = toCopy.Notes;
         }
         public QuestDataStep(QuestDataInfo parent)
         {
@@ -87,6 +89,31 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         public ushort ID { get; set; } = 0;
         public QuestPriority_T Priority { get; set; }
         public Dictionary<int, QuestDataStep> Steps { get; set; } = new Dictionary<int, QuestDataStep>();
+
+        public QuestDataInfo()
+        { }
+
+        public QuestDataInfo(QuestDataInfo toCopy)
+        {
+            CanRepeat = toCopy.CanRepeat;
+            Reward = toCopy.Reward;
+            QuestName = toCopy.QuestName;
+            ID = toCopy.ID; 
+            Priority = toCopy.Priority;
+
+            foreach(var stepKV in toCopy.Steps)
+            {
+                Steps.Add(stepKV.Key, new QuestDataStep(stepKV.Value));
+            }
+        }
+
+        public void SetStepParent(QuestDataInfo owner)
+        {
+            foreach (var stepKV in Steps)
+            {
+                stepKV.Value.Own = owner;
+            }
+        }
 
         public int GetFreeStep()
         {

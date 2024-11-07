@@ -33,6 +33,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         string tempTitle { get; set; } = string.Empty;
         string tempStepName { get; set; } = string.Empty;
         string tempStepText { get; set; } = string.Empty;
+        string tempStepNotes { get; set; } = string.Empty;
+        string tempNPCText { get; set; } = string.Empty;
         QuestSeaHatsManager _manager { get; set; } = null;
         public QuestControl(QuestDataStep data, QuestSeaHatsManager manager)
         {
@@ -60,6 +62,9 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             }
 
             steptype.SelectedIndex = (int)data.Type;
+
+            questNotesTxtbox.Text = data.Notes;
+            npcQuestGump.Text = data.NpcGumpText;
         }
 
         public void ResetTempData(QuestDataStep data)
@@ -69,6 +74,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             tempStepText = stepText.Text = data.Text;
             questPriorityCB.SelectedItem = data.Own.Priority;
             steptype.SelectedItem = data.Type;
+            tempStepNotes = data.Notes;
+            tempNPCText = data.NpcGumpText;
         }
 
         private void titleTextbox_TextChanged(object sender, EventArgs e)
@@ -91,6 +98,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 questStep.StepName = tempStepName;
                 questStep.Text = tempStepText;
                 questStep.Type = (QuestType_T)steptype.SelectedIndex;
+                questStep.Notes = tempStepNotes;
+                questStep.NpcGumpText = tempNPCText;
 
                 _manager.UpdateStep(datasInfo.Own.ID, questStep);
 
@@ -128,6 +137,16 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private void steptype_SelectedIndexChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void questNotesTxtbox_TextChanged(object sender, EventArgs e)
+        {
+            tempStepNotes = questNotesTxtbox.Text;
+        }
+
+        private void npcQuestGump_TextChanged(object sender, EventArgs e)
+        {
+            tempNPCText = npcQuestGump.Text;
         }
     }
 }

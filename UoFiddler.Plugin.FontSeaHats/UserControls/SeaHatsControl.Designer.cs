@@ -57,19 +57,20 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             label3 = new System.Windows.Forms.Label();
             maxStepCombo = new System.Windows.Forms.ComboBox();
             addStepBtn = new System.Windows.Forms.Button();
-            questGroupBox = new System.Windows.Forms.TabControl();
+            StepTab = new System.Windows.Forms.TabControl();
             tabPage1 = new System.Windows.Forms.TabPage();
             deleteButton = new System.Windows.Forms.Button();
             newQuest = new System.Windows.Forms.Button();
             label2 = new System.Windows.Forms.Label();
             questIDListBox = new System.Windows.Forms.ListBox();
             fontDialog1 = new System.Windows.Forms.FontDialog();
+            cloneQuestBtn = new System.Windows.Forms.Button();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_pictureBox).BeginInit();
             QuestPage.SuspendLayout();
-            questGroupBox.SuspendLayout();
+            StepTab.SuspendLayout();
             SuspendLayout();
             // 
             // tabControl1
@@ -200,12 +201,13 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // QuestPage
             // 
+            QuestPage.Controls.Add(cloneQuestBtn);
             QuestPage.Controls.Add(loadBtn);
             QuestPage.Controls.Add(saveBtn);
             QuestPage.Controls.Add(label3);
             QuestPage.Controls.Add(maxStepCombo);
             QuestPage.Controls.Add(addStepBtn);
-            QuestPage.Controls.Add(questGroupBox);
+            QuestPage.Controls.Add(StepTab);
             QuestPage.Controls.Add(deleteButton);
             QuestPage.Controls.Add(newQuest);
             QuestPage.Controls.Add(label2);
@@ -267,21 +269,21 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             addStepBtn.UseVisualStyleBackColor = true;
             addStepBtn.Click += addStepBtn_Click;
             // 
-            // questGroupBox
+            // StepTab
             // 
-            questGroupBox.Controls.Add(tabPage1);
-            questGroupBox.Location = new System.Drawing.Point(370, 24);
-            questGroupBox.Name = "questGroupBox";
-            questGroupBox.SelectedIndex = 0;
-            questGroupBox.Size = new System.Drawing.Size(827, 447);
-            questGroupBox.TabIndex = 6;
+            StepTab.Controls.Add(tabPage1);
+            StepTab.Location = new System.Drawing.Point(370, 24);
+            StepTab.Name = "StepTab";
+            StepTab.SelectedIndex = 0;
+            StepTab.Size = new System.Drawing.Size(1017, 447);
+            StepTab.TabIndex = 6;
             // 
             // tabPage1
             // 
             tabPage1.Location = new System.Drawing.Point(4, 24);
             tabPage1.Name = "tabPage1";
             tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            tabPage1.Size = new System.Drawing.Size(819, 419);
+            tabPage1.Size = new System.Drawing.Size(1009, 419);
             tabPage1.TabIndex = 0;
             tabPage1.Text = "tabPage1";
             tabPage1.UseVisualStyleBackColor = true;
@@ -325,6 +327,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             questIDListBox.TabIndex = 1;
             questIDListBox.SelectedIndexChanged += questIDListBox_SelectedIndexChanged;
             // 
+            // cloneQuestBtn
+            // 
+            cloneQuestBtn.Location = new System.Drawing.Point(276, 246);
+            cloneQuestBtn.Name = "cloneQuestBtn";
+            cloneQuestBtn.Size = new System.Drawing.Size(88, 23);
+            cloneQuestBtn.TabIndex = 13;
+            cloneQuestBtn.Text = "Clona Quest";
+            cloneQuestBtn.UseVisualStyleBackColor = true;
+            cloneQuestBtn.Click += cloneQuestBtn_Click;
+            // 
             // SeaHatsControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -341,7 +353,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             ((System.ComponentModel.ISupportInitialize)_pictureBox).EndInit();
             QuestPage.ResumeLayout(false);
             QuestPage.PerformLayout();
-            questGroupBox.ResumeLayout(false);
+            StepTab.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -366,12 +378,13 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button deleteButton;
         private System.Windows.Forms.Button newQuest;
         private System.Windows.Forms.Button addStepBtn;
-        private System.Windows.Forms.TabControl questGroupBox;
+        private System.Windows.Forms.TabControl StepTab;
         private System.Windows.Forms.TabPage tabPage1;
         private FontSeaHats.UserControls.QuestControl questControl1;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.ComboBox maxStepCombo;
         private System.Windows.Forms.Button saveBtn;
         private System.Windows.Forms.Button loadBtn;
+        private System.Windows.Forms.Button cloneQuestBtn;
     }
 }

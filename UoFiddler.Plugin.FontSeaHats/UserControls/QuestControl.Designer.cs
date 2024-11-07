@@ -53,6 +53,11 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             steptype = new System.Windows.Forms.ComboBox();
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
+            label3 = new System.Windows.Forms.Label();
+            questNotesTxtbox = new System.Windows.Forms.TextBox();
+            label4 = new System.Windows.Forms.Label();
+            npcQuestGump = new System.Windows.Forms.TextBox();
+            label5 = new System.Windows.Forms.Label();
             SuspendLayout();
             // 
             // stepLabel
@@ -75,10 +80,11 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             // stepText
             // 
-            stepText.Location = new System.Drawing.Point(13, 109);
+            stepText.Location = new System.Drawing.Point(13, 118);
             stepText.Multiline = true;
             stepText.Name = "stepText";
-            stepText.Size = new System.Drawing.Size(387, 277);
+            stepText.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            stepText.Size = new System.Drawing.Size(312, 281);
             stepText.TabIndex = 15;
             stepText.TextChanged += stepText_TextChanged;
             // 
@@ -120,7 +126,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             // saveBtn
             // 
-            saveBtn.Location = new System.Drawing.Point(641, 351);
+            saveBtn.Location = new System.Drawing.Point(846, 367);
             saveBtn.Name = "saveBtn";
             saveBtn.Size = new System.Drawing.Size(75, 43);
             saveBtn.TabIndex = 18;
@@ -130,7 +136,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             // resetStepBtn
             // 
-            resetStepBtn.Location = new System.Drawing.Point(560, 351);
+            resetStepBtn.Location = new System.Drawing.Point(765, 367);
             resetStepBtn.Name = "resetStepBtn";
             resetStepBtn.Size = new System.Drawing.Size(75, 43);
             resetStepBtn.TabIndex = 19;
@@ -140,7 +146,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             // removeStepBtn
             // 
-            removeStepBtn.Location = new System.Drawing.Point(406, 351);
+            removeStepBtn.Location = new System.Drawing.Point(674, 367);
             removeStepBtn.Name = "removeStepBtn";
             removeStepBtn.Size = new System.Drawing.Size(75, 43);
             removeStepBtn.TabIndex = 20;
@@ -152,7 +158,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             questPriorityCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             questPriorityCB.FormattingEnabled = true;
-            questPriorityCB.Location = new System.Drawing.Point(595, 67);
+            questPriorityCB.Location = new System.Drawing.Point(595, 28);
             questPriorityCB.Name = "questPriorityCB";
             questPriorityCB.Size = new System.Drawing.Size(121, 23);
             questPriorityCB.TabIndex = 21;
@@ -162,7 +168,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             steptype.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             steptype.FormattingEnabled = true;
-            steptype.Location = new System.Drawing.Point(595, 127);
+            steptype.Location = new System.Drawing.Point(595, 73);
             steptype.Name = "steptype";
             steptype.Size = new System.Drawing.Size(121, 23);
             steptype.TabIndex = 22;
@@ -171,7 +177,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(637, 52);
+            label1.Location = new System.Drawing.Point(637, 10);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(79, 15);
             label1.TabIndex = 23;
@@ -180,17 +186,69 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(660, 109);
+            label2.Location = new System.Drawing.Point(660, 55);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(56, 15);
             label2.TabIndex = 24;
             label2.Text = "Step type";
             // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(13, 100);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(77, 15);
+            label3.TabIndex = 25;
+            label3.Text = "Step Text Box";
+            // 
+            // questNotesTxtbox
+            // 
+            questNotesTxtbox.Location = new System.Drawing.Point(674, 136);
+            questNotesTxtbox.Multiline = true;
+            questNotesTxtbox.Name = "questNotesTxtbox";
+            questNotesTxtbox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            questNotesTxtbox.Size = new System.Drawing.Size(310, 209);
+            questNotesTxtbox.TabIndex = 26;
+            questNotesTxtbox.TextChanged += questNotesTxtbox_TextChanged;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new System.Drawing.Point(674, 118);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(60, 15);
+            label4.TabIndex = 27;
+            label4.Text = "GM Notes";
+            // 
+            // npcQuestGump
+            // 
+            npcQuestGump.Location = new System.Drawing.Point(341, 118);
+            npcQuestGump.Multiline = true;
+            npcQuestGump.Name = "npcQuestGump";
+            npcQuestGump.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            npcQuestGump.Size = new System.Drawing.Size(312, 281);
+            npcQuestGump.TabIndex = 28;
+            npcQuestGump.TextChanged += npcQuestGump_TextChanged;
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new System.Drawing.Point(341, 100);
+            label5.Name = "label5";
+            label5.Size = new System.Drawing.Size(78, 15);
+            label5.TabIndex = 29;
+            label5.Text = "NPC Text box";
+            // 
             // QuestControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            BackColor = System.Drawing.SystemColors.ActiveCaption;
+            BackColor = System.Drawing.Color.Gray;
+            Controls.Add(label5);
+            Controls.Add(npcQuestGump);
+            Controls.Add(label4);
+            Controls.Add(questNotesTxtbox);
+            Controls.Add(label3);
             Controls.Add(label2);
             Controls.Add(label1);
             Controls.Add(steptype);
@@ -206,7 +264,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             Controls.Add(label7);
             Controls.Add(stepNameTextbox);
             Name = "QuestControl";
-            Size = new System.Drawing.Size(726, 397);
+            Size = new System.Drawing.Size(997, 413);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -227,5 +285,10 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private System.Windows.Forms.ComboBox steptype;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TextBox questNotesTxtbox;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TextBox npcQuestGump;
+        private System.Windows.Forms.Label label5;
     }
 }

@@ -568,7 +568,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         public void RefillQuestControl(QuestDataInfo dataInfo)
         {
-            questGroupBox.TabPages.Clear();
+            StepTab.TabPages.Clear();
             if (dataInfo is null)
             {
                 return;
@@ -578,12 +578,12 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 var tabPage = new TabPage()
                 {
-                    Text = idStep.Value.StepName
+                    Text = idStep.Value.StepName,
                 };
 
                 tabPage.Controls.Add(new QuestControl(idStep.Value, _questManager));
 
-                questGroupBox.TabPages.Add(tabPage);
+                StepTab.TabPages.Add(tabPage);
             }
         }
 
@@ -620,7 +620,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             RefillQuestControl(questData2);
         }
 
-        private void _questManager_StepListChangeRequest(object sender, AddResult e)
+
+        private void _questManager_StepListChangeRequest(object sender, StepListEventArgs e)
         {
             string selectedName = string.Empty;
             if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
@@ -628,10 +629,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 string name = _questManager.Quests.Values.First().QuestName;
                 selectedName = name;
             }
+            else if (e.StepData is not null)
+            {
+                lastStep = e.StepData;
+
+            }
         }
 
+        QuestDataStep lastStep { get; set; } = null;
         short lastIndex = -1;
-        private void _questManager_UpdateQuestsRequest(object sender, AddResult e)
+        private void _questManager_UpdateQuestsRequest(object sender, QuestListEventArgs e)
         {
             lastIndex = (short)questIDListBox.SelectedIndex;
             RefillQuestTitle();
@@ -639,6 +646,26 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             try
             {
                 questIDListBox.SelectedIndex = lastIndex;
+
+                if (lastStep is not null)
+                {
+                    TabPage tabPage = null;
+
+                    foreach (TabPage tab in StepTab.TabPages)
+                    {
+                        if (tab.Text == lastStep.StepName)
+                        {
+                            tabPage = tab;
+                            break;
+                        }
+                    }
+
+                    StepTab.SelectedTab = tabPage;
+                }
+                else
+                {
+                    StepTab.SelectedIndex = 0;
+                }
             }
             catch
             {
@@ -654,6 +681,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 RefillQuestTitle();
             }
+
+            questIDListBox.SelectedIndex = (short)(questIDListBox.Items.Count - 1);
         }
 
         private void addStepBtn_Click(object sender, EventArgs e)
@@ -748,10 +777,20 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             if (e.TabPageIndex == 1)
             {
-                _questManager.OnQuestListChangeRequest(new AddResult());
+                _questManager.OnQuestListChangeRequest(new QuestListEventArgs());
             }
 
 
+        }
+
+        private void cloneQuestBtn_Click(object sender, EventArgs e)
+        {
+            if (questIDListBox.SelectedItem is not null)
+            {
+                _questManager.CloneQuest((string)questIDListBox.SelectedItem);
+
+                questIDListBox.SelectedIndex = (short)(questIDListBox.Items.Count - 1);
+            }
         }
     }
 }
