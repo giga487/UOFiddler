@@ -45,6 +45,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         public QuestType_T Type { get; set; } = QuestType_T.Default;
         public string Notes { get; set; } = string.Empty;
         public string NpcGumpText { get; set; } = string.Empty;
+
         public QuestDataStep()
         {
         
@@ -89,6 +90,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         public ushort ID { get; set; } = 0;
         public QuestPriority_T Priority { get; set; }
         public Dictionary<int, QuestDataStep> Steps { get; set; } = new Dictionary<int, QuestDataStep>();
+        public string RegionName { get; set; } = string.Empty;
 
         public QuestDataInfo()
         { }

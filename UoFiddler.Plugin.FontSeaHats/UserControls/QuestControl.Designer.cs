@@ -59,6 +59,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             npcQuestGump = new System.Windows.Forms.TextBox();
             label5 = new System.Windows.Forms.Label();
             canRepeatCheck = new System.Windows.Forms.CheckBox();
+            regionNameTxt = new System.Windows.Forms.TextBox();
+            label8 = new System.Windows.Forms.Label();
             SuspendLayout();
             // 
             // stepLabel
@@ -159,7 +161,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             questPriorityCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             questPriorityCB.FormattingEnabled = true;
-            questPriorityCB.Location = new System.Drawing.Point(595, 28);
+            questPriorityCB.Location = new System.Drawing.Point(765, 23);
             questPriorityCB.Name = "questPriorityCB";
             questPriorityCB.Size = new System.Drawing.Size(121, 23);
             questPriorityCB.TabIndex = 21;
@@ -169,7 +171,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             steptype.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             steptype.FormattingEnabled = true;
-            steptype.Location = new System.Drawing.Point(595, 73);
+            steptype.Location = new System.Drawing.Point(765, 68);
             steptype.Name = "steptype";
             steptype.Size = new System.Drawing.Size(121, 23);
             steptype.TabIndex = 22;
@@ -178,7 +180,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(637, 10);
+            label1.Location = new System.Drawing.Point(807, 5);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(79, 15);
             label1.TabIndex = 23;
@@ -187,7 +189,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(660, 55);
+            label2.Location = new System.Drawing.Point(830, 50);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(56, 15);
             label2.TabIndex = 24;
@@ -243,7 +245,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // canRepeatCheck
             // 
             canRepeatCheck.AutoSize = true;
-            canRepeatCheck.Location = new System.Drawing.Point(484, 10);
+            canRepeatCheck.Location = new System.Drawing.Point(802, 96);
             canRepeatCheck.Name = "canRepeatCheck";
             canRepeatCheck.Size = new System.Drawing.Size(84, 19);
             canRepeatCheck.TabIndex = 30;
@@ -251,11 +253,30 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             canRepeatCheck.UseVisualStyleBackColor = true;
             canRepeatCheck.CheckedChanged += canRepeatCheck_CheckedChanged;
             // 
+            // regionNameTxt
+            // 
+            regionNameTxt.Location = new System.Drawing.Point(560, 23);
+            regionNameTxt.Name = "regionNameTxt";
+            regionNameTxt.Size = new System.Drawing.Size(174, 23);
+            regionNameTxt.TabIndex = 31;
+            regionNameTxt.TextChanged += regionNameTxt_TextChanged;
+            // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new System.Drawing.Point(655, 5);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(79, 15);
+            label8.TabIndex = 32;
+            label8.Text = "Region Name";
+            // 
             // QuestControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.Gray;
+            Controls.Add(label8);
+            Controls.Add(regionNameTxt);
             Controls.Add(canRepeatCheck);
             Controls.Add(label5);
             Controls.Add(npcQuestGump);
@@ -277,7 +298,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             Controls.Add(label7);
             Controls.Add(stepNameTextbox);
             Name = "QuestControl";
-            Size = new System.Drawing.Size(997, 413);
+            Size = new System.Drawing.Size(1002, 423);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -304,5 +325,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private System.Windows.Forms.TextBox npcQuestGump;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.CheckBox canRepeatCheck;
+        private System.Windows.Forms.TextBox regionNameTxt;
+        private System.Windows.Forms.Label label8;
     }
 }

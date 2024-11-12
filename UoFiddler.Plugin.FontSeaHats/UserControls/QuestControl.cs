@@ -36,6 +36,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         string tempStepNotes { get; set; } = string.Empty;
         string tempNPCText { get; set; } = string.Empty;
         bool tempCanRepeat { get; set; } = false;
+        string tempQuestRegionName { get; set; } = string.Empty;
+
         QuestSeaHatsManager _manager { get; set; } = null;
         public QuestControl(QuestDataStep data, QuestSeaHatsManager manager)
         {
@@ -56,7 +58,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             }
 
             questPriorityCB.SelectedIndex = (int)data.Own.Priority;
-
+            regionNameTxt.Text = data.Own.RegionName;
+            
             foreach (var value in Enum.GetValues(typeof(QuestType_T)))
             {
                 steptype.Items.Add(value);
@@ -67,7 +70,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             questNotesTxtbox.Text = data.Notes;
             npcQuestGump.Text = data.NpcGumpText;
 
-            canRepeatCheck.CheckState = data.Own.CanRepeat? CheckState.Checked: CheckState.Unchecked;
+            canRepeatCheck.CheckState = data.Own.CanRepeat ? CheckState.Checked : CheckState.Unchecked;
         }
 
         public void ResetTempData(QuestDataStep data)
@@ -79,6 +82,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             steptype.SelectedItem = data.Type;
             tempStepNotes = data.Notes;
             tempNPCText = data.NpcGumpText;
+            tempQuestRegionName = data.Own.RegionName;
             canRepeatCheck.CheckState = data.Own.CanRepeat ? CheckState.Checked : CheckState.Unchecked;
         }
 
@@ -106,6 +110,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 questStep.NpcGumpText = tempNPCText;
 
                 questStep.Own.CanRepeat = tempCanRepeat;
+                questStep.Own.RegionName = tempQuestRegionName;
+
                 _manager.UpdateStep(datasInfo.Own.ID, questStep);
 
                 _manager.ChangeTitleName(datasInfo.Own.ID, tempTitle);
@@ -161,9 +167,14 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 tempCanRepeat = true;
             }
             else
-            { 
-                tempCanRepeat = false; 
+            {
+                tempCanRepeat = false;
             }
+        }
+
+        private void regionNameTxt_TextChanged(object sender, EventArgs e)
+        {
+            tempQuestRegionName  = regionNameTxt.Text;
         }
     }
 }
