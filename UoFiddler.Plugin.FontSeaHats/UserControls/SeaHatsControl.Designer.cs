@@ -52,6 +52,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             FontCreator = new System.Windows.Forms.Button();
             fontListBox = new System.Windows.Forms.ListBox();
             QuestPage = new System.Windows.Forms.TabPage();
+            cloneQuestBtn = new System.Windows.Forms.Button();
             loadBtn = new System.Windows.Forms.Button();
             saveBtn = new System.Windows.Forms.Button();
             label3 = new System.Windows.Forms.Label();
@@ -64,7 +65,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             label2 = new System.Windows.Forms.Label();
             questIDListBox = new System.Windows.Forms.ListBox();
             fontDialog1 = new System.Windows.Forms.FontDialog();
-            cloneQuestBtn = new System.Windows.Forms.Button();
+            label8 = new System.Windows.Forms.Label();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
@@ -87,6 +88,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // fontPage
             // 
+            fontPage.Controls.Add(label8);
             fontPage.Controls.Add(label1);
             fontPage.Controls.Add(trackBar1);
             fontPage.Controls.Add(clearBtn);
@@ -220,6 +222,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             QuestPage.Text = "Quest";
             QuestPage.UseVisualStyleBackColor = true;
             // 
+            // cloneQuestBtn
+            // 
+            cloneQuestBtn.Location = new System.Drawing.Point(276, 246);
+            cloneQuestBtn.Name = "cloneQuestBtn";
+            cloneQuestBtn.Size = new System.Drawing.Size(88, 23);
+            cloneQuestBtn.TabIndex = 13;
+            cloneQuestBtn.Text = "Clona Quest";
+            cloneQuestBtn.UseVisualStyleBackColor = true;
+            cloneQuestBtn.Click += cloneQuestBtn_Click;
+            // 
             // loadBtn
             // 
             loadBtn.Location = new System.Drawing.Point(280, 412);
@@ -327,15 +339,14 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             questIDListBox.TabIndex = 1;
             questIDListBox.SelectedIndexChanged += questIDListBox_SelectedIndexChanged;
             // 
-            // cloneQuestBtn
+            // label8
             // 
-            cloneQuestBtn.Location = new System.Drawing.Point(276, 246);
-            cloneQuestBtn.Name = "cloneQuestBtn";
-            cloneQuestBtn.Size = new System.Drawing.Size(88, 23);
-            cloneQuestBtn.TabIndex = 13;
-            cloneQuestBtn.Text = "Clona Quest";
-            cloneQuestBtn.UseVisualStyleBackColor = true;
-            cloneQuestBtn.Click += cloneQuestBtn_Click;
+            label8.AutoSize = true;
+            label8.Location = new System.Drawing.Point(6, 7);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(57, 15);
+            label8.TabIndex = 32;
+            label8.Text = "Step ID: X";
             // 
             // SeaHatsControl
             // 
@@ -386,5 +397,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button saveBtn;
         private System.Windows.Forms.Button loadBtn;
         private System.Windows.Forms.Button cloneQuestBtn;
+        private System.Windows.Forms.Label label8;
     }
 }

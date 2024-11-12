@@ -35,6 +35,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         string tempStepText { get; set; } = string.Empty;
         string tempStepNotes { get; set; } = string.Empty;
         string tempNPCText { get; set; } = string.Empty;
+        bool tempCanRepeat { get; set; } = false;
         QuestSeaHatsManager _manager { get; set; } = null;
         public QuestControl(QuestDataStep data, QuestSeaHatsManager manager)
         {
@@ -65,6 +66,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
             questNotesTxtbox.Text = data.Notes;
             npcQuestGump.Text = data.NpcGumpText;
+
+            canRepeatCheck.CheckState = data.Own.CanRepeat? CheckState.Checked: CheckState.Unchecked;
         }
 
         public void ResetTempData(QuestDataStep data)
@@ -76,6 +79,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             steptype.SelectedItem = data.Type;
             tempStepNotes = data.Notes;
             tempNPCText = data.NpcGumpText;
+            canRepeatCheck.CheckState = data.Own.CanRepeat ? CheckState.Checked : CheckState.Unchecked;
         }
 
         private void titleTextbox_TextChanged(object sender, EventArgs e)
@@ -101,6 +105,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 questStep.Notes = tempStepNotes;
                 questStep.NpcGumpText = tempNPCText;
 
+                questStep.Own.CanRepeat = tempCanRepeat;
                 _manager.UpdateStep(datasInfo.Own.ID, questStep);
 
                 _manager.ChangeTitleName(datasInfo.Own.ID, tempTitle);
@@ -147,6 +152,18 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private void npcQuestGump_TextChanged(object sender, EventArgs e)
         {
             tempNPCText = npcQuestGump.Text;
+        }
+
+        private void canRepeatCheck_CheckedChanged(object sender, EventArgs e)
+        {
+            if (canRepeatCheck.Checked)
+            {
+                tempCanRepeat = true;
+            }
+            else
+            { 
+                tempCanRepeat = false; 
+            }
         }
     }
 }

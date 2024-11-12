@@ -114,6 +114,7 @@ namespace UoFiddler.Controls.UserControls
                     {
                         Tag = i
                     };
+
                     treeView.Nodes[0].Nodes.Add(node);
                 }
 
@@ -123,6 +124,7 @@ namespace UoFiddler.Controls.UserControls
                     {
                         Tag = 1
                     };
+
                     treeView.Nodes.Add(node);
 
                     for (int i = 0; i < UnicodeFonts.Fonts.Length; ++i)
@@ -136,6 +138,7 @@ namespace UoFiddler.Controls.UserControls
                         {
                             Tag = i
                         };
+
                         treeView.Nodes[1].Nodes.Add(node);
                     }
                 }

@@ -233,10 +233,12 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 {
                     var charBmp = CreateChar(bmp, toAnalyze, brush, leftOffset, space, 0);
 
-                    if (charBmp is not null)
+                    if (charBmp is null)
                     {
-                        chars.Add(charBmp);
+                        charBmp = CreateChar(bmp, 'O', brush, leftOffset, space, 0);
                     }
+
+                    chars.Add(charBmp);
                 }
 
 
@@ -435,6 +437,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 {
 
                 }
+
+                if (bitmap is null)
+                    continue;
+
                 if (i++ % 90 == 0)
                 {
                     yTest += (int)bitmap.Height;
@@ -443,10 +449,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                     point = new PointF(xTest, yTest);
                 }
 
+                try
+                {
+                    e.Graphics.DrawRectangle(new System.Drawing.Pen(violetBrush), new RectangleF(point, bitmap.Size));
+                    e.Graphics.DrawImage(bitmap, point);
+                    xTest += bitmap.Width;
+                }
+                catch
+                {
 
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(violetBrush), new RectangleF(point, bitmap.Size));
-                e.Graphics.DrawImage(bitmap, point);
-                xTest += bitmap.Width;
+                }
             }
         }
         private void AddFontBtn_Click(object sender, EventArgs e)
@@ -540,7 +552,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
             Bitmap bmp = new Bitmap(_pictureBox.Width, _pictureBox.Height);
 
-            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.Black);
+            _listBitmap = CreateChars(bmp, xOffset, System.Drawing.Brushes.DarkGray);
             _pictureBox.Invalidate();
         }
 

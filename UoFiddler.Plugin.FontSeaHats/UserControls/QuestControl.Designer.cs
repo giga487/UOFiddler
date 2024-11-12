@@ -58,12 +58,13 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             label4 = new System.Windows.Forms.Label();
             npcQuestGump = new System.Windows.Forms.TextBox();
             label5 = new System.Windows.Forms.Label();
+            canRepeatCheck = new System.Windows.Forms.CheckBox();
             SuspendLayout();
             // 
             // stepLabel
             // 
             stepLabel.AutoSize = true;
-            stepLabel.Location = new System.Drawing.Point(497, 36);
+            stepLabel.Location = new System.Drawing.Point(927, 31);
             stepLabel.Name = "stepLabel";
             stepLabel.Size = new System.Drawing.Size(57, 15);
             stepLabel.TabIndex = 17;
@@ -72,7 +73,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // questIdlabel
             // 
             questIdlabel.AutoSize = true;
-            questIdlabel.Location = new System.Drawing.Point(497, 21);
+            questIdlabel.Location = new System.Drawing.Point(919, 10);
             questIdlabel.Name = "questIdlabel";
             questIdlabel.Size = new System.Drawing.Size(65, 15);
             questIdlabel.TabIndex = 16;
@@ -239,11 +240,23 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             label5.TabIndex = 29;
             label5.Text = "NPC Text box";
             // 
+            // canRepeatCheck
+            // 
+            canRepeatCheck.AutoSize = true;
+            canRepeatCheck.Location = new System.Drawing.Point(484, 10);
+            canRepeatCheck.Name = "canRepeatCheck";
+            canRepeatCheck.Size = new System.Drawing.Size(84, 19);
+            canRepeatCheck.TabIndex = 30;
+            canRepeatCheck.Text = "Repeatable";
+            canRepeatCheck.UseVisualStyleBackColor = true;
+            canRepeatCheck.CheckedChanged += canRepeatCheck_CheckedChanged;
+            // 
             // QuestControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.Gray;
+            Controls.Add(canRepeatCheck);
             Controls.Add(label5);
             Controls.Add(npcQuestGump);
             Controls.Add(label4);
@@ -290,5 +303,6 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.TextBox npcQuestGump;
         private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.CheckBox canRepeatCheck;
     }
 }
