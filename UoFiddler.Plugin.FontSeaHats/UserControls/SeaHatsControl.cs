@@ -816,11 +816,16 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 FileInfo f = new FileInfo(filePath);
                 string fileName = f.Name.Replace(f.Extension, "");
 
+                var data = new QuestData(_questManager.Data);
+                data.SecretKey = "";
+
+                string toSave = _questManager.ExtractDataJson();
+
                 string pwd = secretKeyTxt.Text;
                 if (!string.IsNullOrEmpty(pwd))
                 {
 
-                    FileManagerHelper.EncryptFile(filePath, fileName + ".MUL", pwd);
+                    FileManagerHelper.EncryptStringToFile(toSave, fileName + ".MUL", pwd);
                 }
             }
 

@@ -36,6 +36,15 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
     {
         public Dictionary<ushort, QuestDataInfo> Quests { get; set; } = new Dictionary<ushort, QuestDataInfo>();
         public string SecretKey { get; set; } = string.Empty;
+        public QuestData()
+        {
+
+        }
+        public QuestData(QuestData dataToCopy)
+        {
+            SecretKey = dataToCopy.SecretKey;
+            Quests = new Dictionary<ushort, QuestDataInfo>(dataToCopy.Quests);
+        }
     }
 
     public class QuestSeaHatsManager
@@ -93,6 +102,16 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
         }
 
         private string _lastPath { get; set; } = string.Empty;
+
+        public string ExtractDataJson()
+        {
+            JsonSerializerSettings settings = new();
+            settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            settings.NullValueHandling = NullValueHandling.Ignore;
+
+            return JsonConvert.SerializeObject(Data, settings);
+        }
+
 
         public bool SaveJsonQuest(string file)
         {
