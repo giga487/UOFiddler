@@ -41,6 +41,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             fontPage = new System.Windows.Forms.TabPage();
+            label8 = new System.Windows.Forms.Label();
             label1 = new System.Windows.Forms.Label();
             trackBar1 = new System.Windows.Forms.TrackBar();
             clearBtn = new System.Windows.Forms.Button();
@@ -52,6 +53,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             FontCreator = new System.Windows.Forms.Button();
             fontListBox = new System.Windows.Forms.ListBox();
             QuestPage = new System.Windows.Forms.TabPage();
+            SaveBySecretBtn = new System.Windows.Forms.Button();
+            loadBySecretBtn = new System.Windows.Forms.Button();
+            label4 = new System.Windows.Forms.Label();
+            secretKeyTxt = new System.Windows.Forms.TextBox();
             cloneQuestBtn = new System.Windows.Forms.Button();
             loadBtn = new System.Windows.Forms.Button();
             saveBtn = new System.Windows.Forms.Button();
@@ -65,7 +70,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             label2 = new System.Windows.Forms.Label();
             questIDListBox = new System.Windows.Forms.ListBox();
             fontDialog1 = new System.Windows.Forms.FontDialog();
-            label8 = new System.Windows.Forms.Label();
             tabControl1.SuspendLayout();
             fontPage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
@@ -81,7 +85,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             tabControl1.Location = new System.Drawing.Point(0, 3);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new System.Drawing.Size(2068, 524);
+            tabControl1.Size = new System.Drawing.Size(2068, 583);
             tabControl1.TabIndex = 0;
             tabControl1.SelectedIndexChanged += tabControl1_SelectedIndexChanged;
             tabControl1.Selecting += tabControl1_Selecting;
@@ -102,11 +106,20 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             fontPage.Location = new System.Drawing.Point(4, 24);
             fontPage.Name = "fontPage";
             fontPage.Padding = new System.Windows.Forms.Padding(3);
-            fontPage.Size = new System.Drawing.Size(2060, 496);
+            fontPage.Size = new System.Drawing.Size(2060, 555);
             fontPage.TabIndex = 0;
             fontPage.Text = "Font";
             fontPage.UseVisualStyleBackColor = true;
             fontPage.Click += fontPage_Click;
+            // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new System.Drawing.Point(6, 7);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(57, 15);
+            label8.TabIndex = 32;
+            label8.Text = "Step ID: X";
             // 
             // label1
             // 
@@ -203,6 +216,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             // 
             // QuestPage
             // 
+            QuestPage.Controls.Add(SaveBySecretBtn);
+            QuestPage.Controls.Add(loadBySecretBtn);
+            QuestPage.Controls.Add(label4);
+            QuestPage.Controls.Add(secretKeyTxt);
             QuestPage.Controls.Add(cloneQuestBtn);
             QuestPage.Controls.Add(loadBtn);
             QuestPage.Controls.Add(saveBtn);
@@ -217,10 +234,46 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             QuestPage.Location = new System.Drawing.Point(4, 24);
             QuestPage.Name = "QuestPage";
             QuestPage.Padding = new System.Windows.Forms.Padding(3);
-            QuestPage.Size = new System.Drawing.Size(2060, 496);
+            QuestPage.Size = new System.Drawing.Size(2060, 555);
             QuestPage.TabIndex = 1;
             QuestPage.Text = "Quest";
             QuestPage.UseVisualStyleBackColor = true;
+            // 
+            // SaveBySecretBtn
+            // 
+            SaveBySecretBtn.Location = new System.Drawing.Point(129, 518);
+            SaveBySecretBtn.Name = "SaveBySecretBtn";
+            SaveBySecretBtn.Size = new System.Drawing.Size(88, 23);
+            SaveBySecretBtn.TabIndex = 17;
+            SaveBySecretBtn.Text = "Save";
+            SaveBySecretBtn.UseVisualStyleBackColor = true;
+            SaveBySecretBtn.Click += SaveBySecretBtn_Click;
+            // 
+            // loadBySecretBtn
+            // 
+            loadBySecretBtn.Location = new System.Drawing.Point(24, 518);
+            loadBySecretBtn.Name = "loadBySecretBtn";
+            loadBySecretBtn.Size = new System.Drawing.Size(88, 23);
+            loadBySecretBtn.TabIndex = 16;
+            loadBySecretBtn.Text = "Load";
+            loadBySecretBtn.UseVisualStyleBackColor = true;
+            loadBySecretBtn.Click += loadBySecretBtn_Click;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new System.Drawing.Point(24, 492);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(61, 15);
+            label4.TabIndex = 15;
+            label4.Text = "Secret Key";
+            // 
+            // secretKeyTxt
+            // 
+            secretKeyTxt.Location = new System.Drawing.Point(91, 489);
+            secretKeyTxt.Name = "secretKeyTxt";
+            secretKeyTxt.Size = new System.Drawing.Size(100, 23);
+            secretKeyTxt.TabIndex = 14;
             // 
             // cloneQuestBtn
             // 
@@ -339,15 +392,6 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             questIDListBox.TabIndex = 1;
             questIDListBox.SelectedIndexChanged += questIDListBox_SelectedIndexChanged;
             // 
-            // label8
-            // 
-            label8.AutoSize = true;
-            label8.Location = new System.Drawing.Point(6, 7);
-            label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(57, 15);
-            label8.TabIndex = 32;
-            label8.Text = "Step ID: X";
-            // 
             // SeaHatsControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -398,5 +442,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         private System.Windows.Forms.Button loadBtn;
         private System.Windows.Forms.Button cloneQuestBtn;
         private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TextBox secretKeyTxt;
+        private System.Windows.Forms.Button SaveBySecretBtn;
+        private System.Windows.Forms.Button loadBySecretBtn;
     }
 }

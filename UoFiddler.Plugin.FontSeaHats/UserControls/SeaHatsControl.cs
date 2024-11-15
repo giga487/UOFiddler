@@ -29,6 +29,7 @@ using UoFiddler.Plugin.FontSeaHats.UserControls;
 using System.IO;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
+using UoFiddler.Plugin.FontSeaHats;
 
 namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 {
@@ -568,7 +569,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 string selectedName = string.Empty;
                 if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
                 {
-                    string name = _questManager.Quests.Values.First().QuestName;
+                    string name = _questManager.Data.Quests.Values.First().QuestName;
                     selectedName = name;
                 }
 
@@ -603,7 +604,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
         {
             questIDListBox.Items.Clear();
 
-            foreach (var questData in _questManager.Quests.Values)
+            foreach (var questData in _questManager.Data.Quests.Values)
             {
                 questIDListBox.Items.Add(questData.QuestName);
             }
@@ -614,7 +615,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 try
                 {
-                    string name = _questManager.Quests.Values.First().QuestName;
+                    string name = _questManager.Data.Quests.Values.First().QuestName;
                     selectedName = name;
                     questData2 = _questManager.GetQuest(selectedName);
                 }
@@ -638,7 +639,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             string selectedName = string.Empty;
             if (string.IsNullOrEmpty(selectedName = (string)questIDListBox.SelectedItem))
             {
-                string name = _questManager.Quests.Values.First().QuestName;
+                string name = _questManager.Data.Quests.Values.First().QuestName;
                 selectedName = name;
             }
             else if (e.StepData is not null)
@@ -741,8 +742,9 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             {
                 if (!string.IsNullOrEmpty(saveFileDialog1.FileName))
                 {
-                    filePath = new DirectoryInfo(saveFileDialog1.FileName).Root.FullName;
+                    filePath = new DirectoryInfo(saveFileDialog1.FileName).FullName;
 
+                    _questManager.Data.SecretKey = secretKeyTxt.Text;
                     _questManager.SaveJsonQuest(saveFileDialog1.FileName);
                 }
 
@@ -765,8 +767,10 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                filePath = new DirectoryInfo(openFileDialog.FileName).Root.FullName;
+                filePath = new DirectoryInfo(openFileDialog.FileName).FullName;
                 _questManager.LoadQuestJson(openFileDialog.FileName);
+
+                secretKeyTxt.Text = _questManager.Data.SecretKey;
             }
 
             try
@@ -803,6 +807,55 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
                 questIDListBox.SelectedIndex = (short)(questIDListBox.Items.Count - 1);
             }
+        }
+
+        private void SaveBySecretBtn_Click(object sender, EventArgs e)
+        {
+            if(File.Exists(filePath))
+            {
+                FileInfo f = new FileInfo(filePath);
+                string fileName = f.Name.Replace(f.Extension, "");
+
+                string pwd = secretKeyTxt.Text;
+                if (!string.IsNullOrEmpty(pwd))
+                {
+
+                    FileManagerHelper.EncryptFile(filePath, fileName + ".MUL", pwd);
+                }
+            }
+
+        }
+
+        private void loadBySecretBtn_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+
+            openFileDialog.InitialDirectory = _questManager.FileQuests;
+            openFileDialog.Filter = "mul files (*.mul)|*.mul|All files (*.*)|*.*";
+            openFileDialog.FilterIndex = 0;
+            openFileDialog.RestoreDirectory = true;
+
+            try
+            {
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string fileToLoad = new DirectoryInfo(openFileDialog.FileName).FullName;
+
+                    string decrypted = FileManagerHelper.DecryptFile(fileToLoad, secretKeyTxt.Text);
+                    _questManager.DeserializeQuest(decrypted);
+
+                    _questManager.OnQuestListChangeRequest(new QuestListEventArgs());
+                }
+
+                questIDListBox.SelectedIndex = 0;
+            }
+            catch
+            {
+
+            }
+
+
+
         }
     }
 }
