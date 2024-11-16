@@ -37,6 +37,7 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<ProjectReference Include="..\SeaHatsFileManager\SeaHatsExternal.csproj" />
 		<ProjectReference Include="..\Ultima\Ultima.csproj">
 			<Private>false</Private>
 			<ExcludeAssets>runtime</ExcludeAssets>
@@ -54,5 +55,8 @@
 		<EmbeddedResource Update="UserControls\SeaHatsControl.resx">
 			<DependentUpon>SeaHatsControl.cs</DependentUpon>
 		</EmbeddedResource>
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="QuestSH\" />
 	</ItemGroup>
 </Project>

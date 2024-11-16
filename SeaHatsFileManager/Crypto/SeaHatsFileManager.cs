@@ -1,25 +1,9 @@
-﻿// /***************************************************************************
-//  *
-//  * $Author: Turley
-//  * 
-//  * "THE BEER-WARE LICENSE"
-//  * As long as you retain this notice you can do whatever you want with 
-//  * this stuff. If we meet some day, and you think this stuff is worth it,
-//  * you can buy me a beer in return.
-//  *
-//  ***************************************************************************/
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace UoFiddler.Plugin.FontSeaHats
+namespace SeaHatsExternal.Crypto
 {
-    public static class FileManagerHelper
+    public static class SeaHatsFileManager
     {
         public static string DecryptFile(string inputFile, string password)
         {
@@ -76,8 +60,8 @@ namespace UoFiddler.Plugin.FontSeaHats
                 rng.GetBytes(randomBytes);
             }
             return randomBytes;
-        } 
-        
+        }
+
         // Cripta una stringa e salva in un file
         public static void EncryptStringToFile(string plaintext, string filePath, string password)
         {

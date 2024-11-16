@@ -18,7 +18,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using UoFiddler.Plugin.FontSeaHats.QuestSH;
+using SeaHatsExternal.Quests;
 
 namespace UoFiddler.Plugin.FontSeaHats.UserControls
 {

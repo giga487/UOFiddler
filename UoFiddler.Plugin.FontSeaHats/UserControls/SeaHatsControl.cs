@@ -24,12 +24,13 @@ using System.Collections.Generic;
 using System.Windows.Shapes;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using UoFiddler.Plugin.FontSeaHats.QuestSH;
 using UoFiddler.Plugin.FontSeaHats.UserControls;
 using System.IO;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
 using UoFiddler.Plugin.FontSeaHats;
+using SeaHatsExternal.Crypto;
+using SeaHatsExternal.Quests;
 
 namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 {
@@ -811,7 +812,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
 
         private void SaveBySecretBtn_Click(object sender, EventArgs e)
         {
-            if(File.Exists(filePath))
+            if (File.Exists(filePath))
             {
                 FileInfo f = new FileInfo(filePath);
                 string fileName = f.Name.Replace(f.Extension, "");
@@ -825,7 +826,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 if (!string.IsNullOrEmpty(pwd))
                 {
 
-                    FileManagerHelper.EncryptStringToFile(toSave, fileName + ".MUL", pwd);
+                    SeaHatsFileManager.EncryptStringToFile(toSave, fileName + ".MUL", pwd);
                 }
             }
 
@@ -846,7 +847,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 {
                     string fileToLoad = new DirectoryInfo(openFileDialog.FileName).FullName;
 
-                    string decrypted = FileManagerHelper.DecryptFile(fileToLoad, secretKeyTxt.Text);
+                    string decrypted = SeaHatsFileManager.DecryptFile(fileToLoad, secretKeyTxt.Text);
                     _questManager.DeserializeQuest(decrypted);
 
                     _questManager.OnQuestListChangeRequest(new QuestListEventArgs());

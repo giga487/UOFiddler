@@ -12,11 +12,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace UoFiddler.Plugin.FontSeaHats.QuestSH
+
+namespace SeaHatsExternal.Quests
 {
     public class QuestRewardInfo()
     {
@@ -48,7 +46,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
         public QuestDataStep()
         {
-        
+
         }
 
         public QuestDataStep(QuestDataStep toCopy)
@@ -100,10 +98,10 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             CanRepeat = toCopy.CanRepeat;
             Reward = toCopy.Reward;
             QuestName = toCopy.QuestName;
-            ID = toCopy.ID; 
+            ID = toCopy.ID;
             Priority = toCopy.Priority;
 
-            foreach(var stepKV in toCopy.Steps)
+            foreach (var stepKV in toCopy.Steps)
             {
                 Steps.Add(stepKV.Key, new QuestDataStep(stepKV.Value));
             }

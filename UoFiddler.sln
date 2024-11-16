@@ -31,6 +31,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UoFiddler.Plugin.UopPacker"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UoFiddler.Plugin.FontSeaHats", "UoFiddler.Plugin.FontSeaHats\UoFiddler.Plugin.FontSeaHats.csproj", "{B61102C9-2253-455C-8BA4-4E17F16F6279}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SeaHatsGroup", "SeaHatsGroup", "{601443DC-090B-4195-AF83-FD4EBFB17DC4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SeaHatsExternal", "SeaHatsFileManager\SeaHatsExternal.csproj", "{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,9 +165,25 @@ Global
 		{B61102C9-2253-455C-8BA4-4E17F16F6279}.Release|x64.Build.0 = Release|Any CPU
 		{B61102C9-2253-455C-8BA4-4E17F16F6279}.Release|x86.ActiveCfg = Release|Any CPU
 		{B61102C9-2253-455C-8BA4-4E17F16F6279}.Release|x86.Build.0 = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|x64.Build.0 = Debug|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Debug|x86.Build.0 = Debug|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|x64.ActiveCfg = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|x64.Build.0 = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|x86.ActiveCfg = Release|Any CPU
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B61102C9-2253-455C-8BA4-4E17F16F6279} = {601443DC-090B-4195-AF83-FD4EBFB17DC4}
+		{58DC4C81-0EE3-4AE6-AC42-B0AA5B6BCB95} = {601443DC-090B-4195-AF83-FD4EBFB17DC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7E47E542-800F-4E36-88FB-91DDA4779AD0}

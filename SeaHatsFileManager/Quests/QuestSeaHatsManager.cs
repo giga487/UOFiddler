@@ -16,9 +16,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using System.Windows.Forms;
+using SeaHatsExternal.Crypto;
+using SeaHatsExternal.Quests;
 
-namespace UoFiddler.Plugin.FontSeaHats.QuestSH
+namespace SeaHatsExternal.Quests
 {
     public class StepListEventArgs
     {
@@ -51,7 +52,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
     {
         public event EventHandler<QuestListEventArgs> QuestListChangeRequest;
         public event EventHandler<StepListEventArgs> StepListChangeRequest;
-        public string FileQuests { get; set; } = "Quests.JSon";
+        public string FileQuests { get; set; } = "Quests.Json";
         public int MaxStep { get; private set; } = 5;
         public QuestData Data { get; set; } = new QuestData();
         public QuestSeaHatsManager()
@@ -59,7 +60,6 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
             if (!File.Exists(FileQuests))
             {
                 SaveJsonQuest(FileQuests);
-                MessageBox.Show($"File is created: {FileQuests}");
             }
             else
             {
@@ -160,7 +160,27 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
 
             return deseriazed;
         }
+        public bool LoadQuestJsonCrypted(string file, string secret)
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    string decrypted = SeaHatsFileManager.DecryptFile(file, secret);
 
+                    Data = DeserializeQuest(decrypted);
+
+                    OnQuestListChangeRequest(new QuestListEventArgs());
+                    return true;
+                }
+            }
+            catch
+            {
+
+            }
+
+            return false;
+        }
         public bool LoadQuestJson(string file)
         {
             try
@@ -303,7 +323,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                 int nextStep = questData.GetFreeStep();
                 if (nextStep > MaxStep)
                 {
-                    MessageBox.Show("can't add the step, the maxium step quest is reached");
+                    //MessageBox.Show("can't add the step, the maxium step quest is reached");
                     return false;
                 }
 
@@ -315,7 +335,7 @@ namespace UoFiddler.Plugin.FontSeaHats.QuestSH
                 }
                 else
                 {
-                    MessageBox.Show("can't add the step");
+                    //MessageBox.Show("can't add the step");
                 }
             }
 
