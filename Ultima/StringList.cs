@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -48,11 +49,27 @@ namespace Ultima
             _stringTable = new Dictionary<int, string>();
             _entryTable = new Dictionary<int, StringEntry>();
 
-            using (var bin = new BinaryReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
-            {
-                _header1 = bin.ReadInt32();
-                _header2 = bin.ReadInt16();
+            var bin = new BinaryReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read));
 
+            int fileLength = Convert.ToInt32(bin.BaseStream.Length);
+
+            var array = bin.ReadBytes(fileLength);
+
+            var output = array[3] == 0x8E /*|| FileManager.Version >= ClientVersion.CV_7010400*/ ? BwtDecompress.Decompress(array) : array;          
+
+            if (array[3] == 0x8E)
+            {
+                bin.Close();
+            }
+
+            var newStream = new MemoryStream(output);
+            bin = new BinaryReader(newStream);
+
+            _header1 = bin.ReadInt32();
+            _header2 = bin.ReadInt16();
+
+            try
+            {
                 while (bin.BaseStream.Length != bin.BaseStream.Position)
                 {
                     int number = bin.ReadInt32();
@@ -74,6 +91,12 @@ namespace Ultima
                     _entryTable[number] = se;
                 }
             }
+            catch(Exception ex)
+            {
+
+            }
+
+            
         }
 
         /// <summary>

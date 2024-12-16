@@ -36,7 +36,7 @@ namespace SeaHatsExternal.Quests
     public class QuestDataStep
     {
         public string StepName { get; set; } = string.Empty;
-        public int Step { get; set; } = -1;
+        public short Step { get; set; } = -1;
         public QuestDataInfo Own { get; set; } = null;
         public string Text { get; set; }
         public List<string> StepObjective { get; set; } = new List<string>();
@@ -87,7 +87,7 @@ namespace SeaHatsExternal.Quests
         public string QuestName { get; set; } = "DEFAULT NAME";
         public ushort ID { get; set; } = 0;
         public QuestPriority_T Priority { get; set; }
-        public Dictionary<int, QuestDataStep> Steps { get; set; } = new Dictionary<int, QuestDataStep>();
+        public Dictionary<short, QuestDataStep> Steps { get; set; } = new Dictionary<short, QuestDataStep>();
         public string RegionName { get; set; } = string.Empty;
 
         public QuestDataInfo()
@@ -115,25 +115,25 @@ namespace SeaHatsExternal.Quests
             }
         }
 
-        public int GetFreeStep()
+        public short GetFreeStep()
         {
             if (Steps.Keys.Count > 0)
             {
-                int max = Steps.Keys
+                short max = Steps.Keys
                     .OrderByDescending(n => n)
                     .Distinct()
                     .Skip(1)
                     .FirstOrDefault();
 
-                return max + 1;
+                return Convert.ToInt16(max + 1);
             }
             else
-                return 1;
+                return (short)1;
         }
 
         public bool AddStep(QuestDataStep step)
         {
-            int index = step.Step;
+            short index = step.Step;
 
             if (step.Step == -1)
             {

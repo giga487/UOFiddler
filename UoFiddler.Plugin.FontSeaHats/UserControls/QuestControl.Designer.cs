@@ -298,7 +298,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             Controls.Add(label7);
             Controls.Add(stepNameTextbox);
             Name = "QuestControl";
-            Size = new System.Drawing.Size(1002, 423);
+            Size = new System.Drawing.Size(1013, 423);
             ResumeLayout(false);
             PerformLayout();
         }

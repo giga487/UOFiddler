@@ -218,7 +218,7 @@ namespace SeaHatsExternal.Quests
             }
         }
 
-        public bool DeleteStep(ushort questId, int stepId)
+        public bool DeleteStep(ushort questId, short stepId)
         {
             if (Data.Quests.TryGetValue(questId, out var questData) && questData.Steps.ContainsKey(stepId))
             {
@@ -345,7 +345,7 @@ namespace SeaHatsExternal.Quests
         public Dictionary<int, string> FixedSteps { get; private set; } = new Dictionary<int, string>()
         {
             { 0, "Init"},
-            {Int32.MaxValue, "Finish" }
+            {short.MaxValue, "Finish" }
         };
 
 
@@ -358,10 +358,10 @@ namespace SeaHatsExternal.Quests
                 ID = newId
             };
 
-            int stepId = 0;
+            short stepId = 0;
             questDataInfo.AddStep(new QuestDataStep(questDataInfo) { Step = stepId, StepName = FixedSteps[stepId] });
 
-            stepId = Int32.MaxValue;
+            stepId = short.MaxValue;
             questDataInfo.AddStep(new QuestDataStep(questDataInfo) { Step = stepId, StepName = FixedSteps[stepId] });
 
             if (Data.Quests.TryAdd(newId, questDataInfo))
