@@ -63,7 +63,7 @@ namespace SeaHatsExternal.Crypto
         }
 
         // Cripta una stringa e salva in un file
-        public static void EncryptStringToFile(string plaintext, string filePath, string password)
+        public static bool EncryptStringToFile(string plaintext, string filePath, string password)
         {
             byte[] salt = GenerateRandomBytes(16);
 
@@ -85,6 +85,7 @@ namespace SeaHatsExternal.Crypto
                     {
                         byte[] plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
                         cryptoStream.Write(plaintextBytes, 0, plaintextBytes.Length);
+                        return true;
                     }
                 }
             }
@@ -148,8 +149,5 @@ namespace SeaHatsExternal.Crypto
                 }
             }
         }
-
-
-
     }
 }

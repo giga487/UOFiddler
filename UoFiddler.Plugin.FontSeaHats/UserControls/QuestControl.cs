@@ -58,7 +58,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             }
 
             questPriorityCB.SelectedIndex = (int)data.Own.Priority;
-            regionNameTxt.Text = data.Own.RegionName;
+            regionNameTxt.Text = data.Own.Group;
             
             foreach (var value in Enum.GetValues(typeof(QuestType_T)))
             {
@@ -82,7 +82,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             steptype.SelectedItem = data.Type;
             tempStepNotes = data.Notes;
             tempNPCText = data.NpcGumpText;
-            tempQuestRegionName = data.Own.RegionName;
+            tempQuestRegionName = data.Own.Group;
             canRepeatCheck.CheckState = data.Own.CanRepeat ? CheckState.Checked : CheckState.Unchecked;
         }
 
@@ -94,6 +94,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private void saveBtn_Click(object sender, EventArgs e)
         {
             Apply();
+
+            MessageBox.Show("RICORDATI DI SALVARE IL FILE, altrimenti perderai tutto.");
         }
 
         public void Apply(bool update = true)
@@ -110,7 +112,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 questStep.NpcGumpText = tempNPCText;
 
                 questStep.Own.CanRepeat = tempCanRepeat;
-                questStep.Own.RegionName = tempQuestRegionName;
+                questStep.Own.Group = tempQuestRegionName;
 
                 _manager.UpdateStep(datasInfo.Own.ID, questStep);
 

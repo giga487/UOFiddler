@@ -133,7 +133,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             saveBtn.Name = "saveBtn";
             saveBtn.Size = new System.Drawing.Size(75, 43);
             saveBtn.TabIndex = 18;
-            saveBtn.Text = "Save";
+            saveBtn.Text = "Applica modifica";
             saveBtn.UseVisualStyleBackColor = true;
             saveBtn.Click += saveBtn_Click;
             // 

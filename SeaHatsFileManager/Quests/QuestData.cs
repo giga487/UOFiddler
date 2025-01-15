@@ -88,7 +88,7 @@ namespace SeaHatsExternal.Quests
         public ushort ID { get; set; } = 0;
         public QuestPriority_T Priority { get; set; }
         public Dictionary<short, QuestDataStep> Steps { get; set; } = new Dictionary<short, QuestDataStep>();
-        public string RegionName { get; set; } = string.Empty;
+        public string Group { get; set; } = string.Empty;
 
         public QuestDataInfo()
         { }
@@ -100,6 +100,7 @@ namespace SeaHatsExternal.Quests
             QuestName = toCopy.QuestName;
             ID = toCopy.ID;
             Priority = toCopy.Priority;
+            Group = toCopy.Group;
 
             foreach (var stepKV in toCopy.Steps)
             {

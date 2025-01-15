@@ -245,7 +245,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             SaveBySecretBtn.Name = "SaveBySecretBtn";
             SaveBySecretBtn.Size = new System.Drawing.Size(88, 23);
             SaveBySecretBtn.TabIndex = 17;
-            SaveBySecretBtn.Text = "Save";
+            SaveBySecretBtn.Text = "Save Crypted";
             SaveBySecretBtn.UseVisualStyleBackColor = true;
             SaveBySecretBtn.Click += SaveBySecretBtn_Click;
             // 

@@ -825,8 +825,11 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
                 string pwd = secretKeyTxt.Text;
                 if (!string.IsNullOrEmpty(pwd))
                 {
-
-                    SeaHatsFileManager.EncryptStringToFile(toSave, fileName + ".MUL", pwd);
+                    string name = fileName + ".MUL";
+                    if (SeaHatsFileManager.EncryptStringToFile(toSave, name, pwd))
+                    {
+                        MessageBox.Show($"Saved crypted file in {name}");
+                    }
                 }
             }
 
