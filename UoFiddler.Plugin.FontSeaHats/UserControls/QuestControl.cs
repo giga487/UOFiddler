@@ -59,7 +59,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
             questPriorityCB.SelectedIndex = (int)data.Own.Priority;
             regionNameTxt.Text = data.Own.Group;
-            
+
             foreach (var value in Enum.GetValues(typeof(QuestType_T)))
             {
                 steptype.Items.Add(value);
@@ -71,6 +71,17 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             npcQuestGump.Text = data.NpcGumpText;
 
             canRepeatCheck.CheckState = data.Own.CanRepeat ? CheckState.Checked : CheckState.Unchecked;
+
+            _selectdTextbox = stepText;
+            paramsCombobox.Items.Add("----");
+
+            foreach (var value in Enum.GetValues(typeof(QuestParameters)))
+            {
+                paramsCombobox.Items.Add(value);
+            }
+
+            paramsCombobox.SelectedIndex = 0;
+
         }
 
         public void ResetTempData(QuestDataStep data)
@@ -124,12 +135,23 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private void stepNameTextbox_TextChanged(object sender, EventArgs e)
         {
-            tempStepName = stepNameTextbox.Text;
+            if (sender is TextBox textBox)
+            {
+                _selectdTextbox = textBox;
+                selectionStart = textBox.SelectionStart;
+                tempStepName = stepNameTextbox.Text;
+            }
         }
 
         private void stepText_TextChanged(object sender, EventArgs e)
         {
-            tempStepText = stepText.Text;
+            if (sender is TextBox textBox)
+            {
+                _selectdTextbox = textBox;
+                selectionStart = textBox.SelectionStart;
+                tempStepText = stepText.Text;
+            }
+
         }
 
         private void resetStepBtn_Click(object sender, EventArgs e)
@@ -176,7 +198,59 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private void regionNameTxt_TextChanged(object sender, EventArgs e)
         {
-            tempQuestRegionName  = regionNameTxt.Text;
+            tempQuestRegionName = regionNameTxt.Text;
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (paramsCombobox.SelectedIndex == 0)
+            {
+                MessageBox.Show("Seleziona un parametro valido.");
+                return;
+            }
+
+            if (_selectdTextbox == null)
+            {
+                MessageBox.Show("Seleziona un text box valido.");
+                return;
+            }
+
+            var param = (QuestParameters)paramsCombobox.SelectedIndex;
+
+            string generated = _manager.AddParameter(param, paramsCustom.Text);
+
+            string text = _selectdTextbox.Text;
+
+            var newT = text.Insert(selectionStart, generated);
+
+            _selectdTextbox.Text = newT;
+        }
+
+        TextBox _selectdTextbox { get; set; } = null;
+        int selectionStart { get; set; } = 0;
+        private void stepText_Enter(object sender, EventArgs e)
+        {
+            _selectdTextbox = stepText;
+            selectionStart = _selectdTextbox.SelectionStart;
+        }
+
+        private void npcQuestGump_Enter(object sender, EventArgs e)
+        {
+            _selectdTextbox = npcQuestGump;
+            selectionStart = _selectdTextbox.SelectionStart;
+
+
+            var npcQuestParams = _manager.GetParameters(npcQuestGump.Text);
+        }
+
+        private void npcQuestGump_MouseDown(object sender, MouseEventArgs e)
+        {
+            selectionStart = npcQuestGump.SelectionStart;
+        }
+
+        private void stepText_MouseDown(object sender, MouseEventArgs e)
+        {
+            selectionStart = stepText.SelectionStart;
         }
     }
 }

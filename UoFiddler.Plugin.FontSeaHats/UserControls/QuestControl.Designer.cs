@@ -61,12 +61,16 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             canRepeatCheck = new System.Windows.Forms.CheckBox();
             regionNameTxt = new System.Windows.Forms.TextBox();
             label8 = new System.Windows.Forms.Label();
+            label9 = new System.Windows.Forms.Label();
+            paramsCustom = new System.Windows.Forms.TextBox();
+            paramsCombobox = new System.Windows.Forms.ComboBox();
+            parametersBtn = new System.Windows.Forms.Button();
             SuspendLayout();
             // 
             // stepLabel
             // 
             stepLabel.AutoSize = true;
-            stepLabel.Location = new System.Drawing.Point(927, 31);
+            stepLabel.Location = new System.Drawing.Point(1022, 26);
             stepLabel.Name = "stepLabel";
             stepLabel.Size = new System.Drawing.Size(57, 15);
             stepLabel.TabIndex = 17;
@@ -75,7 +79,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // questIdlabel
             // 
             questIdlabel.AutoSize = true;
-            questIdlabel.Location = new System.Drawing.Point(919, 10);
+            questIdlabel.Location = new System.Drawing.Point(1014, 5);
             questIdlabel.Name = "questIdlabel";
             questIdlabel.Size = new System.Drawing.Size(65, 15);
             questIdlabel.TabIndex = 16;
@@ -90,6 +94,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             stepText.Size = new System.Drawing.Size(312, 281);
             stepText.TabIndex = 15;
             stepText.TextChanged += stepText_TextChanged;
+            stepText.Enter += stepText_Enter;
+            stepText.MouseDown += stepText_MouseDown;
             // 
             // titleTextbox
             // 
@@ -161,7 +167,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             questPriorityCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             questPriorityCB.FormattingEnabled = true;
-            questPriorityCB.Location = new System.Drawing.Point(765, 23);
+            questPriorityCB.Location = new System.Drawing.Point(846, 26);
             questPriorityCB.Name = "questPriorityCB";
             questPriorityCB.Size = new System.Drawing.Size(121, 23);
             questPriorityCB.TabIndex = 21;
@@ -171,7 +177,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             steptype.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             steptype.FormattingEnabled = true;
-            steptype.Location = new System.Drawing.Point(765, 68);
+            steptype.Location = new System.Drawing.Point(846, 71);
             steptype.Name = "steptype";
             steptype.Size = new System.Drawing.Size(121, 23);
             steptype.TabIndex = 22;
@@ -180,7 +186,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(807, 5);
+            label1.Location = new System.Drawing.Point(888, 8);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(79, 15);
             label1.TabIndex = 23;
@@ -189,7 +195,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(830, 50);
+            label2.Location = new System.Drawing.Point(911, 53);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(56, 15);
             label2.TabIndex = 24;
@@ -210,7 +216,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             questNotesTxtbox.Multiline = true;
             questNotesTxtbox.Name = "questNotesTxtbox";
             questNotesTxtbox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            questNotesTxtbox.Size = new System.Drawing.Size(310, 209);
+            questNotesTxtbox.Size = new System.Drawing.Size(247, 209);
             questNotesTxtbox.TabIndex = 26;
             questNotesTxtbox.TextChanged += questNotesTxtbox_TextChanged;
             // 
@@ -232,6 +238,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             npcQuestGump.Size = new System.Drawing.Size(312, 281);
             npcQuestGump.TabIndex = 28;
             npcQuestGump.TextChanged += npcQuestGump_TextChanged;
+            npcQuestGump.Enter += npcQuestGump_Enter;
+            npcQuestGump.MouseDown += npcQuestGump_MouseDown;
             // 
             // label5
             // 
@@ -245,7 +253,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // canRepeatCheck
             // 
             canRepeatCheck.AutoSize = true;
-            canRepeatCheck.Location = new System.Drawing.Point(802, 96);
+            canRepeatCheck.Location = new System.Drawing.Point(918, 100);
             canRepeatCheck.Name = "canRepeatCheck";
             canRepeatCheck.Size = new System.Drawing.Size(84, 19);
             canRepeatCheck.TabIndex = 30;
@@ -255,26 +263,65 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             // 
             // regionNameTxt
             // 
-            regionNameTxt.Location = new System.Drawing.Point(560, 23);
+            regionNameTxt.Location = new System.Drawing.Point(674, 26);
             regionNameTxt.Name = "regionNameTxt";
-            regionNameTxt.Size = new System.Drawing.Size(174, 23);
+            regionNameTxt.Size = new System.Drawing.Size(130, 23);
             regionNameTxt.TabIndex = 31;
             regionNameTxt.TextChanged += regionNameTxt_TextChanged;
             // 
             // label8
             // 
             label8.AutoSize = true;
-            label8.Location = new System.Drawing.Point(655, 5);
+            label8.Location = new System.Drawing.Point(725, 8);
             label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(79, 15);
+            label8.Size = new System.Drawing.Size(75, 15);
             label8.TabIndex = 32;
-            label8.Text = "Region Name";
+            label8.Text = "Group Name";
+            // 
+            // label9
+            // 
+            label9.AutoSize = true;
+            label9.Location = new System.Drawing.Point(588, 5);
+            label9.Name = "label9";
+            label9.Size = new System.Drawing.Size(46, 15);
+            label9.TabIndex = 34;
+            label9.Text = "Params";
+            // 
+            // paramsCustom
+            // 
+            paramsCustom.Location = new System.Drawing.Point(540, 52);
+            paramsCustom.Name = "paramsCustom";
+            paramsCustom.Size = new System.Drawing.Size(94, 23);
+            paramsCustom.TabIndex = 35;
+            // 
+            // paramsCombobox
+            // 
+            paramsCombobox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            paramsCombobox.FormattingEnabled = true;
+            paramsCombobox.Location = new System.Drawing.Point(513, 23);
+            paramsCombobox.Name = "paramsCombobox";
+            paramsCombobox.Size = new System.Drawing.Size(121, 23);
+            paramsCombobox.TabIndex = 36;
+            // 
+            // parametersBtn
+            // 
+            parametersBtn.Location = new System.Drawing.Point(555, 81);
+            parametersBtn.Name = "parametersBtn";
+            parametersBtn.Size = new System.Drawing.Size(79, 24);
+            parametersBtn.TabIndex = 37;
+            parametersBtn.Text = "Add params";
+            parametersBtn.UseVisualStyleBackColor = true;
+            parametersBtn.Click += button1_Click;
             // 
             // QuestControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.Gray;
+            Controls.Add(parametersBtn);
+            Controls.Add(paramsCombobox);
+            Controls.Add(paramsCustom);
+            Controls.Add(label9);
             Controls.Add(label8);
             Controls.Add(regionNameTxt);
             Controls.Add(canRepeatCheck);
@@ -298,7 +345,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             Controls.Add(label7);
             Controls.Add(stepNameTextbox);
             Name = "QuestControl";
-            Size = new System.Drawing.Size(1013, 423);
+            Size = new System.Drawing.Size(1082, 423);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -327,5 +374,9 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private System.Windows.Forms.CheckBox canRepeatCheck;
         private System.Windows.Forms.TextBox regionNameTxt;
         private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.TextBox paramsCustom;
+        private System.Windows.Forms.ComboBox paramsCombobox;
+        private System.Windows.Forms.Button parametersBtn;
     }
 }

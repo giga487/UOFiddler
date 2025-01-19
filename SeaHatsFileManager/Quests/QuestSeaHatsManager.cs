@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using SeaHatsExternal.Crypto;
@@ -48,8 +49,17 @@ namespace SeaHatsExternal.Quests
         }
     }
 
+    public enum QuestParameters
+    {
+        From,    //Who call
+        ExtName, //With name
+        MobType, //With type
+        Amount,  //With amount  
+    }
+
     public class QuestSeaHatsManager
     {
+
         public event EventHandler<QuestListEventArgs> QuestListChangeRequest;
         public event EventHandler<StepListEventArgs> StepListChangeRequest;
         public string FileQuests { get; set; } = "Quests.Json";
@@ -316,6 +326,13 @@ namespace SeaHatsExternal.Quests
             }
         }
 
+        public string AddParameter(QuestParameters par, string param)
+        {
+            string paramToAdd = $"@[{par}:{param}]";
+
+            return paramToAdd;
+        }
+
         public bool AddStep(ushort questIndex)
         {
             if(Data.Quests.TryGetValue(questIndex, out var questData))
@@ -374,6 +391,25 @@ namespace SeaHatsExternal.Quests
             }
 
             return null;
+        }
+
+
+        public Dictionary<QuestParameters, string> GetParameters(string text)
+        {
+
+            string pattern = @"@\[(\w+):(\w+)\]"; // Pattern per trovare uno o più numeri
+            Regex regex = new Regex(pattern);
+
+            MatchCollection matches = regex.Matches(text);
+
+            Dictionary<QuestParameters, string> results = new Dictionary<QuestParameters, string>();
+
+            foreach (var match in matches)
+            {
+
+            }
+
+            return results;
         }
     }
 }
