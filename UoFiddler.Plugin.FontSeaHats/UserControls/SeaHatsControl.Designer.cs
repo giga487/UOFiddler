@@ -340,7 +340,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             StepTab.Location = new System.Drawing.Point(370, 24);
             StepTab.Name = "StepTab";
             StepTab.SelectedIndex = 0;
-            StepTab.Size = new System.Drawing.Size(1017, 447);
+            StepTab.Size = new System.Drawing.Size(1232, 503);
             StepTab.TabIndex = 6;
             // 
             // tabPage1
@@ -348,7 +348,7 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             tabPage1.Location = new System.Drawing.Point(4, 24);
             tabPage1.Name = "tabPage1";
             tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            tabPage1.Size = new System.Drawing.Size(1009, 419);
+            tabPage1.Size = new System.Drawing.Size(1224, 475);
             tabPage1.TabIndex = 0;
             tabPage1.Text = "tabPage1";
             tabPage1.UseVisualStyleBackColor = true;

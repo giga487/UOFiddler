@@ -59,9 +59,8 @@ namespace SeaHatsExternal.Quests
 
     public class QuestSeaHatsManager
     {
-
-        public event EventHandler<QuestListEventArgs> QuestListChangeRequest;
-        public event EventHandler<StepListEventArgs> StepListChangeRequest;
+        public event EventHandler<QuestListEventArgs>? QuestListChangeRequest;
+        public event EventHandler<StepListEventArgs>? StepListChangeRequest;
         public string FileQuests { get; set; } = "Quests.Json";
         public int MaxStep { get; private set; } = 5;
         public QuestData Data { get; set; } = new QuestData();
@@ -75,8 +74,46 @@ namespace SeaHatsExternal.Quests
             {
                 LoadQuestJson(FileQuests);
             }
+
         }
 
+        public void RemoveStepDataContainer(ushort questId, short stepId, IStepDataContainer step)
+        {
+            if (Data.Quests.TryGetValue(questId, out var questData))
+            {
+                if (questData.Steps.TryGetValue(stepId, out var stepData))
+                {
+                    stepData.StepDataContainers.Remove(step);
+                }
+            }
+        }
+        public void AddStepDataContainer(ushort questId, short stepId, IStepDataContainer step)
+        {
+            if (Data.Quests.TryGetValue(questId, out var questData))
+            {
+                if(questData.Steps.TryGetValue(stepId, out var stepData))
+                {
+                    stepData.StepDataContainers.Add(step);
+                }
+            }
+        }
+
+        public IStepDataContainer CreateContainer(QuestType_T type)
+        {
+            switch (type)
+            {
+                case QuestType_T.ReachLocation:
+                    return new LocationContainer();
+                case QuestType_T.KillMob:
+                    return new MobTypeContainer();
+                case QuestType_T.GatherObject:
+                    return new GatherContainer();
+                case QuestType_T.TalkWithNPC:
+                    return new TalkContainer();
+                default:
+                    return null;
+            }
+        }
         public void ChangeQuestPriority(string title, QuestPriority_T prio)
         {
             var result = Data.Quests.Where(t => t.Value.QuestName == title).FirstOrDefault();
@@ -118,6 +155,7 @@ namespace SeaHatsExternal.Quests
             JsonSerializerSettings settings = new();
             settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
             settings.NullValueHandling = NullValueHandling.Ignore;
+            settings.TypeNameHandling = TypeNameHandling.Auto;
 
             return JsonConvert.SerializeObject(Data, settings);
         }
@@ -129,6 +167,7 @@ namespace SeaHatsExternal.Quests
             JsonSerializer serializer = new JsonSerializer();
             serializer.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
             serializer.NullValueHandling = NullValueHandling.Ignore;
+            serializer.TypeNameHandling = TypeNameHandling.Auto;
 
             try
             {
@@ -152,7 +191,12 @@ namespace SeaHatsExternal.Quests
 
         public QuestData DeserializeQuest(string toDeserialize)
         {
-            QuestData deseriazed = JsonConvert.DeserializeObject<QuestData>(toDeserialize);
+            JsonSerializerSettings serializer = new JsonSerializerSettings();
+            serializer.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            serializer.NullValueHandling = NullValueHandling.Ignore;
+            serializer.TypeNameHandling = TypeNameHandling.Auto;
+
+            QuestData deseriazed = JsonConvert.DeserializeObject<QuestData>(toDeserialize, serializer);
 
             try
             {
@@ -393,18 +437,49 @@ namespace SeaHatsExternal.Quests
             return null;
         }
 
+        public Dictionary<QuestParameters, string>? GetParameters(ushort questId, short steps, bool isNpcGump)
+        {
+            if(!Data.Quests.TryGetValue(questId, out var questData))
+            {
+                return null;
+            }
+
+            if(questData.Steps.TryGetValue(steps, out var stepData))
+            {
+                if (isNpcGump)
+                {
+                    return GetParameters(stepData.NpcGumpText);
+                }
+                else
+                {
+                    return GetParameters(stepData.Text);
+                }
+            }
+
+            return null;
+        }
 
         public Dictionary<QuestParameters, string> GetParameters(string text)
         {
 
-            string pattern = @"@\[(\w+):(\w+)\]"; // Pattern per trovare uno o più numeri
-            Regex regex = new Regex(pattern);
-
-            MatchCollection matches = regex.Matches(text);
-
+            string pattern = @"@\[(?<ParName>\w+):(?<ParValue>\w+)?]"; // Pattern per trovare uno o più numeri
             Dictionary<QuestParameters, string> results = new Dictionary<QuestParameters, string>();
 
-            foreach (var match in matches)
+            try
+            {
+                MatchCollection matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+
+                if (matches.Count > 0)
+                {
+                    foreach (Match match in matches)
+                    {
+                        QuestParameters name = (QuestParameters)Enum.Parse(typeof(QuestParameters), match.Groups["ParName"].Value);
+                        var value = match.Groups["ParValue"].Value;
+                        results[name] = value;
+                    }
+                }
+            }
+            catch
             {
 
             }

@@ -32,34 +32,72 @@ namespace SeaHatsExternal.Quests
             StepId = stepId;
         }
     }
+    public interface IStepDataContainer
+    {
+        public QuestType_T Type { get; }
+    }
 
+    public class LocationContainer : IStepDataContainer
+    {
+        public string X { get; set; }  = "0";
+        public string Y { get; set; }  = "0";
+        public string Z { get; set; }  = "0";
+        public string MapID { get; set; }  = "0";
+        public QuestType_T Type => QuestType_T.ReachLocation;
+    }
+    public class MobTypeContainer : IStepDataContainer
+    {
+        public string MobName { get; set; } = string.Empty;
+        public string Max { get; set; } = "0";
+        public QuestType_T Type => QuestType_T.KillMob;
+    }
+    public class GatherContainer : IStepDataContainer
+    {
+        public string ObjectToGather { get; set; } = string.Empty;
+        public string Max { get; set; } = "0";
+        public QuestType_T Type => QuestType_T.GatherObject;
+    }
+    public class TalkContainer : IStepDataContainer
+    {
+        public string NameToTalk { get; set; } = string.Empty;
+        public QuestType_T Type => QuestType_T.TalkWithNPC;
+    }
     public class QuestDataStep
     {
-        public string StepName { get; set; } = string.Empty;
+        //public Dictionary<QuestParameters, string> NPCTextParameters { get; set; } = new Dictionary<QuestParameters, string>();
+        //public Dictionary<QuestParameters, string> QuestTextParameters { get; set; } = new Dictionary<QuestParameters, string>();
+        public string? StepName { get; set; } = string.Empty;
         public short Step { get; set; } = -1;
-        public QuestDataInfo Own { get; set; } = null;
-        public string Text { get; set; }
+        public QuestDataInfo? Own { get; set; } = null;
+        public string? Text { get; set; } = string.Empty;
         public List<string> StepObjective { get; set; } = new List<string>();
-        public QuestType_T Type { get; set; } = QuestType_T.Default;
         public string Notes { get; set; } = string.Empty;
         public string NpcGumpText { get; set; } = string.Empty;
 
+        public List<IStepDataContainer> StepDataContainers { get; set; } = new List<IStepDataContainer>();
         public QuestDataStep()
         {
 
         }
 
-        public QuestDataStep(QuestDataStep toCopy)
+        public QuestDataStep(QuestDataStep? toCopy)
         {
+            if (toCopy is null)
+            {
+                return;
+            }
+
             StepName = toCopy.StepName;
             StepObjective = toCopy.StepObjective;
             Step = toCopy.Step;
-            Type = toCopy.Type;
+            //Type = toCopy.Type;
+            NpcGumpText = toCopy.NpcGumpText;
             Text = toCopy.Text;
             Own = toCopy.Own;
             Notes = toCopy.Notes;
+            StepDataContainers = new List<IStepDataContainer>(toCopy.StepDataContainers);
         }
-        public QuestDataStep(QuestDataInfo parent)
+        public QuestDataStep(QuestDataInfo? parent)
         {
             Own = parent;
         }

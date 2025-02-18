@@ -15,6 +15,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -62,10 +63,10 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
             foreach (var value in Enum.GetValues(typeof(QuestType_T)))
             {
-                steptype.Items.Add(value);
+                paramsType.Items.Add(value);
             }
 
-            steptype.SelectedIndex = (int)data.Type;
+            //steptype.SelectedIndex = (int)data.Type;
 
             questNotesTxtbox.Text = data.Notes;
             npcQuestGump.Text = data.NpcGumpText;
@@ -82,6 +83,11 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
             paramsCombobox.SelectedIndex = 0;
 
+            foreach (var container in data.StepDataContainers)
+            {
+                dataContainerList.Items.Add(container);
+            }
+
         }
 
         public void ResetTempData(QuestDataStep data)
@@ -90,7 +96,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             tempStepName = stepNameTextbox.Text = $"{data.StepName}";
             tempStepText = stepText.Text = data.Text;
             questPriorityCB.SelectedItem = data.Own.Priority;
-            steptype.SelectedItem = data.Type;
+            //steptype.SelectedItem = data.Type;
             tempStepNotes = data.Notes;
             tempNPCText = data.NpcGumpText;
             tempQuestRegionName = data.Own.Group;
@@ -105,7 +111,6 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private void saveBtn_Click(object sender, EventArgs e)
         {
             Apply();
-
             MessageBox.Show("RICORDATI DI SALVARE IL FILE, altrimenti perderai tutto.");
         }
 
@@ -116,14 +121,22 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 datasInfo.Own.Priority = (QuestPriority_T)questPriorityCB.SelectedIndex;
 
                 var questStep = new QuestDataStep(datasInfo);
+
                 questStep.StepName = tempStepName;
                 questStep.Text = tempStepText;
-                questStep.Type = (QuestType_T)steptype.SelectedIndex;
+                //questStep.Type = (QuestType_T)steptype.SelectedIndex;
                 questStep.Notes = tempStepNotes;
                 questStep.NpcGumpText = tempNPCText;
 
+                //questStep.NPCTextParameters = _manager.GetParameters(questStep.NpcGumpText);
+                //questStep.QuestTextParameters = _manager.GetParameters(questStep.Text);
+
                 questStep.Own.CanRepeat = tempCanRepeat;
                 questStep.Own.Group = tempQuestRegionName;
+
+
+                questStep.StepDataContainers.AddRange(tempStepData);
+                //questStep.StepDataContainers = tempStepData.ToList();
 
                 _manager.UpdateStep(datasInfo.Own.ID, questStep);
 
@@ -133,6 +146,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             //_manager.ChangeStepName(datasInfo.Own.ID, datasInfo.Step, tempStepName);
         }
 
+        List<IStepDataContainer> tempStepData = new List<IStepDataContainer>();
         private void stepNameTextbox_TextChanged(object sender, EventArgs e)
         {
             if (sender is TextBox textBox)
@@ -203,7 +217,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private void button1_Click(object sender, EventArgs e)
         {
-            if (paramsCombobox.SelectedIndex == 0)
+            if (paramsCombobox.SelectedIndex > 0)
             {
                 MessageBox.Show("Seleziona un parametro valido.");
                 return;
@@ -215,10 +229,9 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 return;
             }
 
-            var param = (QuestParameters)paramsCombobox.SelectedIndex;
+            var param = (QuestParameters)paramsCombobox.SelectedIndex - 1;
 
             string generated = _manager.AddParameter(param, paramsCustom.Text);
-
             string text = _selectdTextbox.Text;
 
             var newT = text.Insert(selectionStart, generated);
@@ -238,9 +251,6 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         {
             _selectdTextbox = npcQuestGump;
             selectionStart = _selectdTextbox.SelectionStart;
-
-
-            var npcQuestParams = _manager.GetParameters(npcQuestGump.Text);
         }
 
         private void npcQuestGump_MouseDown(object sender, MouseEventArgs e)
@@ -251,6 +261,124 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         private void stepText_MouseDown(object sender, MouseEventArgs e)
         {
             selectionStart = stepText.SelectionStart;
+        }
+
+        public class StepCreatedEventArgs : EventArgs
+        {
+            public IStepDataContainer Container { get; set; } = null;
+            public int IdCreated { get; set; } = 0;
+        };
+
+        public Parameters OpenParameterForm(IStepDataContainer container, int id)
+        {
+            var paramterForm = new Parameters();
+
+            try
+            {
+                stepDataContainer = new Form()
+                {
+                    AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowOnly,
+                    ShowInTaskbar = true,
+                    Text = "Set Parameters",
+                    Controls = { paramterForm },
+                    ShowIcon = false,
+                };
+
+                paramterForm.Initialize(stepDataContainer, _manager, datasInfo.Step, datasInfo.Own.ID, (QuestType_T)paramsType.SelectedIndex, id, container);
+            }
+            catch
+            {
+                stepDataContainer.Close();
+                return null;
+            }
+
+            paramterForm.Dock = DockStyle.Fill;
+
+            stepDataContainer.FormBorderStyle = FormBorderStyle.None;
+            stepDataContainer.ClientSize = paramterForm.PreferredSize;
+            stepDataContainer.PerformLayout();
+
+            return paramterForm;
+        }
+
+        Form stepDataContainer;
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            if (paramsType.TabIndex == 0)
+            {
+                return;
+            }
+
+            int id = dataContainerList.Items.Count;
+            var paramterForm = OpenParameterForm(null, id);
+
+            if (paramterForm is not null)
+            {
+                paramterForm.StepCreated += QuestControl_StepCreated;
+                stepDataContainer.ShowDialog();
+
+                paramterForm.StepCreated -= QuestControl_StepCreated;
+
+            }
+
+        }
+
+        private void QuestControl_StepCreated(object sender, StepCreatedEventArgs e)
+        {
+            if (dataContainerList.Items.Count < e.IdCreated)
+            {
+                dataContainerList.Items.Insert(e.IdCreated, e.Container);
+            }
+            else
+            {
+                try
+                {
+                    dataContainerList.Items.RemoveAt(e.IdCreated);
+                }
+                catch
+                {
+
+                }
+                dataContainerList.Items.Insert(e.IdCreated, e.Container);
+            }
+
+
+            tempStepData.Insert(e.IdCreated, e.Container);
+
+        }
+
+        private void label10_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void dataContainerList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            if (dataContainerList.SelectedItem is IStepDataContainer container)
+            {
+                var paramterForm = OpenParameterForm(container, dataContainerList.SelectedIndex);
+
+                paramterForm.StepCreated += QuestControl_StepCreated;
+                stepDataContainer.ShowDialog();
+
+                paramterForm.StepCreated -= QuestControl_StepCreated;
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (dataContainerList.SelectedItem is IStepDataContainer container)
+            {
+                _manager.RemoveStepDataContainer(datasInfo.Own.ID, datasInfo.Step, container);
+                dataContainerList.Items.Remove(container);
+            }
+
         }
     }
 }
