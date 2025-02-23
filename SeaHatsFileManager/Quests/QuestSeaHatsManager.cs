@@ -98,6 +98,19 @@ namespace SeaHatsExternal.Quests
             }
         }
 
+        public List<IStepDataContainer>? GetStepDataContainer(ushort questId, short stepId)
+        {
+            if (Data.Quests.TryGetValue(questId, out var questData))
+            {
+                if (questData.Steps.TryGetValue(stepId, out var stepData))
+                {
+                    return stepData.StepDataContainers;
+                }
+            }
+            return null;
+        }
+
+
         public IStepDataContainer CreateContainer(QuestType_T type)
         {
             switch (type)

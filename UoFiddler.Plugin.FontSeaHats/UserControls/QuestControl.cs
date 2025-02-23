@@ -340,6 +340,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 {
 
                 }
+
                 dataContainerList.Items.Insert(e.IdCreated, e.Container);
             }
 

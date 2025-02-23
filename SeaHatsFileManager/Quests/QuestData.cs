@@ -35,6 +35,7 @@ namespace SeaHatsExternal.Quests
     public interface IStepDataContainer
     {
         public QuestType_T Type { get; }
+        public string Name { get; }
     }
 
     public class LocationContainer : IStepDataContainer
@@ -44,23 +45,27 @@ namespace SeaHatsExternal.Quests
         public string Z { get; set; }  = "0";
         public string MapID { get; set; }  = "0";
         public QuestType_T Type => QuestType_T.ReachLocation;
+        public string Name { get; set; } = string.Empty;
     }
     public class MobTypeContainer : IStepDataContainer
     {
         public string MobName { get; set; } = string.Empty;
         public string Max { get; set; } = "0";
         public QuestType_T Type => QuestType_T.KillMob;
+        public string Name { get; set; } = string.Empty;
     }
     public class GatherContainer : IStepDataContainer
     {
         public string ObjectToGather { get; set; } = string.Empty;
         public string Max { get; set; } = "0";
         public QuestType_T Type => QuestType_T.GatherObject;
+        public string Name { get; set; } = string.Empty;
     }
     public class TalkContainer : IStepDataContainer
     {
         public string NameToTalk { get; set; } = string.Empty;
         public QuestType_T Type => QuestType_T.TalkWithNPC;
+        public string Name { get; set; } = string.Empty;
     }
     public class QuestDataStep
     {
