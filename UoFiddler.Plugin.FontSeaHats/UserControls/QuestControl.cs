@@ -217,7 +217,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private void button1_Click(object sender, EventArgs e)
         {
-            if (paramsCombobox.SelectedIndex > 0)
+            if (paramsCombobox.SelectedIndex < 0)
             {
                 MessageBox.Show("Seleziona un parametro valido.");
                 return;
