@@ -26,6 +26,9 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         IStepDataContainer _stepDataContainer { get; set; } = null;
         public event EventHandler<StepCreatedEventArgs> StepCreated;
         int _idCreated { get; set; } = 0;
+
+        Dictionary<string, string> propertyValues = new Dictionary<string, string>();
+
         public void Initialize(Form thisForm, SeaHatsExternal.Quests.QuestSeaHatsManager manager, short step, ushort questId, QuestType_T containerType, int id, IStepDataContainer toCopy = null)
         {
             _manager = manager;
@@ -66,17 +69,26 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
                 TextBox value = new TextBox()
                 {
-                    Location = new Point(x + name.Width + 10, y)
+                    Location = new Point(x + name.Width + 10, y),
+                    Name = prop.Name
                 };
+
 
                 if (toCopy is not null)
                 {
                     value.Text = prop.GetValue(toCopy).ToString();
+                    propertyValues[prop.Name] = value.Text;
                 }
 
                 value.TextChanged += (s, e) =>
                 {
-                    prop.SetValue(_stepDataContainer, value.Text);
+                    var textBox = s as TextBox;
+                    if (textBox != null)
+                    {
+                        propertyValues[prop.Name] = textBox.Text;
+                    }
+
+                    //prop.SetValue(_stepDataContainer, value.Text);
                 };
 
                 y += 30;
@@ -84,8 +96,8 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 this.Controls.Add(name);
                 this.Controls.Add(value);
             }
-
         }
+
 
         public void ClearData()
         {
@@ -101,8 +113,19 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         }
         private void AcceptBtn_Click(object sender, EventArgs e)
         {
-            //_manager.AddStepDataContainer(_questId, _stepId, _stepDataContainer);
             ClearData();
+
+            var props = _stepDataContainer.GetType().GetProperties();
+
+            foreach (var prop in props)
+            {
+                if (prop.Name == "Completed" || prop.Name == "Type")
+                {
+                    continue;
+                }
+
+                prop.SetValue(_stepDataContainer, propertyValues[prop.Name]);
+            }
 
             StepCreated?.Invoke(this, new StepCreatedEventArgs() { Container = _stepDataContainer, IdCreated = _idCreated });
             _parent.Close();

@@ -55,6 +55,10 @@ namespace SeaHatsExternal.Quests
         ExtName, //With name
         MobType, //With type
         Amount,  //With amount  
+        MaxAmount,
+        ItemName,
+        Coordinate,
+        Location
     }
 
     public class QuestSeaHatsManager
@@ -77,6 +81,84 @@ namespace SeaHatsExternal.Quests
 
         }
 
+        public static string FixQuestPlayer(QuestDataInfo quest, int stepId, string[] parameters, bool isQuestGump = true)
+        {
+
+            string text = string.Empty;
+
+            short stepIndex = (short)stepId;
+            text = quest.Steps[stepIndex].Text;
+
+            if (!isQuestGump)
+            {
+                text = quest.Steps[stepIndex].NpcGumpText;
+            }
+
+            string pattern = @"@\[(?<ParName>\w+):(?<ParValue>\w+)?]";
+            MatchCollection matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+
+
+            if (matches.Count == 0 && parameters is null)
+            {
+                return text;
+            }
+
+
+            for (int i = 0; i < matches.Count; i++)
+            {
+                try
+                {
+                    text = text.Replace(matches[i].Value, parameters[i]);
+                }
+                catch
+                {
+
+                }
+            }            
+
+            return text;
+        }
+
+
+        public string FixQuestPlayer(int id, int stepId, string[] parameters, bool isQuestGump = true)
+        {
+
+            string text = string.Empty;
+            if (Data.Quests.TryGetValue((ushort)id, out var quest))
+            {
+                short stepIndex = (short)stepId;
+                text = quest.Steps[stepIndex].Text;
+
+                if (!isQuestGump)
+                {
+                    text = quest.Steps[stepIndex].NpcGumpText;
+                }
+
+                string pattern = @"@\[(?<ParName>\w+):(?<ParValue>\w+)?]";
+                MatchCollection matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+
+
+                if (matches.Count == 0 && parameters is null)
+                {
+                    return text;
+                }
+
+
+                for (int i = 0; i < matches.Count; i++)
+                {
+                    try
+                    {
+                        text = text.Replace(matches[i].Value, parameters[i]);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+
+            return text;
+        }
         public void RemoveStepDataContainer(ushort questId, short stepId, IStepDataContainer step)
         {
             if (Data.Quests.TryGetValue(questId, out var questData))

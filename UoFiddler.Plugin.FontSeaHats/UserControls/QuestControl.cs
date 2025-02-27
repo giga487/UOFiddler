@@ -19,6 +19,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
+using Newtonsoft.Json.Linq;
 using SeaHatsExternal.Quests;
 
 namespace UoFiddler.Plugin.FontSeaHats.UserControls
@@ -76,19 +78,55 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
             _selectdTextbox = stepText;
             paramsCombobox.Items.Add("----");
 
-            foreach (var value in Enum.GetValues(typeof(QuestParameters)))
-            {
-                paramsCombobox.Items.Add(value);
-            }
-
-            paramsCombobox.SelectedIndex = 0;
-
-            foreach (var container in data.StepDataContainers)
-            {
-                dataContainerList.Items.Add(container);
-            }
-
+            SetParameterFromContainers();
         }
+
+        public List<string> CreateParamsTextFromContainer(IStepDataContainer container)
+        {
+            List<string> valueToAdd = new List<string>(); 
+
+            switch (container.Type)
+            {
+                case QuestType_T.KillMob:
+
+                    if(container is MobTypeContainer mobToKill)
+                    {
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.MaxAmount, mobToKill.Name));
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.MobType, mobToKill.Name));
+                    }
+
+                    break;
+
+                case QuestType_T.GatherObject:
+
+                    if (container is GatherContainer gather)
+                    {
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.ItemName, gather.Name));
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.Amount, gather.Name));
+                    }
+
+                    break;
+
+                case QuestType_T.ReachLocation:
+                    if (container is LocationContainer location)
+                    {
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.Location, location.Name));
+                    }
+
+                    break;
+                case QuestType_T.TalkWithNPC:
+                    if (container is TalkContainer talkContainer)
+                    {
+                        valueToAdd.Add(_manager.AddParameter(QuestParameters.ExtName, talkContainer.Name));
+                    }
+
+                    break;
+
+            }
+
+            return valueToAdd;
+        }
+
 
         public void ResetTempData(QuestDataStep data)
         {
@@ -326,27 +364,53 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
 
         private void QuestControl_StepCreated(object sender, StepCreatedEventArgs e)
         {
-            if (dataContainerList.Items.Count < e.IdCreated)
+            datasInfo.StepDataContainers[e.IdCreated] = e.Container;
+            //if (dataContainerList.Items.Count < e.IdCreated)
+            //{
+            //    dataContainerList.Items.Insert(e.IdCreated, e.Container);
+            //}
+            //else
+            //{
+            //    try
+            //    {
+            //        dataContainerList.Items.RemoveAt(e.IdCreated);
+            //    }
+            //    catch
+            //    {
+
+            //    }
+
+            //    dataContainerList.Items.Insert(e.IdCreated, e.Container);
+            //}
+
+            //tempStepData.Insert(e.IdCreated, e.Container);
+
+            SetParameterFromContainers();
+        }
+
+        public void SetParameterFromContainers()
+        {
+            paramsCombobox.Items.Clear();
+
+            paramsCombobox.Items.Add(_manager.AddParameter(QuestParameters.From, ""));
+            dataContainerList.Items.Clear();
+
+            int i = 0;
+            foreach (var containerObj in datasInfo.StepDataContainers)
             {
-                dataContainerList.Items.Insert(e.IdCreated, e.Container);
-            }
-            else
-            {
-                try
+                if (containerObj is IStepDataContainer container)
                 {
-                    dataContainerList.Items.RemoveAt(e.IdCreated);
-                }
-                catch
-                {
-
+                    var paramsToAdd = CreateParamsTextFromContainer(container);
+                    foreach (var value in paramsToAdd)
+                    {
+                        paramsCombobox.Items.Add(value);
+                    }
                 }
 
-                dataContainerList.Items.Insert(e.IdCreated, e.Container);
+                dataContainerList.Items.Insert(i++, containerObj);
             }
 
-
-            tempStepData.Insert(e.IdCreated, e.Container);
-
+            paramsCombobox.SelectedIndex = 0;
         }
 
         private void label10_Click(object sender, EventArgs e)
@@ -380,6 +444,7 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
                 dataContainerList.Items.Remove(container);
             }
 
+            SetParameterFromContainers();
         }
     }
 }

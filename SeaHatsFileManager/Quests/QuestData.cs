@@ -44,6 +44,7 @@ namespace SeaHatsExternal.Quests
         public string Y { get; set; }  = "0";
         public string Z { get; set; }  = "0";
         public string MapID { get; set; }  = "0";
+        public string LocationName { get; set; } = "";
         public QuestType_T Type => QuestType_T.ReachLocation;
         public string Name { get; set; } = string.Empty;
     }
