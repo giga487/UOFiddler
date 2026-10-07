@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>ResourceAccess</AssemblyName>
+    <Version>1.0.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>..\UoFiddler\bin\$(Configuration)\plugins\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ultima\Ultima.csproj" Private="false" />
+    <ProjectReference Include="..\UoFiddler.Controls\UoFiddler.Controls.csproj" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ResourceAccess.Tests" />
+    <None Include="..\tools\Invoke-FiddlerResource.ps1" Link="Invoke-FiddlerResource.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="README.md" CopyToOutputDirectory="PreserveNewest" TargetPath="ResourceAccess.README.md" />
+  </ItemGroup>
+</Project>

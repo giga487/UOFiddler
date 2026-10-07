@@ -35,3 +35,10 @@ You'll need Visual Studio 2026 v18.0 or newer, .NET 10.0 SDK and .NET desktop de
 ## Reporting bugs and issues
 
 Please report any bugs or issues here: [issues](https://github.com/polserver/UOFiddler/issues).
+
+## SeaHats resource access
+
+This fork includes a native **Resource Access** plugin for querying the open
+profile's files by ID or byte range from PowerShell. It provides JSON metadata
+and PNG exports for items, land tiles, gumps and font glyphs, plus cliloc and
+saved quest lookups. See [setup, commands and verification](UoFiddler.Plugin.ResourceAccess/README.md).

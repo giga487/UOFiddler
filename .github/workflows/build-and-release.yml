@@ -44,6 +44,11 @@ jobs:
         env:
           Configuration: ${{ matrix.configuration }}
 
+      - name: Verify resource access plugin
+        run: dotnet run --project tests/ResourceAccess.Tests/ResourceAccess.Tests.csproj --configuration $env:Configuration -- tools/Invoke-FiddlerResource.ps1
+        env:
+          Configuration: ${{ matrix.configuration }}
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7.0.0
         with:
