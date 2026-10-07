@@ -17,8 +17,11 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using System.Xml;
 using Ultima;
+using Ultima.Uop;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
 using UoFiddler.Controls.Helpers;
 
 namespace UoFiddler.Controls.UserControls
@@ -30,6 +33,7 @@ namespace UoFiddler.Controls.UserControls
             InitializeComponent();
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint,
                 true);
+            ConfigureListView();
             if (!Files.CacheData)
             {
                 Preload.Visible = false;
@@ -38,11 +42,150 @@ namespace UoFiddler.Controls.UserControls
             ProgressBar.Visible = false;
 
             _refMarker = this;
+
+            pictureBox.BackColor = Options.PreviewBackgroundColor;
         }
+
+        private sealed record GumpEntry(string Name, string[] Tags);
 
         private static GumpControl _refMarker;
         private bool _loaded;
         private bool _showFreeSlots;
+        private Dictionary<int, GumpEntry> _gumpEntries = new();
+        private string _activeNameFilter = string.Empty;
+        private readonly HashSet<string> _activeTagFilters = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Gump ids currently listed, ascending. The list is virtual, so this is the only place a row's
+        /// identity lives - with free slots hidden a row's position is not its id.
+        /// </summary>
+        private readonly List<int> _ids = new();
+
+        /// <summary>
+        /// Row height. A list view has no ItemHeight of its own, so it comes from the image list.
+        /// </summary>
+        private const int _rowHeight = 75;
+
+        /// <summary>
+        /// Row currently selected, or -1. Kept here because <see cref="DrawListViewItemEventArgs.State"/>
+        /// does not carry the selection for a virtual owner drawn list view - the item being painted is a
+        /// fresh one built in <see cref="ListView_RetrieveVirtualItem"/>, so every row read as selected.
+        /// </summary>
+        private int _selectedPosition = -1;
+
+        private static readonly string[] _layerTags =
+        {
+            "",             // 0x00
+            "one-hand",     // 0x01
+            "two-hand",     // 0x02
+            "boots",        // 0x03
+            "pants",        // 0x04
+            "shirt",        // 0x05
+            "helmet",       // 0x06
+            "gloves",       // 0x07
+            "ring",         // 0x08
+            "talisman",     // 0x09
+            "gorget",       // 0x0A
+            "hair",         // 0x0B
+            "waist",        // 0x0C
+            "chest-armor",  // 0x0D
+            "bracelet",     // 0x0E
+            "",             // 0x0F
+            "facial-hair",  // 0x10
+            "tunic",        // 0x11
+            "earring",      // 0x12
+            "sleeves",      // 0x13
+            "cloak",        // 0x14
+            "backpack",     // 0x15
+            "robe",         // 0x16
+            "skirt",        // 0x17
+            "leg-armor",    // 0x18
+        };
+
+        /// <summary>
+        /// Sets up the virtual list. It replaced a ListBox because the gump id space (0x12000) is larger
+        /// than the 16 bit item index a list box exposes through LB_ITEMFROMPOINT and its scroll bar, so
+        /// with free slots shown every row above 65535 aliased onto a row near the start of the list.
+        /// </summary>
+        private void ConfigureListView()
+        {
+            listView.SmallImageList = new ImageList { ImageSize = new Size(1, _rowHeight) };
+            listView.Columns.Add(new ColumnHeader { Width = listView.ClientSize.Width });
+            listView.ClientSizeChanged += (_, _) => listView.Columns[0].Width = listView.ClientSize.Width;
+
+            // A row is a 105 pixel thumbnail plus a name and a tag line, so width past that is empty
+            // background. Keep the pane where the user put it when the form resizes, and clamp it.
+            splitContainer1.FixedPanel = FixedPanel.Panel1;
+            splitContainer1.SplitterMoved += (_, _) => ClampListWidth();
+            splitContainer1.SizeChanged += (_, _) => ClampListWidth();
+            ClampListWidth();
+        }
+
+        /// <summary>
+        /// Widest the list pane may get, whether by dragging the splitter or by the form growing.
+        /// </summary>
+        private const int _maxListWidth = 450;
+
+        private void ClampListWidth()
+        {
+            if (splitContainer1.Width <= 0)
+            {
+                return;
+            }
+
+            int max = Math.Min(_maxListWidth,
+                splitContainer1.Width - splitContainer1.Panel2MinSize - splitContainer1.SplitterWidth);
+
+            // Assigning outside the panels' own bounds throws; leave a pane too small to clamp alone.
+            if (max < splitContainer1.Panel1MinSize || splitContainer1.SplitterDistance <= max)
+            {
+                return;
+            }
+
+            splitContainer1.SplitterDistance = max;
+        }
+
+        /// <summary>Gump id of the selected row, or -1 when nothing is selected.</summary>
+        private int SelectedGumpId
+        {
+            get
+            {
+                int position = listView.SelectedIndices.Count > 0 ? listView.SelectedIndices[0] : -1;
+
+                return position >= 0 && position < _ids.Count ? _ids[position] : -1;
+            }
+        }
+
+        private void SelectPosition(int position)
+        {
+            if (position < 0 || position >= _ids.Count)
+            {
+                return;
+            }
+
+            listView.SelectedIndices.Clear();
+            listView.SelectedIndices.Add(position);
+            _selectedPosition = position;
+            listView.EnsureVisible(position);
+        }
+
+        /// <summary>
+        /// Adds an id to the listed set, keeping it ascending, and selects it. Does nothing but select
+        /// when the id is already listed.
+        /// </summary>
+        private void InsertId(int id)
+        {
+            int position = _ids.BinarySearch(id);
+            if (position < 0)
+            {
+                position = ~position;
+                _ids.Insert(position, id);
+                listView.VirtualListSize = _ids.Count;
+            }
+
+            SelectPosition(position);
+            listView.Invalidate();
+        }
 
         /// <summary>
         /// Reload when loaded (file changed)
@@ -70,56 +213,205 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Options.LoadedUltimaClass["Gumps"] = true;
-            _showFreeSlots = false;
-            showFreeSlotsToolStripMenuItem.Checked = false;
-
-            PopulateListBox(true);
-
-            if (!_loaded)
+            using (new WaitCursorScope(this))
             {
-                ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
-                ControlEvents.GumpChangeEvent += OnGumpChangeEvent;
-            }
+                Options.LoadedUltimaClass["Gumps"] = true;
+                _showFreeSlots = false;
+                showFreeSlotsToolStripMenuItem.Checked = false;
 
-            _loaded = true;
-            Cursor.Current = Cursors.Default;
+                PopulateListBox(true);
+                LoadGumpXml();
+
+                if (!_loaded)
+                {
+                    ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
+                    ControlEvents.GumpChangeEvent += OnGumpChangeEvent;
+                    ControlEvents.PreviewBackgroundColorChangeEvent += OnPreviewBackgroundColorChanged;
+                }
+
+                _loaded = true;
+            }
         }
 
         private void PopulateListBox(bool showOnlyValid)
         {
-            listBox.BeginUpdate();
-            listBox.Items.Clear();
+            listView.BeginUpdate();
+            listView.SelectedIndices.Clear();
+            _selectedPosition = -1;
+            _ids.Clear();
 
-            List<object> cache = new List<object>();
+            bool hasNameFilter = _activeNameFilter.Length > 0;
+            bool hasTagFilter = _activeTagFilters.Count > 0;
+
             for (int i = 0; i < Gumps.GetCount(); ++i)
             {
-                if (showOnlyValid)
+                if (showOnlyValid && !Gumps.IsValidIndex(i))
                 {
-                    if (Gumps.IsValidIndex(i))
+                    continue;
+                }
+
+                if (hasNameFilter || hasTagFilter)
+                {
+                    // Gumps with no XML entry are hidden only while a filter is active.
+                    // When all filters are cleared every gump reappears as normal.
+                    if (!_gumpEntries.TryGetValue(i, out GumpEntry entry))
                     {
-                        cache.Add(i);
+                        continue;
+                    }
+
+                    if (hasNameFilter && !entry.Name.ContainsCaseInsensitive(_activeNameFilter))
+                    {
+                        continue;
+                    }
+
+                    // AND logic: gump must carry every checked tag
+                    if (hasTagFilter && !_activeTagFilters.All(t => entry.Tags.Contains(t, StringComparer.OrdinalIgnoreCase)))
+                    {
+                        continue;
                     }
                 }
-                else
+
+                _ids.Add(i);
+            }
+
+            listView.VirtualListSize = _ids.Count;
+            listView.EndUpdate();
+            listView.Invalidate();
+
+            SelectPosition(0);
+        }
+
+        private void LoadGumpXml()
+        {
+            _gumpEntries.Clear();
+            string path = Path.Combine(Options.AppDataPath, "Gumplist.xml");
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                var doc = new XmlDocument();
+                doc.Load(path);
+                XmlElement root = doc["Gumps"];
+                if (root == null)
                 {
-                    cache.Add(i);
+                    return;
+                }
+
+                int maxId = Gumps.GetCount();
+                foreach (XmlElement elem in root.SelectNodes("Gump"))
+                {
+                    string idAttr = elem.GetAttribute("id");
+                    if (!Utils.ConvertStringToInt(idAttr, out int id, 0, maxId) || id >= maxId)
+                    {
+                        continue;
+                    }
+
+                    string name = elem.GetAttribute("name");
+                    string tagsAttr = elem.GetAttribute("tags");
+                    string[] tags = string.IsNullOrWhiteSpace(tagsAttr)
+                        ? Array.Empty<string>()
+                        : tagsAttr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                    _gumpEntries[id] = new GumpEntry(name, tags);
+                }
+            }
+            catch
+            {
+                _gumpEntries.Clear();
+            }
+
+            RebuildTagDropdown();
+            PopulateListBox(!_showFreeSlots);
+        }
+
+        private void RebuildTagDropdown()
+        {
+            tagFilterDropDownButton.DropDownItems.Clear();
+            _activeTagFilters.Clear();
+
+            var allTags = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (GumpEntry entry in _gumpEntries.Values)
+            {
+                foreach (string tag in entry.Tags)
+                {
+                    if (!string.IsNullOrWhiteSpace(tag))
+                    {
+                        allTags.Add(tag);
+                    }
                 }
             }
 
-            listBox.Items.AddRange(cache.ToArray());
-            listBox.EndUpdate();
+            tagFilterDropDownButton.Enabled = allTags.Count > 0;
 
-            if (listBox.Items.Count > 0)
+            if (allTags.Count == 0)
             {
-                listBox.SelectedIndex = 0;
+                return;
             }
+
+            var clearItem = new ToolStripMenuItem("Clear All");
+            clearItem.Click += OnClearTagFilters;
+            tagFilterDropDownButton.DropDownItems.Add(clearItem);
+            tagFilterDropDownButton.DropDownItems.Add(new ToolStripSeparator());
+
+            foreach (string tag in allTags)
+            {
+                var item = new ToolStripMenuItem(tag) { CheckOnClick = true };
+                item.CheckedChanged += OnTagFilterChanged;
+                tagFilterDropDownButton.DropDownItems.Add(item);
+            }
+
+            // Keep dropdown open while the user checks/unchecks items
+            tagFilterDropDownButton.DropDown.Closing -= OnTagDropDownClosing;
+            tagFilterDropDownButton.DropDown.Closing += OnTagDropDownClosing;
+        }
+
+        private void OnTagDropDownClosing(object sender, ToolStripDropDownClosingEventArgs e)
+        {
+            if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked)
+            {
+                e.Cancel = true;
+            }
+        }
+
+        private void OnClearTagFilters(object sender, EventArgs e)
+        {
+            foreach (ToolStripItem item in tagFilterDropDownButton.DropDownItems)
+            {
+                if (item is ToolStripMenuItem mi)
+                {
+                    mi.Checked = false;
+                }
+            }
+
+            _activeTagFilters.Clear();
+            PopulateListBox(!_showFreeSlots);
+        }
+
+        private void OnTagFilterChanged(object sender, EventArgs e)
+        {
+            _activeTagFilters.Clear();
+            foreach (ToolStripItem item in tagFilterDropDownButton.DropDownItems)
+            {
+                if (item is ToolStripMenuItem { Checked: true } mi)
+                {
+                    _activeTagFilters.Add(mi.Text);
+                }
+            }
+
+            PopulateListBox(!_showFreeSlots);
         }
 
         private void OnFilePathChangeEvent()
         {
             Reload();
+        }
+
+        private void OnPreviewBackgroundColorChanged()
+        {
+            pictureBox.BackColor = Options.PreviewBackgroundColor;
         }
 
         private void OnGumpChangeEvent(object sender, int index)
@@ -136,56 +428,56 @@ namespace UoFiddler.Controls.UserControls
 
             if (Gumps.IsValidIndex(index))
             {
-                bool done = false;
-                for (int i = 0; i < listBox.Items.Count; ++i)
-                {
-                    int j = int.Parse(listBox.Items[i].ToString());
-                    if (j > index)
-                    {
-                        listBox.Items.Insert(i, index);
-                        listBox.SelectedIndex = i;
-                        done = true;
-                        break;
-                    }
+                InsertId(index);
 
-                    if (j == index)
-                    {
-                        done = true;
-                        break;
-                    }
-                }
-
-                if (!done)
-                {
-                    listBox.Items.Add(index);
-                }
+                return;
             }
-            else
+
+            // Gone. With free slots shown the row stays, it just draws as free.
+            int position = _ids.BinarySearch(index);
+            if (position >= 0 && !_showFreeSlots)
             {
-                for (int i = 0; i < listBox.Items.Count; ++i)
-                {
-                    int j = int.Parse(listBox.Items[i].ToString());
-                    if (j == index)
-                    {
-                        listBox.Items.RemoveAt(i);
-                        break;
-                    }
-                }
-
-                listBox.Invalidate();
+                listView.SelectedIndices.Clear();
+                _selectedPosition = -1;
+                _ids.RemoveAt(position);
+                listView.VirtualListSize = _ids.Count;
             }
+
+            listView.Invalidate();
         }
 
-        private void ListBox_DrawItem(object sender, DrawItemEventArgs e)
+        private void ChangeBackgroundColorToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (e.Index < 0)
+            if (colorDialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            Options.PreviewBackgroundColor = colorDialog.Color;
+            ControlEvents.FirePreviewBackgroundColorChangeEvent();
+        }
+
+        private void ListView_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
+        {
+            // Everything visible is painted in ListView_DrawItem; the text is here so the row still has
+            // an accessible name and a keyboard type-ahead target.
+            e.Item = (uint)e.ItemIndex < (uint)_ids.Count
+                ? new ListViewItem(_ids[e.ItemIndex].ToString())
+                : new ListViewItem(string.Empty);
+        }
+
+        private void ListView_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            if ((uint)e.ItemIndex >= (uint)_ids.Count)
             {
                 return;
             }
 
             Brush fontBrush = Brushes.Gray;
 
-            int i = int.Parse(listBox.Items[e.Index].ToString());
+            bool isSelected = e.ItemIndex == _selectedPosition;
+            int i = _ids[e.ItemIndex];
+            bool hasEntry = _gumpEntries.TryGetValue(i, out GumpEntry entry);
 
             if (Gumps.IsValidIndex(i))
             {
@@ -193,19 +485,24 @@ namespace UoFiddler.Controls.UserControls
 
                 if (bmp != null)
                 {
+                    int thumbMaxH = e.Bounds.Height - 6;
                     int width = bmp.Width > 100 ? 100 : bmp.Width;
-                    int height = bmp.Height > 54 ? 54 : bmp.Height;
+                    int height = bmp.Height > thumbMaxH ? thumbMaxH : bmp.Height;
 
-                    if (listBox.SelectedIndex == e.Index)
+                    if (isSelected)
                     {
-                        e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, 105, 60);
+                        e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, 105, e.Bounds.Height);
                     }
                     else if (patched)
                     {
-                        e.Graphics.FillRectangle(Brushes.LightCoral, e.Bounds.X, e.Bounds.Y, 105, 60);
+                        e.Graphics.FillRectangle(Brushes.LightCoral, e.Bounds.X, e.Bounds.Y, 105, e.Bounds.Height);
                     }
-
                     e.Graphics.DrawImage(bmp, new Rectangle(e.Bounds.X + 3, e.Bounds.Y + 3, width, height));
+
+                    if (Gumps.IsModified(i))
+                    {
+                        ModifiedMarker.Draw(e.Graphics, new Rectangle(e.Bounds.X, e.Bounds.Y, 105, e.Bounds.Height));
+                    }
                 }
                 else
                 {
@@ -214,33 +511,51 @@ namespace UoFiddler.Controls.UserControls
             }
             else
             {
-                if (listBox.SelectedIndex == e.Index)
+                if (isSelected)
                 {
-                    e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, 105, 60);
+                    e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, 105, e.Bounds.Height);
                 }
 
                 fontBrush = Brushes.Red;
             }
 
-            e.Graphics.DrawString($"0x{i:X} ({i})", Font, fontBrush,
-                new PointF(105,
-                    e.Bounds.Y + ((e.Bounds.Height / 2) -
-                                  (e.Graphics.MeasureString($"0x{i:X} ({i})", Font).Height / 2))));
-        }
+            string idText = $"0x{i:X} ({i})";
+            float idY = hasEntry
+                ? e.Bounds.Y + 4
+                : e.Bounds.Y + ((e.Bounds.Height / 2f) - (e.Graphics.MeasureString(idText, Font).Height / 2f));
 
-        private void ListBox_MeasureItem(object sender, MeasureItemEventArgs e)
-        {
-            e.ItemHeight = 60;
-        }
+            e.Graphics.DrawString(idText, Font, fontBrush, new PointF(105, idY));
 
-        private void ListBox_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (listBox.SelectedIndex == -1)
+            if (hasEntry)
             {
+                if (!string.IsNullOrEmpty(entry.Name))
+                {
+                    e.Graphics.DrawString(entry.Name, Font, fontBrush, new PointF(105, e.Bounds.Y + 22));
+                }
+
+                if (entry.Tags.Length > 0)
+                {
+                    string tagLine = string.Join(" ", Array.ConvertAll(entry.Tags, t => "#" + t));
+                    using Font smallFont = new Font(Font.FontFamily, Font.Size - 1f);
+                    e.Graphics.DrawString(tagLine, smallFont, Brushes.Gray, new PointF(105, e.Bounds.Y + 42));
+                }
+            }
+        }
+
+        private void ListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _selectedPosition = listView.SelectedIndices.Count > 0 ? listView.SelectedIndices[0] : -1;
+
+            int i = SelectedGumpId;
+            if (i < 0)
+            {
+                pictureBox.BackgroundImage = null;
+                listView.Invalidate();
+
                 return;
             }
 
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            pictureBox.BackColor = Options.PreviewBackgroundColor;
             if (Gumps.IsValidIndex(i))
             {
                 Bitmap bmp = Gumps.GetGump(i);
@@ -260,18 +575,18 @@ namespace UoFiddler.Controls.UserControls
                 pictureBox.BackgroundImage = null;
             }
 
-            listBox.Invalidate();
+            listView.Invalidate();
             JumpToMaleFemaleInvalidate();
         }
 
         private void JumpToMaleFemaleInvalidate()
         {
-            if (listBox.SelectedIndex == -1)
+            int gumpId = SelectedGumpId;
+            if (gumpId < 0)
             {
                 return;
             }
 
-            int gumpId = (int)listBox.SelectedItem;
             if (gumpId >= 50000)
             {
                 if (gumpId >= 60000)
@@ -292,9 +607,85 @@ namespace UoFiddler.Controls.UserControls
             }
         }
 
+        private void ContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            int id = SelectedGumpId;
+            copyImageToolStripMenuItem.Enabled = id >= 0 && Gumps.IsValidIndex(id);
+            pasteImageToolStripMenuItem.Enabled = id >= 0 && ImageClipboard.ContainsImage();
+        }
+
+        private void OnClickCopyImage(object sender, EventArgs e)
+        {
+            int id = SelectedGumpId;
+            if (id < 0 || !Gumps.IsValidIndex(id))
+            {
+                return;
+            }
+
+            if (!ImageClipboard.TryCopy(Gumps.GetGump(id), out string error))
+            {
+                MessageBox.Show(error, "Copy Image", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void OnClickPasteImage(object sender, EventArgs e)
+        {
+            int id = SelectedGumpId;
+            if (id < 0)
+            {
+                return;
+            }
+
+            using Bitmap pasted = ImageClipboard.TryPaste(out string error);
+            if (pasted == null)
+            {
+                MessageBox.Show(error, "Paste Image", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Gumps have no fixed size, but the idx packs width and height into one int and the
+            // decoder refuses anything past 0xFFFF on either axis.
+            if (pasted.Width == 0 || pasted.Height == 0 || pasted.Width > 0xFFFF || pasted.Height > 0xFFFF)
+            {
+                MessageBox.Show(
+                    $"Invalid gump dimensions!\n\n" +
+                    $"Clipboard image: {pasted.Width}x{pasted.Height}\n" +
+                    $"Gumps may be up to 65535x65535 pixels.\n\n" +
+                    "No changes made.",
+                    "Invalid Size", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Gumps.ReplaceGump(id, Utils.ToUoBitmap(pasted));
+            ControlEvents.FireGumpChangeEvent(this, id);
+            listView.Invalidate();
+            ListView_SelectedIndexChanged(this, EventArgs.Empty);
+            Options.ChangedUltimaClass["Gumps"] = true;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Copy/paste is handled here rather than as menu ShortcutKeys: a shortcut on a
+            // ContextMenuStrip is processed for the whole form, which would swallow Ctrl+C/Ctrl+V in
+            // every text box on every tab.
+            if (keyData == (Keys.Control | Keys.C) && listView.Focused)
+            {
+                OnClickCopyImage(this, EventArgs.Empty);
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.V) && listView.Focused)
+            {
+                OnClickPasteImage(this, EventArgs.Empty);
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void OnClickReplace(object sender, EventArgs e)
         {
-            if (listBox.SelectedItems.Count != 1)
+            if (SelectedGumpId < 0)
             {
                 return;
             }
@@ -304,7 +695,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = "Choose image file to replace";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -319,14 +710,14 @@ namespace UoFiddler.Controls.UserControls
                         bitmap = Utils.ConvertBmp(bitmap);
                     }
 
-                    int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+                    int i = SelectedGumpId;
 
                     Gumps.ReplaceGump(i, bitmap);
 
                     ControlEvents.FireGumpChangeEvent(this, i);
 
-                    listBox.Invalidate();
-                    ListBox_SelectedIndexChanged(this, EventArgs.Empty);
+                    listView.Invalidate();
+                    ListView_SelectedIndexChanged(this, EventArgs.Empty);
 
                     Options.ChangedUltimaClass["Gumps"] = true;
                 }
@@ -342,17 +733,18 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Gumps.Save(Options.OutputPath);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Saved to {Options.OutputPath}", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
-            Options.ChangedUltimaClass["Gumps"] = false;
+            ClientFileSaveCommand.Run(this, FileType.GumpartLegacyMul, Gumps.Save, "Gumps",
+                createProgress: () => new ProgressBarDialog(Gumps.GetCount(), "Save"));
         }
 
         private void OnClickRemove(object sender, EventArgs e)
         {
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            int i = SelectedGumpId;
+            if (i < 0)
+            {
+                return;
+            }
+
             DialogResult result = MessageBox.Show($"Are you sure to remove {i}", "Remove", MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (result != DialogResult.Yes)
@@ -364,23 +756,36 @@ namespace UoFiddler.Controls.UserControls
             ControlEvents.FireGumpChangeEvent(this, i);
             if (!_showFreeSlots)
             {
-                listBox.Items.RemoveAt(listBox.SelectedIndex);
+                int position = _ids.BinarySearch(i);
+                if (position >= 0)
+                {
+                    listView.SelectedIndices.Clear();
+                    _selectedPosition = -1;
+                    _ids.RemoveAt(position);
+                    listView.VirtualListSize = _ids.Count;
+                }
             }
 
             pictureBox.BackgroundImage = null;
-            listBox.Invalidate();
+            listView.Invalidate();
             Options.ChangedUltimaClass["Gumps"] = true;
         }
 
         private void OnClickFindFree(object sender, EventArgs e)
         {
-            int id = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
-            ++id;
-            for (int i = listBox.SelectedIndex + 1; i < listBox.Items.Count; ++i, ++id)
+            int position = listView.SelectedIndices.Count > 0 ? listView.SelectedIndices[0] : -1;
+            if (position < 0)
             {
-                if (id < int.Parse(listBox.Items[i].ToString()))
+                return;
+            }
+
+            int id = _ids[position] + 1;
+            for (int i = position + 1; i < _ids.Count; ++i, ++id)
+            {
+                // A gap in the listed ids is a free slot when free slots are hidden.
+                if (id < _ids[i])
                 {
-                    listBox.SelectedIndex = i;
+                    SelectPosition(i);
                     break;
                 }
 
@@ -389,9 +794,9 @@ namespace UoFiddler.Controls.UserControls
                     continue;
                 }
 
-                if (!Gumps.IsValidIndex(int.Parse(listBox.Items[i].ToString())))
+                if (!Gumps.IsValidIndex(_ids[i]))
                 {
-                    listBox.SelectedIndex = i;
+                    SelectPosition(i);
                     break;
                 }
             }
@@ -399,13 +804,14 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnTextChanged_InsertAt(object sender, EventArgs e)
         {
+            Color invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
             if (Utils.ConvertStringToInt(InsertText.Text, out int index, 0, Gumps.GetCount()))
             {
-                InsertText.ForeColor = Gumps.IsValidIndex(index) ? Color.Red : Color.Black;
+                InsertText.ForeColor = Gumps.IsValidIndex(index) ? invalidColor : SystemColors.ControlText;
             }
             else
             {
-                InsertText.ForeColor = Color.Red;
+                InsertText.ForeColor = invalidColor;
             }
         }
 
@@ -432,7 +838,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = $"Choose image file to insert at 0x{index:X}";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -451,38 +857,7 @@ namespace UoFiddler.Controls.UserControls
 
                     ControlEvents.FireGumpChangeEvent(this, index);
 
-                    bool done = false;
-                    for (int i = 0; i < listBox.Items.Count; ++i)
-                    {
-                        int j = int.Parse(listBox.Items[i].ToString());
-                        if (j > index)
-                        {
-                            listBox.Items.Insert(i, index);
-                            listBox.SelectedIndex = i;
-                            done = true;
-                            break;
-                        }
-
-                        if (!_showFreeSlots)
-                        {
-                            continue;
-                        }
-
-                        if (j != i)
-                        {
-                            continue;
-                        }
-
-                        Search(index);
-                        done = true;
-                        break;
-                    }
-
-                    if (!done)
-                    {
-                        listBox.Items.Add(index);
-                        listBox.SelectedIndex = listBox.Items.Count - 1;
-                    }
+                    InsertId(index);
 
                     Options.ChangedUltimaClass["Gumps"] = true;
                 }
@@ -491,32 +866,38 @@ namespace UoFiddler.Controls.UserControls
 
         private void Extract_Image_ClickBmp(object sender, EventArgs e)
         {
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            int i = SelectedGumpId;
             ExportGumpImage(i, ImageFormat.Bmp);
         }
 
         private void Extract_Image_ClickTiff(object sender, EventArgs e)
         {
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            int i = SelectedGumpId;
             ExportGumpImage(i, ImageFormat.Tiff);
         }
 
         private void Extract_Image_ClickJpg(object sender, EventArgs e)
         {
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            int i = SelectedGumpId;
             ExportGumpImage(i, ImageFormat.Jpeg);
         }
 
         private void Extract_Image_ClickPng(object sender, EventArgs e)
         {
-            int i = int.Parse(listBox.Items[listBox.SelectedIndex].ToString());
+            int i = SelectedGumpId;
             ExportGumpImage(i, ImageFormat.Png);
         }
 
         private static void ExportGumpImage(int index, ImageFormat imageFormat)
         {
+            // The menu entries reach this with the selected id, which is -1 when nothing is selected.
+            if (index < 0 || !Gumps.IsValidIndex(index))
+            {
+                return;
+            }
+
             string fileExtension = Utils.GetFileExtensionFor(imageFormat);
-            string fileName = Path.Combine(Options.OutputPath, $"Gump {index}.{fileExtension}");
+            string fileName = Path.Combine(Options.OutputPath, $"Gump {Utils.FormatExportId(index)}.{fileExtension}");
 
             using (Bitmap bit = new Bitmap(Gumps.GetGump(index)))
             {
@@ -564,23 +945,30 @@ namespace UoFiddler.Controls.UserControls
                     return;
                 }
 
-                for (int i = 0; i < listBox.Items.Count; ++i)
+                using (new WaitCursorScope(this))
                 {
-                    int index = int.Parse(listBox.Items[i].ToString());
-                    if (index < 0)
+                    foreach (int index in _ids)
                     {
-                        continue;
-                    }
+                        if (index < 0)
+                        {
+                            continue;
+                        }
 
-                    string fileName = Path.Combine(dialog.SelectedPath, $"Gump {index}.{fileExtension}");
-                    using (Bitmap bit = new Bitmap(Gumps.GetGump(index)))
-                    {
-                        bit.Save(fileName, imageFormat);
+                        string fileName = Path.Combine(dialog.SelectedPath, $"Gump {Utils.FormatExportId(index)}.{fileExtension}");
+                        var gump = Gumps.GetGump(index);
+                        if (gump is null)
+                        {
+                            continue;
+                        }
+
+                        using (Bitmap bit = new Bitmap(gump))
+                        {
+                            bit.Save(fileName, imageFormat);
+                        }
                     }
                 }
 
-                MessageBox.Show($"All Gumps saved to {dialog.SelectedPath}", "Saved", MessageBoxButtons.OK,
-                    MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+                FileSavedDialog.Show(FindForm(), dialog.SelectedPath, "All Gumps saved successfully.");
             }
         }
 
@@ -607,16 +995,12 @@ namespace UoFiddler.Controls.UserControls
 
         private void PreLoaderDoWork(object sender, DoWorkEventArgs e)
         {
-            for (int i = 0; i < Gumps.GetCount(); ++i)
-            {
-                Gumps.GetGump(i);
-                PreLoader.ReportProgress(1);
-            }
+            Gumps.PreloadParallel(0, done => PreLoader.ReportProgress(done));
         }
 
         private void PreLoaderProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            ProgressBar.PerformStep();
+            ProgressBar.Value = Math.Min(ProgressBar.Maximum, Math.Max(ProgressBar.Minimum, e.ProgressPercentage));
         }
 
         private void PreLoaderCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -626,10 +1010,17 @@ namespace UoFiddler.Controls.UserControls
 
         internal static void Select(int gumpId)
         {
+            if (_refMarker == null)
+            {
+                return;
+            }
+
             if (!_refMarker._loaded)
             {
                 _refMarker.OnLoad(EventArgs.Empty);
             }
+
+            TabPageNavigator.ActivateOwningTabPage(_refMarker);
 
             Search(gumpId);
         }
@@ -641,17 +1032,17 @@ namespace UoFiddler.Controls.UserControls
                 _refMarker.OnLoad(EventArgs.Empty);
             }
 
-            return _refMarker.listBox.Items.Cast<object>().Any(id => (int)id == gumpId);
+            return _refMarker._ids.BinarySearch(gumpId) >= 0;
         }
 
         private void JumpToMaleFemale_Click(object sender, EventArgs e)
         {
-            if (listBox.SelectedIndex == -1)
+            int gumpId = SelectedGumpId;
+            if (gumpId < 0)
             {
                 return;
             }
 
-            int gumpId = (int)listBox.SelectedItem;
             gumpId = gumpId < 60000 ? (gumpId % 10000) + 60000 : (gumpId % 10000) + 50000;
 
             Select(gumpId);
@@ -664,34 +1055,39 @@ namespace UoFiddler.Controls.UserControls
                 _refMarker.OnLoad(EventArgs.Empty);
             }
 
-            for (int i = 0; i < _refMarker.listBox.Items.Count; ++i)
+            int position = _refMarker._ids.BinarySearch(graphic);
+            if (position < 0)
             {
-                object id = _refMarker.listBox.Items[i];
-                if ((int)id != graphic)
-                {
-                    continue;
-                }
-
-                _refMarker.listBox.SelectedIndex = i;
-                _refMarker.listBox.TopIndex = i;
-
-                return true;
+                return false;
             }
 
-            return false;
+            _refMarker.SelectPosition(position);
+
+            return true;
         }
 
         private void Gump_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode != Keys.F || !e.Control)
+            if (e.Control && e.KeyCode == Keys.F)
             {
+                searchByIdToolStripTextBox.Focus();
+                e.SuppressKeyPress = true;
+                e.Handled = true;
                 return;
             }
 
-            searchByIdToolStripTextBox.Focus();
+            if (e.Control && e.KeyCode == Keys.G)
+            {
+                searchByNameToolStripTextBox.Focus();
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+            }
+        }
 
-            e.SuppressKeyPress = true;
-            e.Handled = true;
+        private void SearchByNameToolStripTextBox_KeyUp(object sender, KeyEventArgs e)
+        {
+            _activeNameFilter = searchByNameToolStripTextBox.Text.Trim();
+            PopulateListBox(!_showFreeSlots);
         }
 
         private void InsertStartingFromTb_KeyDown(object sender, KeyEventArgs e)
@@ -713,7 +1109,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = true;
                 dialog.Title = $"Choose image file to insert at 0x{index:X}";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -773,37 +1169,7 @@ namespace UoFiddler.Controls.UserControls
 
                 ControlEvents.FireGumpChangeEvent(this, index);
 
-                bool done = false;
-                for (int i = 0; i < listBox.Items.Count; ++i)
-                {
-                    int j = int.Parse(listBox.Items[i].ToString());
-                    if (j > index)
-                    {
-                        listBox.Items.Insert(i, index);
-                        listBox.SelectedIndex = i;
-                        done = true;
-                        break;
-                    }
-
-                    if (!_showFreeSlots)
-                    {
-                        continue;
-                    }
-
-                    if (j != i)
-                    {
-                        continue;
-                    }
-
-                    done = true;
-                    break;
-                }
-
-                if (!done)
-                {
-                    listBox.Items.Add(index);
-                    listBox.SelectedIndex = listBox.Items.Count - 1;
-                }
+                InsertId(index);
             }
         }
 
@@ -816,6 +1182,120 @@ namespace UoFiddler.Controls.UserControls
             }
 
             Search(graphic);
+        }
+
+        private void SaveGumpXml()
+        {
+            string path = Path.Combine(Options.AppDataPath, "Gumplist.xml");
+            try
+            {
+                var doc = new XmlDocument();
+                doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", null));
+                XmlElement root = doc.CreateElement("Gumps");
+                doc.AppendChild(root);
+
+                foreach (var kvp in _gumpEntries.OrderBy(k => k.Key))
+                {
+                    XmlElement elem = doc.CreateElement("Gump");
+                    elem.SetAttribute("id", kvp.Key.ToString());
+                    elem.SetAttribute("name", kvp.Value.Name);
+                    if (kvp.Value.Tags.Length > 0)
+                    {
+                        elem.SetAttribute("tags", string.Join(",", kvp.Value.Tags));
+                    }
+
+                    root.AppendChild(elem);
+                }
+
+                doc.Save(path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save Gumplist.xml:\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OnClickGenerateFromTileData(object sender, EventArgs e)
+        {
+            if (TileData.ItemTable == null || TileData.ItemTable.Length == 0)
+            {
+                MessageBox.Show("TileData is not loaded. Please open the Items or TileData tab first.",
+                    "TileData Not Loaded", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Collect the first item name and layer per animation body ID.
+            // Multiple items can share the same animation body, so we keep the first found.
+            var animMap = new Dictionary<short, (string Name, byte Layer)>();
+            for (int i = 0; i < TileData.ItemTable.Length; i++)
+            {
+                ItemData item = TileData.ItemTable[i];
+                if (!item.Wearable || item.Animation <= 0)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(item.Name))
+                {
+                    continue;
+                }
+
+                if (!animMap.ContainsKey(item.Animation))
+                {
+                    animMap[item.Animation] = (item.Name, item.Quality);
+                }
+            }
+
+            int maxGumpId = Gumps.GetCount();
+            int added = 0;
+
+            foreach (var kvp in animMap)
+            {
+                short animId = kvp.Key;
+                string name = kvp.Value.Name;
+                byte layer = kvp.Value.Layer;
+                string layerTag = layer < _layerTags.Length ? _layerTags[layer] : string.Empty;
+
+                int maleId = animId + 50000;
+                if (maleId < maxGumpId && Gumps.IsValidIndex(maleId) && !_gumpEntries.ContainsKey(maleId))
+                {
+                    string[] tags = BuildEquipTags(layerTag, "male");
+                    _gumpEntries[maleId] = new GumpEntry($"[M] {name}", tags);
+                    added++;
+                }
+
+                int femaleId = animId + 60000;
+                if (femaleId < maxGumpId && Gumps.IsValidIndex(femaleId) && !_gumpEntries.ContainsKey(femaleId))
+                {
+                    string[] tags = BuildEquipTags(layerTag, "female");
+                    _gumpEntries[femaleId] = new GumpEntry($"[F] {name}", tags);
+                    added++;
+                }
+            }
+
+            if (added == 0)
+            {
+                MessageBox.Show("No new entries were generated (all matching gumps already have entries or none found).",
+                    "Generate Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            SaveGumpXml();
+            PopulateListBox(!_showFreeSlots);
+            MessageBox.Show($"Added {added} entries and saved to Gumplist.xml.",
+                "Generate Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static string[] BuildEquipTags(string layerTag, string gender)
+        {
+            var tags = new List<string> { "equipment", gender };
+            if (!string.IsNullOrEmpty(layerTag))
+            {
+                tags.Add(layerTag);
+            }
+
+            return tags.ToArray();
         }
     }
 }

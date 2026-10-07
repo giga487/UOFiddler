@@ -1,9 +1,9 @@
-﻿/***************************************************************************
+/***************************************************************************
  *
  * $Author: Turley
- * 
+ *
  * "THE BEER-WARE LICENSE"
- * As long as you retain this notice you can do whatever you want with 
+ * As long as you retain this notice you can do whatever you want with
  * this stuff. If we meet some day, and you think this stuff is worth it,
  * you can buy me a beer in return.
  *
@@ -14,99 +14,266 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Windows.Forms;
 using Ultima;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
+using UoFiddler.Controls.UserControls.TileView;
 using UoFiddler.Plugin.Compare.Classes;
 
 namespace UoFiddler.Plugin.Compare.UserControls
 {
     public partial class CompareItemControl : UserControl
     {
-        private readonly Dictionary<int, bool> _mCompare = new Dictionary<int, bool>();
-        private readonly ImageConverter _ic = new ImageConverter();
-        private readonly SHA256 _sha256 = SHA256.Create();
-
         public CompareItemControl()
         {
             InitializeComponent();
         }
 
+        private readonly Dictionary<int, bool> _compare = new Dictionary<int, bool>();
+        private readonly ImageConverter _ic = new ImageConverter();
+        private readonly SHA256 _sha256 = SHA256.Create();
+        private readonly List<int> _displayIndices = new List<int>();
+        private bool _syncingSelection;
+        private bool _secondLoaded;
+
         private void OnLoad(object sender, EventArgs e)
         {
-            listBoxOrg.Items.Clear();
-            listBoxOrg.BeginUpdate();
-            List<object> cache = new List<object>();
-            int staticsLength = Art.GetMaxItemId() + 1;
-            for (int i = 0; i < staticsLength; i++)
+            ConfigureTileView(tileViewOrg);
+            ConfigureTileView(tileViewSec);
+
+            _displayIndices.Clear();
+            int count = Art.GetMaxItemId() + 1;
+            for (int i = 0; i < count; i++)
             {
-                cache.Add(i);
+                _displayIndices.Add(i);
             }
-            listBoxOrg.Items.AddRange(cache.ToArray());
-            listBoxOrg.EndUpdate();
+
+            tileViewOrg.VirtualListSize = _displayIndices.Count;
+            tileViewSec.VirtualListSize = 0;
+
+            tileViewSec.SelectedIndices.CollectionChanged += OnSecSelectedIndicesChanged;
+            contextMenuStrip1.Opening += (s, ev) =>
+            {
+                int count = tileViewSec.SelectedIndices.Count;
+                copyItem2To1ToolStripMenuItem.Text = tileViewSec.ShowCheckBoxes && count > 1
+                    ? $"Copy {count} Items to left"
+                    : "Copy Item to left";
+            };
+
+            if (comboBoxFileMode.SelectedIndex < 0)
+            {
+                comboBoxFileMode.SelectedIndex = 0;
+            }
+
+            SecondArt.FileIndexChanged += OnSecondArtChanged;
+            ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
         }
 
-        private void OnIndexChangedOrg(object sender, EventArgs e)
+        // TileViewControl exposes TileSize/Margin/Padding/Border with DesignerSerializationVisibility.Hidden,
+        // so VS strips them when re-saving the .Designer.cs. Apply the intended values here so they survive.
+        private static void ConfigureTileView(TileViewControl tv)
         {
-            if (listBoxOrg.SelectedIndex == -1 || listBoxOrg.Items.Count < 1)
+            tv.TileSize = new Size(tv.TileSize.Width, 20);
+            tv.TileMargin = new Padding(0);
+            tv.TilePadding = new Padding(0);
+            tv.TileBorderWidth = 0f;
+            tv.TileFocusColor = Color.Transparent;
+            tv.TileHighlightColor = Options.TileSelectionColor;
+            tv.TileHighLightOpacity = 0.4;
+        }
+
+        private void OnChangeMultiSelect(object sender, EventArgs e)
+        {
+            tileViewSec.ShowCheckBoxes = chkMultiSelect.Checked;
+            tileViewSec.MultiSelect = chkMultiSelect.Checked;
+            if (!chkMultiSelect.Checked)
+            {
+                tileViewSec.SelectedIndices.Clear();
+            }
+        }
+
+        private void OnSecSelectedIndicesChanged(object sender, IndicesCollection.NotifyCollectionChangedEventArgs e)
+        {
+            if (_syncingSelection)
             {
                 return;
             }
 
-            int i = int.Parse(listBoxOrg.Items[listBoxOrg.SelectedIndex].ToString());
-            if (listBoxSec.Items.Count > 0)
+            _syncingSelection = true;
+            try
             {
-                int pos = listBoxSec.Items.IndexOf(i);
-                if (pos >= 0)
+                tileViewOrg.SelectedIndices.Clear();
+                foreach (int idx in tileViewSec.SelectedIndices)
                 {
-                    listBoxSec.SelectedIndex = pos;
+                    tileViewOrg.SelectedIndices.Add(idx);
                 }
             }
-
-            pictureBoxOrg.BackgroundImage = Art.IsValidStatic(i)
-                ? Art.GetStatic(i)
-                : null;
-
-            listBoxOrg.Invalidate();
+            finally
+            {
+                _syncingSelection = false;
+            }
         }
 
-        private void DrawItemOrg(object sender, DrawItemEventArgs e)
+        private List<int> GetCopyTargets()
         {
-            if (e.Index == -1)
+            var sel = tileViewSec.SelectedIndices;
+            if (sel.Count > 0)
+            {
+                return sel.ToList();
+            }
+            if (tileViewSec.FocusIndex >= 0)
+            {
+                return new List<int> { tileViewSec.FocusIndex };
+            }
+            return new List<int>();
+        }
+
+        private void OnFilePathChangeEvent()
+        {
+            _compare.Clear();
+            tileViewOrg.Invalidate();
+            tileViewSec.Invalidate();
+        }
+
+        private void OnSecondArtChanged()
+        {
+            if (!_secondLoaded)
             {
                 return;
+            }
+
+            // Raised before SecondArt disposes the outgoing bitmap cache - drop the instance this box
+            // holds (GetStatic returns the cached bitmap, not a copy). Also reached when another tab,
+            // e.g. Compare TileData, re-points the shared SecondArt index.
+            pictureBoxSec.BackgroundImage = null;
+
+            _compare.Clear();
+            tileViewOrg.Invalidate();
+            tileViewSec.Invalidate();
+        }
+
+        private void OnTileViewSizeChanged(object sender, EventArgs e)
+        {
+            var tv = (TileViewControl)sender;
+            int w = tv.DisplayRectangle.Width;
+            if (w > 0 && tv.TileSize.Width != w)
+            {
+                tv.TileSize = new Size(w, tv.TileSize.Height);
+            }
+        }
+
+        private void OnDrawItemOrg(object sender, TileViewControl.DrawTileListItemEventArgs e)
+        {
+            DrawListItem(e, _displayIndices[e.Index], isSecondary: false);
+        }
+
+        private void OnDrawItemSec(object sender, TileViewControl.DrawTileListItemEventArgs e)
+        {
+            DrawListItem(e, _displayIndices[e.Index], isSecondary: true);
+        }
+
+        private void DrawListItem(TileViewControl.DrawTileListItemEventArgs e, int i, bool isSecondary)
+        {
+            bool focused = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            if (focused)
+            {
+                using var highlightBrush = new SolidBrush(Options.TileSelectionColor);
+                e.Graphics.FillRectangle(highlightBrush, e.Bounds);
+            }
+            else
+            {
+                using var backBrush = new SolidBrush(e.BackColor);
+                e.Graphics.FillRectangle(backBrush, e.Bounds);
             }
 
             Brush fontBrush = Brushes.Gray;
+            bool valid = isSecondary ? SecondArt.IsValidStatic(i) : Art.IsValidStatic(i);
 
-            int i = int.Parse(listBoxOrg.Items[e.Index].ToString());
-            if (listBoxOrg.SelectedIndex == e.Index)
+            if (!valid)
             {
-                e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height);
+                fontBrush = Options.DarkMode ? Brushes.OrangeRed : Brushes.Red;
+            }
+            else if (tileViewSec.VirtualListSize > 0 && !Compare(i))
+            {
+                fontBrush = Options.DarkMode ? Brushes.CornflowerBlue : Brushes.Blue;
             }
 
-            if (!Art.IsValidStatic(i))
+            if (focused)
             {
-                fontBrush = Brushes.Red;
+                fontBrush = CompareColors.ContrastBrush(Options.TileSelectionColor);
             }
-            else if (listBoxSec.Items.Count > 0)
+
+            string label = $"0x{i:X}";
+            float y = e.Bounds.Y + (e.Bounds.Height - e.Graphics.MeasureString(label, Font).Height) / 2f;
+            e.Graphics.DrawString(label, Font, fontBrush, new PointF(e.ContentLeft + 5, y));
+        }
+
+        private void OnFocusChangedOrg(object sender, TileViewControl.ListViewFocusedItemSelectionChangedEventArgs e)
+        {
+            if (e.FocusedItemIndex < 0)
             {
-                if (!Compare(i))
+                return;
+            }
+
+            int i = _displayIndices[e.FocusedItemIndex];
+
+            if (tileViewSec.VirtualListSize > 0)
+            {
+                if (_syncingSelection)
                 {
-                    fontBrush = Brushes.Blue;
+                    return;
+                }
+
+                _syncingSelection = true;
+                try
+                {
+                    int secIdx = _displayIndices.IndexOf(i);
+                    if (secIdx >= 0 && secIdx < tileViewSec.VirtualListSize)
+                    {
+                        tileViewSec.FocusIndex = secIdx;
+                    }
+                }
+                finally
+                {
+                    _syncingSelection = false;
                 }
             }
 
-            e.Graphics.DrawString($"0x{i:X}", Font, fontBrush,
-                new PointF(5,
-                e.Bounds.Y + ((e.Bounds.Height / 2) -
-                (e.Graphics.MeasureString($"0x{i:X}", Font).Height / 2))));
+            pictureBoxOrg.BackgroundImage = Art.IsValidStatic(i) ? Art.GetStatic(i) : null;
+            pictureBoxSec.BackgroundImage = _secondLoaded && SecondArt.IsValidStatic(i) ? SecondArt.GetStatic(i) : null;
+            tileViewOrg.Invalidate();
         }
 
-        private void MeasureOrg(object sender, MeasureItemEventArgs e)
+        private void OnFocusChangedSec(object sender, TileViewControl.ListViewFocusedItemSelectionChangedEventArgs e)
         {
-            e.ItemHeight = 13;
+            if (e.FocusedItemIndex < 0)
+            {
+                return;
+            }
+
+            int i = _displayIndices[e.FocusedItemIndex];
+
+            if (_syncingSelection)
+            {
+                return;
+            }
+
+            _syncingSelection = true;
+            try
+            {
+                tileViewOrg.FocusIndex = e.FocusedItemIndex;
+            }
+            finally
+            {
+                _syncingSelection = false;
+            }
+
+            pictureBoxOrg.BackgroundImage = Art.IsValidStatic(i) ? Art.GetStatic(i) : null;
+            pictureBoxSec.BackgroundImage = SecondArt.IsValidStatic(i) ? SecondArt.GetStatic(i) : null;
+            tileViewSec.Invalidate();
         }
 
         private void OnClickLoadSecond(object sender, EventArgs e)
@@ -117,130 +284,81 @@ namespace UoFiddler.Plugin.Compare.UserControls
             }
 
             string path = textBoxSecondDir.Text;
-            string file = Path.Combine(path, "art.mul");
-            string file2 = Path.Combine(path, "artidx.mul");
-            if (File.Exists(file) && File.Exists(file2))
+            string mulFile = Path.Combine(path, "art.mul");
+            string idxFile = Path.Combine(path, "artidx.mul");
+            string uopFile = Path.Combine(path, "artLegacyMUL.uop");
+
+            if (!SecondLoadHelper.TryResolveArtPaths(comboBoxFileMode.Text, idxFile, mulFile, uopFile,
+                    out string resolvedIdx, out string resolvedMul, out string resolvedUop, out string error))
             {
-                SecondArt.SetFileIndex(file2, file);
-                LoadSecond();
+                MessageBox.Show(error, "Missing Files", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
+
+            if (CompareFiles.IsLoadedClientFile(resolvedMul, "art.mul") || CompareFiles.IsLoadedClientFile(resolvedUop, "artLegacyMUL.uop"))
+            {
+                MessageBox.Show(
+                    "The selected files are the same as the currently loaded art files.\n\n" +
+                    "Choose a different directory to compare against.",
+                    "Same File",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            SecondArt.SetFileIndex(resolvedIdx, resolvedMul, resolvedUop);
+            LoadSecond();
         }
 
         private void LoadSecond()
         {
-            _mCompare.Clear();
-            listBoxSec.BeginUpdate();
-            listBoxSec.Items.Clear();
-            List<object> cache = new List<object>();
-            int staticLength = SecondArt.GetMaxItemId() + 1;
-            for (int i = 0; i < staticLength; i++)
+            _secondLoaded = true;
+            _compare.Clear();
+            int secMax = SecondArt.GetMaxItemId() + 1;
+            if (secMax > _displayIndices.Count)
             {
-                cache.Add(i);
+                for (int i = _displayIndices.Count; i < secMax; i++)
+                {
+                    _displayIndices.Add(i);
+                }
+
+                tileViewOrg.VirtualListSize = _displayIndices.Count;
             }
-            listBoxSec.Items.AddRange(cache.ToArray());
-            listBoxSec.EndUpdate();
-        }
-
-        private void DrawItemSec(object sender, DrawItemEventArgs e)
-        {
-            if (e.Index == -1)
-            {
-                return;
-            }
-
-            Brush fontBrush = Brushes.Gray;
-
-            int i = int.Parse(listBoxSec.Items[e.Index].ToString());
-            if (listBoxSec.SelectedIndex == e.Index)
-            {
-                e.Graphics.FillRectangle(Brushes.LightSteelBlue, e.Bounds.X, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height);
-            }
-
-            if (!SecondArt.IsValidStatic(i))
-            {
-                fontBrush = Brushes.Red;
-            }
-            else if (!Compare(i))
-            {
-                fontBrush = Brushes.Blue;
-            }
-
-            e.Graphics.DrawString($"0x{i:X}", Font, fontBrush,
-                new PointF(5,
-                e.Bounds.Y + ((e.Bounds.Height / 2) -
-                (e.Graphics.MeasureString($"0x{i:X}", Font).Height / 2))));
-        }
-
-        private void MeasureSec(object sender, MeasureItemEventArgs e)
-        {
-            e.ItemHeight = 13;
-        }
-
-        private void OnIndexChangedSec(object sender, EventArgs e)
-        {
-            if (listBoxSec.SelectedIndex == -1 || listBoxSec.Items.Count < 1)
-            {
-                return;
-            }
-
-            int i = int.Parse(listBoxSec.Items[listBoxSec.SelectedIndex].ToString());
-            int pos = listBoxOrg.Items.IndexOf(i);
-            if (pos >= 0)
-            {
-                listBoxOrg.SelectedIndex = pos;
-            }
-
-            pictureBoxSec.BackgroundImage = SecondArt.IsValidStatic(i)
-                ? SecondArt.GetStatic(i)
-                : null;
-
-            listBoxSec.Invalidate();
+            tileViewSec.VirtualListSize = _displayIndices.Count;
+            tileViewOrg.Invalidate();
         }
 
         private bool Compare(int index)
         {
-            if (_mCompare.ContainsKey(index))
+            if (_compare.ContainsKey(index))
             {
-                return _mCompare[index];
+                return _compare[index];
             }
 
             Bitmap bitorg = Art.GetStatic(index);
             Bitmap bitsec = SecondArt.GetStatic(index);
             if (bitorg == null && bitsec == null)
             {
-                _mCompare[index] = true;
+                _compare[index] = true;
                 return true;
             }
-            if (bitorg == null || bitsec == null
-                               || bitorg.Size != bitsec.Size)
+
+            if (bitorg == null || bitsec == null || bitorg.Size != bitsec.Size)
             {
-                _mCompare[index] = false;
+                _compare[index] = false;
                 return false;
             }
 
-            byte[] btImage1 = new byte[1];
-            btImage1 = (byte[])_ic.ConvertTo(bitorg, btImage1.GetType());
-            byte[] btImage2 = new byte[1];
-            btImage2 = (byte[])_ic.ConvertTo(bitsec, btImage2.GetType());
-
-            byte[] checksum1 = _sha256.ComputeHash(btImage1);
-            byte[] checksum2 = _sha256.ComputeHash(btImage2);
-            bool res = true;
-            for (int j = 0; j < checksum1.Length; ++j)
-            {
-                if (checksum1[j] != checksum2[j])
-                {
-                    res = false;
-                    break;
-                }
-            }
-            _mCompare[index] = res;
+            byte[] b1 = (byte[])_ic.ConvertTo(bitorg, typeof(byte[]));
+            byte[] b2 = (byte[])_ic.ConvertTo(bitsec, typeof(byte[]));
+            bool res = BitConverter.ToString(_sha256.ComputeHash(b1)) == BitConverter.ToString(_sha256.ComputeHash(b2));
+            _compare[index] = res;
             return res;
         }
 
         private void OnChangeShowDiff(object sender, EventArgs e)
         {
-            if (_mCompare.Count < 1)
+            if (!_secondLoaded)
             {
                 if (checkBox1.Checked)
                 {
@@ -250,135 +368,227 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
-            listBoxOrg.BeginUpdate();
-            listBoxSec.BeginUpdate();
-            listBoxOrg.Items.Clear();
-            listBoxSec.Items.Clear();
-            List<object> cache = new List<object>();
-            int staticLength = Math.Max(Art.GetMaxItemId(), SecondArt.GetMaxItemId());
-            if (checkBox1.Checked)
+            using (new WaitCursorScope(this))
             {
-                for (int i = 0; i < staticLength; i++)
+                int maxId = Math.Max(Art.GetMaxItemId(), SecondArt.GetMaxItemId());
+                _displayIndices.Clear();
+                if (checkBox1.Checked)
                 {
-                    if (!Compare(i))
+                    for (int i = 0; i < maxId; i++)
                     {
-                        cache.Add(i);
+                        if (!Compare(i))
+                        {
+                            _displayIndices.Add(i);
+                        }
                     }
                 }
-            }
-            else
-            {
-                for (int i = 0; i < staticLength; i++)
+                else
                 {
-                    cache.Add(i);
+                    for (int i = 0; i < maxId; i++)
+                    {
+                        _displayIndices.Add(i);
+                    }
                 }
+
+                tileViewOrg.VirtualListSize = _displayIndices.Count;
+                tileViewSec.VirtualListSize = _displayIndices.Count;
             }
-            listBoxOrg.Items.AddRange(cache.ToArray());
-            listBoxSec.Items.AddRange(cache.ToArray());
-            listBoxOrg.EndUpdate();
-            listBoxSec.EndUpdate();
         }
 
         private void ExportAsBmp(object sender, EventArgs e)
         {
-            if (listBoxSec.SelectedIndex == -1)
+            int focusIdx = tileViewSec.FocusIndex;
+            if (focusIdx < 0)
             {
                 return;
             }
 
-            int i = int.Parse(listBoxSec.Items[listBoxSec.SelectedIndex].ToString());
+            int i = _displayIndices[focusIdx];
             if (!SecondArt.IsValidStatic(i))
             {
                 return;
             }
 
-            string path = Options.OutputPath;
-            string fileName = Path.Combine(path, $"Item(Sec) 0x{i:X}.bmp");
+            string fileName = Path.Combine(Options.OutputPath, $"Item(Sec) {UoFiddler.Controls.Classes.Utils.FormatExportId(i)}.bmp");
             SecondArt.GetStatic(i).Save(fileName, ImageFormat.Bmp);
-            MessageBox.Show(
-                $"Item saved to {fileName}",
-                "Saved",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+
+            FileSavedDialog.Show(FindForm(), fileName, "Item saved successfully.");
         }
 
         private void ExportAsTiff(object sender, EventArgs e)
         {
-            if (listBoxSec.SelectedIndex == -1)
+            int focusIdx = tileViewSec.FocusIndex;
+            if (focusIdx < 0)
             {
                 return;
             }
 
-            int i = int.Parse(listBoxSec.Items[listBoxSec.SelectedIndex].ToString());
+            int i = _displayIndices[focusIdx];
             if (!SecondArt.IsValidStatic(i))
             {
                 return;
             }
 
-            string path = Options.OutputPath;
-            string fileName = Path.Combine(path, $"Item(Sec) 0x{i:X}.tiff");
+            string fileName = Path.Combine(Options.OutputPath, $"Item(Sec) {UoFiddler.Controls.Classes.Utils.FormatExportId(i)}.tiff");
             SecondArt.GetStatic(i).Save(fileName, ImageFormat.Tiff);
-            MessageBox.Show(
-                $"Item saved to {fileName}",
-                "Saved",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Item saved successfully.");
+        }
+
+        private void ExportAsJpg(object sender, EventArgs e)
+        {
+            int focusIdx = tileViewSec.FocusIndex;
+            if (focusIdx < 0)
+            {
+                return;
+            }
+
+            int i = _displayIndices[focusIdx];
+            if (!SecondArt.IsValidStatic(i))
+            {
+                return;
+            }
+
+            string fileName = Path.Combine(Options.OutputPath, $"Item(Sec) {UoFiddler.Controls.Classes.Utils.FormatExportId(i)}.jpg");
+            SecondArt.GetStatic(i).Save(fileName, ImageFormat.Jpeg);
+            FileSavedDialog.Show(FindForm(), fileName, "Item saved successfully.");
+        }
+
+        private void ExportAsPng(object sender, EventArgs e)
+        {
+            int focusIdx = tileViewSec.FocusIndex;
+            if (focusIdx < 0)
+            {
+                return;
+            }
+
+            int i = _displayIndices[focusIdx];
+            if (!SecondArt.IsValidStatic(i))
+            {
+                return;
+            }
+
+            string fileName = Path.Combine(Options.OutputPath, $"Item(Sec) {UoFiddler.Controls.Classes.Utils.FormatExportId(i)}.png");
+            SecondArt.GetStatic(i).Save(fileName, ImageFormat.Png);
+            FileSavedDialog.Show(FindForm(), fileName, "Item saved successfully.");
         }
 
         private void OnClickCopy(object sender, EventArgs e)
         {
-            if (listBoxSec.SelectedIndex == -1)
+            var targets = GetCopyTargets();
+            if (targets.Count == 0)
             {
                 return;
             }
 
-            int i = int.Parse(listBoxSec.Items[listBoxSec.SelectedIndex].ToString());
-            if (!SecondArt.IsValidStatic(i))
+            using (new WaitCursorScope(this))
             {
-                return;
-            }
+                int maxId = Art.GetMaxItemId() + 1;
+                int lastCopiedId = -1;
+                bool changed = false;
 
-            int staticLength = Art.GetMaxItemId() + 1;
-            if (i >= staticLength)
-            {
-                return;
-            }
-
-            Bitmap copy = new Bitmap(SecondArt.GetStatic(i));
-            Art.ReplaceStatic(i, copy);
-            Options.ChangedUltimaClass["Art"] = true;
-            ControlEvents.FireItemChangeEvent(this, i);
-            _mCompare[i] = true;
-            listBoxOrg.BeginUpdate();
-            bool done = false;
-
-            for (int id = 0; id < staticLength; id++)
-            {
-                if (id > i)
+                foreach (int focusIdx in targets)
                 {
-                    listBoxOrg.Items.Insert(id, i);
-                    done = true;
-                    break;
+                    if (focusIdx < 0 || focusIdx >= _displayIndices.Count)
+                    {
+                        continue;
+                    }
+
+                    int i = _displayIndices[focusIdx];
+                    if (!SecondArt.IsValidStatic(i) || i >= maxId)
+                    {
+                        continue;
+                    }
+
+                    Bitmap copy = new Bitmap(SecondArt.GetStatic(i));
+                    Art.ReplaceStatic(i, copy);
+                    ControlEvents.FireItemChangeEvent(this, i);
+                    _compare[i] = true;
+                    lastCopiedId = i;
+                    changed = true;
                 }
 
-                if (id == i)
+                if (changed)
                 {
-                    done = true;
-                    break;
+                    Options.ChangedUltimaClass["Art"] = true;
+                }
+
+                if (checkBox1.Checked && changed)
+                {
+                    foreach (int idx in targets.OrderByDescending(x => x))
+                    {
+                        if (idx >= 0 && idx < _displayIndices.Count)
+                        {
+                            _displayIndices.RemoveAt(idx);
+                        }
+                    }
+                    tileViewOrg.VirtualListSize = _displayIndices.Count;
+                    tileViewSec.VirtualListSize = _displayIndices.Count;
+                }
+                else
+                {
+                    tileViewSec.SelectedIndices.Clear();
+                }
+
+                tileViewOrg.Invalidate();
+                tileViewSec.Invalidate();
+                if (lastCopiedId >= 0)
+                {
+                    pictureBoxOrg.BackgroundImage = Art.IsValidStatic(lastCopiedId) ? Art.GetStatic(lastCopiedId) : null;
                 }
             }
+        }
 
-            if (!done)
+        private void OnDoubleClickSec(object sender, MouseEventArgs e)
+        {
+            if (tileViewSec.ShowCheckBoxes)
             {
-                listBoxOrg.Items.Add(i);
+                return;
+            }
+            OnClickCopy(sender, e);
+        }
+
+        private void OnClickCopyAllDiff(object sender, EventArgs e)
+        {
+            if (!_secondLoaded)
+            {
+                return;
             }
 
-            listBoxOrg.EndUpdate();
-            listBoxOrg.Invalidate();
-            listBoxSec.Invalidate();
-            OnIndexChangedOrg(this, null);
+            using (new WaitCursorScope(this))
+            {
+                int maxId = Art.GetMaxItemId() + 1;
+                for (int i = 0; i < maxId; i++)
+                {
+                    if (!SecondArt.IsValidStatic(i) || Compare(i))
+                    {
+                        continue;
+                    }
+
+                    Bitmap copy = new Bitmap(SecondArt.GetStatic(i));
+                    Art.ReplaceStatic(i, copy);
+                    ControlEvents.FireItemChangeEvent(this, i);
+                    _compare[i] = true;
+                }
+
+                Options.ChangedUltimaClass["Art"] = true;
+
+                if (checkBox1.Checked)
+                {
+                    _displayIndices.Clear();
+                    for (int i = 0; i < maxId; i++)
+                    {
+                        if (!Compare(i))
+                        {
+                            _displayIndices.Add(i);
+                        }
+                    }
+                    tileViewOrg.VirtualListSize = _displayIndices.Count;
+                    tileViewSec.VirtualListSize = _displayIndices.Count;
+                }
+
+                tileViewOrg.Invalidate();
+                tileViewSec.Invalidate();
+            }
         }
 
         private void OnClickBrowse(object sender, EventArgs e)
@@ -387,7 +597,6 @@ namespace UoFiddler.Plugin.Compare.UserControls
             {
                 dialog.Description = "Select directory containing the art files";
                 dialog.ShowNewFolderButton = false;
-
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     textBoxSecondDir.Text = dialog.SelectedPath;

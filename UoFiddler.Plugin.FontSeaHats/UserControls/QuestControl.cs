@@ -30,7 +30,9 @@ namespace UoFiddler.Plugin.FontSeaHats.UserControls
         QuestDataStep tempDataInfo { get; set; } = null;
         QuestDataStep datasInfo { get; set; } = null;
 
+        [System.ComponentModel.DefaultValue("QuestID: ")]
         public string QuestIdLabel { get; set; } = "QuestID: ";
+        [System.ComponentModel.DefaultValue("StepID: ")]
         public string StepIdLabel { get; set; } = "StepID: ";
 
         string tempTitle { get; set; } = string.Empty;

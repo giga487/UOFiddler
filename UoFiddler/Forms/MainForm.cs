@@ -13,20 +13,53 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Microsoft.Extensions.Logging;
 using Ultima;
 using Ultima.Helpers;
 using UoFiddler.Classes;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Properties;
 using UoFiddler.Controls.Plugin;
 
 namespace UoFiddler.Forms
 {
     public partial class MainForm : Form
     {
-        public MainForm()
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetClientRect(IntPtr hWnd, out NativeRect lpRect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeRect { public int Left, Top, Right, Bottom; }
+
+        private const int WM_LBUTTONDOWN = 0x0201;
+        private const int WM_LBUTTONUP   = 0x0202;
+        private const int MK_LBUTTON     = 0x0001;
+
+        private readonly ILogger<MainForm> _log;
+
+        public MainForm() : this(AppLog.For<MainForm>()) { }
+
+        public MainForm(ILogger<MainForm> logger)
         {
+            _log = logger;
             InitializeComponent();
+
+            darkModeMenuItem.Checked = AppSettings.DarkMode;
+
+            if (AppSettings.DarkMode)
+            {
+                StartTab.BackColor = Color.FromArgb(32, 32, 32);
+                StartTab.BackgroundImage = Resources.UOFiddler_bk;
+                reloadFilesMenuItem.ForeColor = Color.OrangeRed;
+            }
 
             if (FiddlerOptions.StoreFormState)
             {
@@ -46,6 +79,8 @@ namespace UoFiddler.Forms
                     }
                 }
             }
+
+            TabPanel.MouseWheel += TabPanel_MouseWheel;
 
             Icon = Options.GetFiddlerIcon();
 
@@ -103,99 +138,105 @@ namespace UoFiddler.Forms
             ControlEvents.FireAlwaysOnTopChangeEvent(TopMost);
         }
 
+        private void OnClickDarkMode(object sender, EventArgs e)
+        {
+            AppSettings.DarkMode = darkModeMenuItem.Checked;
+            AppSettings.Save();
+            MessageBox.Show("Dark mode setting will take effect after restarting the application.", "Restart Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
         private void ReloadFiles(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-
-            Verdata.Initialize();
-
-            if (Options.LoadedUltimaClass["Art"] || Options.LoadedUltimaClass["TileData"])
+            using (new WaitCursorScope(this))
             {
-                // Looks like we have to reload art first to have proper tiledata loading
-                // and order here is important
-                Art.Reload();
-                TileData.Initialize();
+                Verdata.Initialize();
+
+                if (Options.LoadedUltimaClass["Art"] || Options.LoadedUltimaClass["TileData"])
+                {
+                    // Looks like we have to reload art first to have proper tiledata loading
+                    // and order here is important
+                    Art.Reload();
+                    TileData.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["Hues"])
+                {
+                    Hues.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["ASCIIFont"])
+                {
+                    AsciiText.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["UnicodeFont"])
+                {
+                    UnicodeFonts.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["Animdata"])
+                {
+                    Animdata.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["Light"])
+                {
+                    Light.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Skills"])
+                {
+                    Skills.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Sound"])
+                {
+                    Sounds.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["Texture"])
+                {
+                    Textures.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Gumps"])
+                {
+                    Gumps.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Animations"])
+                {
+                    Animations.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["RadarColor"])
+                {
+                    RadarCol.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["Map"])
+                {
+                    MapHelper.CheckForNewMapSize();
+                    Map.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Multis"])
+                {
+                    Multis.Reload();
+                }
+
+                if (Options.LoadedUltimaClass["Speech"])
+                {
+                    SpeechList.Initialize();
+                }
+
+                if (Options.LoadedUltimaClass["AnimationEdit"])
+                {
+                    AnimationEdit.Reload();
+                }
+
+                ControlEvents.FireFilePathChangeEvent();
             }
-
-            if (Options.LoadedUltimaClass["Hues"])
-            {
-                Hues.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["ASCIIFont"])
-            {
-                AsciiText.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["UnicodeFont"])
-            {
-                UnicodeFonts.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["Animdata"])
-            {
-                Animdata.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["Light"])
-            {
-                Light.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Skills"])
-            {
-                Skills.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Sound"])
-            {
-                Sounds.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["Texture"])
-            {
-                Textures.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Gumps"])
-            {
-                Gumps.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Animations"])
-            {
-                Animations.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["RadarColor"])
-            {
-                RadarCol.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["Map"])
-            {
-                MapHelper.CheckForNewMapSize();
-                Map.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Multis"])
-            {
-                Multis.Reload();
-            }
-
-            if (Options.LoadedUltimaClass["Speech"])
-            {
-                SpeechList.Initialize();
-            }
-
-            if (Options.LoadedUltimaClass["AnimationEdit"])
-            {
-                AnimationEdit.Reload();
-            }
-
-            ControlEvents.FireFilePathChangeEvent();
-
-            Cursor.Current = Cursors.Default;
         }
 
         /// <summary>
@@ -442,7 +483,7 @@ namespace UoFiddler.Forms
 
         private void OnClosing(object sender, FormClosingEventArgs e)
         {
-            FiddlerOptions.Logger.Information("MainForm - OnClosing - start");
+            _log.LogInformation("MainForm - OnClosing - start");
             string files = Options.ChangedUltimaClass
                                     .Where(key => key.Value)
                                     .Aggregate(string.Empty, (current, key) => current + $"- {key.Key} \r\n");
@@ -464,10 +505,10 @@ namespace UoFiddler.Forms
             FiddlerOptions.FormPosition = Location;
             FiddlerOptions.FormSize = Size;
 
-            FiddlerOptions.Logger.Information("MainForm - OnClosing - unloading plugins");
+            _log.LogInformation("MainForm - OnClosing - unloading plugins");
             GlobalPlugins.Plugins.ClosePlugins();
 
-            FiddlerOptions.Logger.Information("MainForm - OnClosing - done");
+            _log.LogInformation("MainForm - OnClosing - done");
         }
 
         private static bool IsOkFormStateLocation(Point loc, Size size)
@@ -594,6 +635,7 @@ namespace UoFiddler.Forms
                 case 18: return TileDataTab;
                 case 19: return RadarColTab;
                 case 20: return SkillGrpTab;
+                case 21: return VerdataTab;
                 default: return StartTab;
             }
         }
@@ -623,15 +665,60 @@ namespace UoFiddler.Forms
                 case 18: return ToggleViewTileData;
                 case 19: return ToggleViewRadarColor;
                 case 20: return ToggleViewSkillGrp;
+                case 21: return ToggleViewVerdata;
                 default: return ToggleViewStart;
             }
+        }
+
+        private IntPtr _tabScrollUpDown = IntPtr.Zero;
+
+        private void TabPanel_MouseWheel(object sender, MouseEventArgs e)
+        {
+            // Only scroll tabs if the mouse is over the tab headers, not the tab content
+            bool isOverTabHeader = false;
+            for (int i = 0; i < TabPanel.TabCount; i++)
+            {
+                Rectangle tabRect = TabPanel.GetTabRect(i);
+                if (tabRect.Contains(e.Location))
+                {
+                    isOverTabHeader = true;
+                    break;
+                }
+            }
+
+            if (!isOverTabHeader)
+            {
+                return; // Mouse is over tab content, let the content handle scrolling
+            }
+
+            // Cache the handle — it doesn't change while the form is open
+            if (_tabScrollUpDown == IntPtr.Zero)
+            {
+                _tabScrollUpDown = FindWindowEx(TabPanel.Handle, IntPtr.Zero, "msctls_updown32", null);
+            }
+
+            if (_tabScrollUpDown == IntPtr.Zero)
+            {
+                return; // Scroll arrows not present — all tabs fit
+            }
+
+            GetClientRect(_tabScrollUpDown, out NativeRect rect);
+            int midY = (rect.Bottom - rect.Top) / 2;
+            // Left half = left arrow (scroll left), right half = right arrow (scroll right)
+            int clickX = e.Delta < 0
+                ? (rect.Right - rect.Left) * 3 / 4   // right button → scroll right
+                : (rect.Right - rect.Left) / 4;       // left button → scroll left
+
+            IntPtr lParam = new IntPtr((midY << 16) | (clickX & 0xFFFF));
+            SendMessage(_tabScrollUpDown, WM_LBUTTONDOWN, new IntPtr(MK_LBUTTON), lParam);
+            SendMessage(_tabScrollUpDown, WM_LBUTTONUP, IntPtr.Zero, lParam);
         }
 
         private void ToolStripMenuItemHelp_Click(object sender, EventArgs e)
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = "http://uofiddler.polserver.com/help.html",
+                FileName = "https://uofiddler.polserver.com/",
                 UseShellExecute = true
             });
         }

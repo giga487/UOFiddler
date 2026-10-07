@@ -15,7 +15,9 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using System.Xml;
+using Ultima.Uop;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
 using UoFiddler.Plugin.MassImport.Imports;
 
 namespace UoFiddler.Plugin.MassImport.Forms
@@ -121,8 +123,8 @@ namespace UoFiddler.Plugin.MassImport.Forms
 
             dom.AppendChild(sr);
             dom.Save(fileName);
-            MessageBox.Show($"Default xml saved to {fileName}", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+
+            FileSavedDialog.Show(FindForm(), fileName, "Default xml saved successfully.");
         }
 
         private readonly List<ImportEntry> _importList;
@@ -254,7 +256,6 @@ namespace UoFiddler.Plugin.MassImport.Forms
             {
                 button3.Enabled = true;
             }
-
         }
 
         private void StartOnClick(object sender, EventArgs e)
@@ -269,87 +270,124 @@ namespace UoFiddler.Plugin.MassImport.Forms
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            OutputBox.Clear();
-
-            Dictionary<string, bool> changedUltimaClass = new Dictionary<string, bool>
+            using (new WaitCursorScope(this))
             {
-                {"Animations", false},
-                {"Animdata", false},
-                {"Art", false},
-                {"ASCIIFont", false},
-                {"UnicodeFont", false},
-                {"Gumps", false},
-                {"Hues", false},
-                {"Light", false},
-                {"Map", false},
-                {"Multis", false},
-                {"Skills", false},
-                {"Sound", false},
-                {"Speech", false},
-                {"CliLoc", false},
-                {"Texture", false},
-                {"TileData", false},
-                {"RadarColor", false}
-            };
+                OutputBox.Clear();
 
-            OutputBox.AppendText("Importing");
-
-            foreach (ImportEntry entry in _importList)
-            {
-                if (!entry.Valid)
+                Dictionary<string, bool> changedUltimaClass = new Dictionary<string, bool>
                 {
-                    continue;
-                }
+                    {"Animations", false},
+                    {"Animdata", false},
+                    {"Art", false},
+                    {"ASCIIFont", false},
+                    {"UnicodeFont", false},
+                    {"Gumps", false},
+                    {"Hues", false},
+                    {"Light", false},
+                    {"Map", false},
+                    {"Multis", false},
+                    {"Skills", false},
+                    {"Sound", false},
+                    {"Speech", false},
+                    {"CliLoc", false},
+                    {"Texture", false},
+                    {"TileData", false},
+                    {"RadarColor", false}
+                };
 
-                OutputBox.AppendText(".");
-                entry.Import(checkBoxDirectSave.Checked, ref changedUltimaClass);
-            }
+                OutputBox.AppendText("Importing");
 
-            OutputBox.AppendText($"Done{Environment.NewLine}");
-
-            if (checkBoxDirectSave.Checked)
-            {
-                if (changedUltimaClass["Art"])
+                foreach (ImportEntry entry in _importList)
                 {
-                    OutputBox.AppendText($"Saving Items/LandTiles..{Environment.NewLine}");
-                    Ultima.Art.Save(Options.OutputPath);
-                }
+                    if (!entry.Valid)
+                    {
+                        continue;
+                    }
 
-                if (changedUltimaClass["Texture"])
-                {
-                    OutputBox.AppendText($"Saving Textures..{Environment.NewLine}");
-                    Ultima.Textures.Save(Options.OutputPath);
-                }
-
-                if (changedUltimaClass["Gumps"])
-                {
-                    OutputBox.AppendText($"Saving Gumps..{Environment.NewLine}");
-                    Ultima.Gumps.Save(Options.OutputPath);
-                }
-
-                if (changedUltimaClass["TileData"])
-                {
-                    OutputBox.AppendText($"Saving TileData..{Environment.NewLine}");
-                    Ultima.TileData.SaveTileData(Path.Combine(Options.OutputPath, "tiledata.mul"));
-                }
-
-                if (changedUltimaClass["Hues"])
-                {
-                    OutputBox.AppendText($"Saving Hues..{Environment.NewLine}");
-                    Ultima.Hues.Save(Options.OutputPath);
-                }
-
-                if (changedUltimaClass["Multis"])
-                {
-                    OutputBox.AppendText($"Saving Multis..{Environment.NewLine}");
-                    Ultima.Multis.Save(Options.OutputPath);
+                    try
+                    {
+                        OutputBox.AppendText(".");
+                        entry.Import(checkBoxDirectSave.Checked, ref changedUltimaClass);
+                    }
+                    catch (Exception ex)
+                    {
+                        OutputBox.AppendText(
+                            $"{Environment.NewLine}Error importing {entry.Name} (index {entry.Index}): {ex.Message}{Environment.NewLine}");
+                    }
                 }
 
                 OutputBox.AppendText($"Done{Environment.NewLine}");
-            }
 
-            Cursor.Current = Cursors.Default;
+                if (checkBoxDirectSave.Checked)
+                {
+                    if (changedUltimaClass["Art"])
+                    {
+                        OutputBox.AppendText($"Saving Items/LandTiles..{Environment.NewLine}");
+                        SaveInChosenFormat(FileType.ArtLegacyMul, Ultima.Art.Save);
+                    }
+
+                    if (changedUltimaClass["Texture"])
+                    {
+                        OutputBox.AppendText($"Saving Textures..{Environment.NewLine}");
+                        Ultima.Textures.Save(Options.OutputPath);
+                    }
+
+                    if (changedUltimaClass["Gumps"])
+                    {
+                        OutputBox.AppendText($"Saving Gumps..{Environment.NewLine}");
+                        SaveInChosenFormat(FileType.GumpartLegacyMul, Ultima.Gumps.Save);
+                    }
+
+                    if (changedUltimaClass["TileData"])
+                    {
+                        OutputBox.AppendText($"Saving TileData..{Environment.NewLine}");
+                        Ultima.TileData.SaveTileData(Path.Combine(Options.OutputPath, "tiledata.mul"));
+                    }
+
+                    if (changedUltimaClass["Hues"])
+                    {
+                        OutputBox.AppendText($"Saving Hues..{Environment.NewLine}");
+                        Ultima.Hues.Save(Options.OutputPath);
+                    }
+
+                    if (changedUltimaClass["Multis"])
+                    {
+                        OutputBox.AppendText($"Saving Multis..{Environment.NewLine}");
+                        SaveInChosenFormat(FileType.MultiCollection, Ultima.Multis.Save);
+                    }
+
+                    OutputBox.AppendText($"Done{Environment.NewLine}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes one file type in whatever container the save format option asks for. A batch cannot
+        /// stop on a dialog, so "ask every time" is taken here to mean the format the client already uses.
+        /// </summary>
+        private void SaveInChosenFormat(FileType type, Action<string> writeMul)
+        {
+            ContainerFormat format = SaveFormatResolver.Resolve(type);
+
+            try
+            {
+                foreach (string concern in ClientFileSaver.Preflight(type, format))
+                {
+                    OutputBox.AppendText($"{concern}{Environment.NewLine}");
+                }
+
+                ClientFileSaveResult result = ClientFileSaver.Save(type, Options.OutputPath, format, writeMul);
+
+                foreach (string warning in result.Warnings)
+                {
+                    OutputBox.AppendText($"{warning}{Environment.NewLine}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Losing one type's output should not abandon the rest of the batch.
+                OutputBox.AppendText($"Could not save {type}: {ex.Message}{Environment.NewLine}");
+            }
         }
     }
 }

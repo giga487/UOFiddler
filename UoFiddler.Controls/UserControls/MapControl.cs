@@ -41,12 +41,54 @@ namespace UoFiddler.Controls.UserControls
             panel1.Visible = false;
 
             pictureBox.MouseWheel += OnMouseWheel;
+
+            // Add intensity submenu items to the Normal + Altitude menu
+            AddAltitudeIntensityMenuItems();
         }
+
+        private void AddAltitudeIntensityMenuItems()
+        {
+            // Create preset menu items at the top
+            var sharpPresetItem = new ToolStripMenuItem("Sharp (High Contrast)") { Tag = "preset_sharp" };
+            sharpPresetItem.Click += OnAltitudePresetChanged;
+
+            var normalPresetItem = new ToolStripMenuItem("Normal (More Contrast)") { Tag = "preset_normal", Checked = true };
+            normalPresetItem.Click += OnAltitudePresetChanged;
+
+            var softPresetItem = new ToolStripMenuItem("Soft (Subtle)") { Tag = "preset_soft" };
+            softPresetItem.Click += OnAltitudePresetChanged;
+
+            // Separator between presets and intensity controls
+            var presetSeparator = new ToolStripSeparator();
+
+            // Create intensity preset menu items
+            var subtleItem = new ToolStripMenuItem("    • Subtle Intensity") { Tag = 15, Checked = true };
+            subtleItem.Click += OnAltitudeIntensityChanged;
+
+            var normalItem = new ToolStripMenuItem("    • Normal Intensity") { Tag = 10 };
+            normalItem.Click += OnAltitudeIntensityChanged;
+
+            var strongItem = new ToolStripMenuItem("    • Strong Intensity") { Tag = 5 };
+            strongItem.Click += OnAltitudeIntensityChanged;
+
+                        // Add all items to Normal + Altitude menu
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(sharpPresetItem);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(normalPresetItem);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(softPresetItem);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(presetSeparator);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(subtleItem);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(normalItem);
+            altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems.Add(strongItem);
+                    }
 
         private static MapControl _refMarker;
         public static double Zoom = 1;
 
         private Bitmap _map;
+        private Bitmap _renderBuffer;
+        private Bitmap _zoomBuffer;
+        private Graphics _zoomBufferGraphics;
+        private PixelFormat _renderBufferFormat;
         private int _currentMapId;
         private bool _syncWithClient;
         private int _clientX;
@@ -57,6 +99,14 @@ namespace UoFiddler.Controls.UserControls
         private bool _moving;
         private Point _movingPoint;
         private bool _renderingZoom;
+        private MapAltitudeMode _altitudeMode = MapAltitudeMode.Normal;
+        private readonly System.Diagnostics.Stopwatch _dragRepaintTimer = new System.Diagnostics.Stopwatch();
+        private System.Windows.Forms.Timer _dragTrailTimer;
+        private bool _dragInvalidatePending;
+        private double _dragAccumX;
+        private double _dragAccumY;
+        private int _preloadValue;
+        private int _preloadMax;
 
         private int HScrollBar => hScrollBar.Value;
         private int VScrollBar => vScrollBar.Value;
@@ -91,24 +141,25 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            LoadMapOverlays();
-            Options.LoadedUltimaClass["Map"] = true;
-            Options.LoadedUltimaClass["RadarColor"] = true;
+            using (new WaitCursorScope(this))
+            {
+                LoadMapOverlays();
+                Options.LoadedUltimaClass["Map"] = true;
+                Options.LoadedUltimaClass["RadarColor"] = true;
 
-            CurrentMap = Map.Felucca;
-            feluccaToolStripMenuItem.Checked = true;
-            trammelToolStripMenuItem.Checked = false;
-            ilshenarToolStripMenuItem.Checked = false;
-            malasToolStripMenuItem.Checked = false;
-            tokunoToolStripMenuItem.Checked = false;
-            PreloadMap.Visible = true;
-            ChangeMapNames();
-            ZoomLabel.Text = $"Zoom: {Zoom}";
-            SetScrollBarValues();
-            Refresh();
-            pictureBox.Invalidate();
-            Cursor.Current = Cursors.Default;
+                CurrentMap = Map.Felucca;
+                feluccaToolStripMenuItem.Checked = true;
+                trammelToolStripMenuItem.Checked = false;
+                ilshenarToolStripMenuItem.Checked = false;
+                malasToolStripMenuItem.Checked = false;
+                tokunoToolStripMenuItem.Checked = false;
+                PreloadMap.Visible = true;
+                ChangeMapNames();
+                ZoomLabel.Text = $"Zoom: {Zoom}";
+                SetScrollBarValues();
+                Refresh();
+                pictureBox.Invalidate();
+            }
 
             if (!_loaded)
             {
@@ -186,15 +237,55 @@ namespace UoFiddler.Controls.UserControls
             return (x >> 3) << 3;
         }
 
-        private void ZoomMap(ref Bitmap bmp0)
+        private Bitmap ZoomMap(Bitmap source, double effectiveZoom)
         {
-            Bitmap bmp1 = new Bitmap((int)(_map.Width * Zoom), (int)(_map.Height * Zoom));
-            Graphics graph = Graphics.FromImage(bmp1);
-            graph.InterpolationMode = InterpolationMode.NearestNeighbor;
-            graph.PixelOffsetMode = PixelOffsetMode.Half;
-            graph.DrawImage(bmp0, new Rectangle(0, 0, bmp1.Width, bmp1.Height));
-            graph.Dispose();
-            bmp0 = bmp1;
+            int targetWidth = (int)(source.Width * effectiveZoom);
+            int targetHeight = (int)(source.Height * effectiveZoom);
+
+            if (targetWidth <= 0 || targetHeight <= 0)
+            {
+                return source;
+            }
+
+            if (_zoomBuffer == null || _zoomBuffer.Width != targetWidth || _zoomBuffer.Height != targetHeight)
+            {
+                _zoomBufferGraphics?.Dispose();
+                _zoomBuffer?.Dispose();
+                _zoomBuffer = new Bitmap(targetWidth, targetHeight, PixelFormat.Format32bppArgb);
+                _zoomBufferGraphics = Graphics.FromImage(_zoomBuffer);
+                _zoomBufferGraphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+                _zoomBufferGraphics.PixelOffsetMode = PixelOffsetMode.Half;
+            }
+
+            _zoomBufferGraphics.DrawImage(source, new Rectangle(0, 0, targetWidth, targetHeight));
+            return _zoomBuffer;
+        }
+
+        private Bitmap EnsureRenderBuffer(int pixelWidth, int pixelHeight, PixelFormat format)
+        {
+            if (_renderBuffer != null
+                && _renderBuffer.Width == pixelWidth
+                && _renderBuffer.Height == pixelHeight
+                && _renderBufferFormat == format)
+            {
+                return _renderBuffer;
+            }
+
+            _renderBuffer?.Dispose();
+            _renderBuffer = new Bitmap(pixelWidth, pixelHeight, format);
+            _renderBufferFormat = format;
+
+            if (format == PixelFormat.Format8bppIndexed)
+            {
+                ColorPalette palette = _renderBuffer.Palette;
+                for (int i = 0; i < 256; i++)
+                {
+                    palette.Entries[i] = Color.FromArgb(i, i, i);
+                }
+                _renderBuffer.Palette = palette;
+            }
+
+            return _renderBuffer;
         }
 
         private void SetScrollBarValues()
@@ -377,6 +468,8 @@ namespace UoFiddler.Controls.UserControls
                 _moving = true;
                 _movingPoint.X = e.X;
                 _movingPoint.Y = e.Y;
+                _dragAccumX = 0;
+                _dragAccumY = 0;
                 Cursor = Cursors.Hand;
             }
             else
@@ -397,6 +490,8 @@ namespace UoFiddler.Controls.UserControls
             Cursor = Cursors.Default;
         }
 
+        private const int DragRepaintIntervalMs = 16;
+
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
             int xDelta = Math.Min(CurrentMap.Width, (int)(e.X / Zoom) + Round(hScrollBar.Value));
@@ -409,15 +504,67 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            int deltaX = (int)(-1 * (e.X - _movingPoint.X) / Zoom);
-            int deltaY = (int)(-1 * (e.Y - _movingPoint.Y) / Zoom);
+            // Accumulate the fractional part of the drag so high-zoom drags (where 1 mouse pixel
+            // is less than 1 tile) don't lose precision: at Zoom = 4, a 1px mouse move is 0.25
+            // tiles and int-truncates to 0 without an accumulator.
+            _dragAccumX += -(e.X - _movingPoint.X) / Zoom;
+            _dragAccumY += -(e.Y - _movingPoint.Y) / Zoom;
+
+            int deltaX = (int)_dragAccumX;
+            int deltaY = (int)_dragAccumY;
+            _dragAccumX -= deltaX;
+            _dragAccumY -= deltaY;
 
             _movingPoint.X = e.X;
             _movingPoint.Y = e.Y;
 
+            if (deltaX == 0 && deltaY == 0)
+            {
+                return;
+            }
+
             hScrollBar.Value = Math.Max(0, Math.Min(hScrollBar.Maximum, hScrollBar.Value + deltaX));
             vScrollBar.Value = Math.Max(0, Math.Min(vScrollBar.Maximum, vScrollBar.Value + deltaY));
 
+            RequestDragRepaint();
+        }
+
+        private void RequestDragRepaint()
+        {
+            if (!_dragRepaintTimer.IsRunning || _dragRepaintTimer.ElapsedMilliseconds >= DragRepaintIntervalMs)
+            {
+                _dragInvalidatePending = false;
+                _dragRepaintTimer.Restart();
+                pictureBox.Invalidate();
+                return;
+            }
+
+            // Coalesce into a trailing-edge repaint so the final position always lands on screen.
+            if (_dragInvalidatePending)
+            {
+                return;
+            }
+
+            _dragInvalidatePending = true;
+            if (_dragTrailTimer == null)
+            {
+                _dragTrailTimer = new System.Windows.Forms.Timer { Interval = DragRepaintIntervalMs };
+                _dragTrailTimer.Tick += OnDragTrailTick;
+            }
+            _dragTrailTimer.Stop();
+            _dragTrailTimer.Interval = Math.Max(1, DragRepaintIntervalMs - (int)_dragRepaintTimer.ElapsedMilliseconds);
+            _dragTrailTimer.Start();
+        }
+
+        private void OnDragTrailTick(object sender, EventArgs e)
+        {
+            _dragTrailTimer.Stop();
+            if (!_dragInvalidatePending)
+            {
+                return;
+            }
+            _dragInvalidatePending = false;
+            _dragRepaintTimer.Restart();
             pictureBox.Invalidate();
         }
 
@@ -622,15 +769,112 @@ namespace UoFiddler.Controls.UserControls
 
             if (PreloadWorker.IsBusy)
             {
-                e.Graphics.DrawString("Preloading map. Please wait...", SystemFonts.DefaultFont, Brushes.Black, 60, 60);
+                e.Graphics.Clear(pictureBox.BackColor);
+                const int textX = 60;
+                const int textY = 60;
+                string msg = "Preloading map. Please wait...";
+                e.Graphics.DrawString(msg, SystemFonts.DefaultFont, SystemBrushes.ControlText, textX, textY);
+
+                if (_preloadMax > 0)
+                {
+                    SizeF textSize = e.Graphics.MeasureString(msg, SystemFonts.DefaultFont);
+                    int barX = textX;
+                    int barY = textY + (int)textSize.Height + 6;
+                    int barW = Math.Max(200, (int)textSize.Width);
+                    const int barH = 14;
+
+                    e.Graphics.FillRectangle(SystemBrushes.ControlDark, barX, barY, barW, barH);
+                    int fillW = (int)((long)barW * _preloadValue / _preloadMax);
+                    if (fillW > 0)
+                    {
+                        e.Graphics.FillRectangle(SystemBrushes.Highlight, barX, barY, fillW, barH);
+                    }
+                    e.Graphics.DrawRectangle(SystemPens.ControlDarkDark, barX, barY, barW, barH);
+                }
                 return;
             }
 
-            _map = CurrentMap.GetImage(hScrollBar.Value >> 3, vScrollBar.Value >> 3,
-                (int)((e.ClipRectangle.Width / Zoom) + 8) >> 3, (int)((e.ClipRectangle.Height / Zoom) + 8) >> 3,
-                showStaticsToolStripMenuItem1.Checked);
-            ZoomMap(ref _map);
-            e.Graphics.DrawImageUnscaledAndClipped(_map, e.ClipRectangle);
+            bool statics = showStaticsToolStripMenuItem1.Checked;
+            int blockX = hScrollBar.Value >> 3;
+            int blockY = vScrollBar.Value >> 3;
+            // +16 (2 blocks of padding) so the sub-block scroll offset never reveals empty space
+            // along the right/bottom edge of the viewport.
+            int widthBlocks = ((int)Math.Ceiling(e.ClipRectangle.Width / Zoom) + 16) >> 3;
+            int heightBlocks = ((int)Math.Ceiling(e.ClipRectangle.Height / Zoom) + 16) >> 3;
+
+            // Mipmap selection: only kicks in for color modes (Normal / NormalWithAltitude),
+            // not for pure 8bpp Altitude grayscale.
+            bool colorMode = _altitudeMode != MapAltitudeMode.Altitude;
+            int mipShift; // bits to shift block index to pixel size (3=full,2=half,1=quarter)
+            if (colorMode && Zoom <= 0.25)
+            {
+                mipShift = 1;
+            }
+            else if (colorMode && Zoom <= 0.5)
+            {
+                mipShift = 2;
+            }
+            else
+            {
+                mipShift = 3;
+            }
+
+            // When using a mip, the rendered bitmap is already at the correct screen size for that
+            // zoom level; only the residual factor (1.0) needs to go through ZoomMap, so we skip it.
+            // For zoom != mip-native and zoom > 0.5 (i.e. zoom 1, 2, 4), we still need ZoomMap.
+            double mipScale = 1 << mipShift; // 8, 4, or 2 pixels per block at this resolution
+            double effectiveZoom = Zoom * 8.0 / mipScale;
+
+            PixelFormat targetFormat = _altitudeMode == MapAltitudeMode.Altitude
+                ? PixelFormat.Format8bppIndexed
+                : PixelFormat.Format16bppRgb555;
+
+            int bufferPixelW = widthBlocks << mipShift;
+            int bufferPixelH = heightBlocks << mipShift;
+            _map = EnsureRenderBuffer(bufferPixelW, bufferPixelH, targetFormat);
+
+            if (mipShift == 3)
+            {
+                if (_altitudeMode != MapAltitudeMode.Normal)
+                {
+                    CurrentMap.GetImageWithAltitude(blockX, blockY, widthBlocks, heightBlocks, _map, statics, _altitudeMode);
+                }
+                else
+                {
+                    CurrentMap.GetImage(blockX, blockY, widthBlocks, heightBlocks, _map, statics);
+                }
+            }
+            else if (mipShift == 2)
+            {
+                CurrentMap.GetImageHalf(blockX, blockY, widthBlocks, heightBlocks, _map, statics);
+            }
+            else
+            {
+                CurrentMap.GetImageQuarter(blockX, blockY, widthBlocks, heightBlocks, _map, statics);
+            }
+
+            MessageLabel.Text = CurrentMap.Tiles.AllFilesExist() ? "" : "One of map files is missing!";
+
+            Bitmap toDraw;
+            if (Math.Abs(effectiveZoom - 1.0) < 1e-6)
+            {
+                toDraw = _map;
+            }
+            else
+            {
+                toDraw = ZoomMap(_map, effectiveZoom);
+            }
+
+            // The render buffer starts at the block boundary (blockX * 8). Shift the draw position
+            // by the sub-block portion of the scroll so viewport pixel 0 maps to the exact tile
+            // the scrollbar points at. Without this, dragging at zoom > 1 looks "stuck" between
+            // 8-tile block boundaries.
+            int subTileX = hScrollBar.Value - (blockX << 3);
+            int subTileY = vScrollBar.Value - (blockY << 3);
+            int drawOffsetX = (int)Math.Round(subTileX * Zoom);
+            int drawOffsetY = (int)Math.Round(subTileY * Zoom);
+
+            e.Graphics.DrawImageUnscaled(toDraw, -drawOffsetX, -drawOffsetY);
 
             if (showCenterCrossToolStripMenuItem1.Checked)
             {
@@ -656,8 +900,8 @@ namespace UoFiddler.Controls.UserControls
                     using (Brush brush = new SolidBrush(Color.FromArgb(180, Color.Yellow)))
                     using (Pen pen = new Pen(brush))
                     {
-                        int x = (int)((_clientX - Round(hScrollBar.Value)) * Zoom);
-                        int y = (int)((_clientY - Round(vScrollBar.Value)) * Zoom);
+                        int x = (int)((_clientX - hScrollBar.Value) * Zoom);
+                        int y = (int)((_clientY - vScrollBar.Value) * Zoom);
 
                         e.Graphics.DrawLine(pen, x - 4, y, x + 4, y);
                         e.Graphics.DrawLine(pen, x, y - 4, x, y + 4);
@@ -677,7 +921,7 @@ namespace UoFiddler.Controls.UserControls
                 OverlayObject o = (OverlayObject)obj.Tag;
                 if (o.IsVisible(e.ClipRectangle, _currentMapId, HScrollBar, VScrollBar, Zoom))
                 {
-                    o.Draw(e.Graphics, Round(HScrollBar), Round(VScrollBar), Zoom, CurrentMap.Width);
+                    o.Draw(e.Graphics, HScrollBar, VScrollBar, Zoom, CurrentMap.Width);
                 }
             }
         }
@@ -762,18 +1006,22 @@ namespace UoFiddler.Controls.UserControls
 
         private void ExtractMapImage(ImageFormat imageFormat)
         {
-            Cursor.Current = Cursors.WaitCursor;
-
             string fileExtension = Utils.GetFileExtensionFor(imageFormat);
             string fileName = Path.Combine(Options.OutputPath, $"{Options.MapNames[_currentMapId]}.{fileExtension}");
 
-            try
+            using (new WaitCursorScope(this))
             {
-                Bitmap extract = CurrentMap.GetImage(0, 0, CurrentMap.Width >> 3, CurrentMap.Height >> 3, showStaticsToolStripMenuItem1.Checked);
+                // Use altitude-aware rendering if mode is not Normal
+                using Bitmap extract = _altitudeMode != MapAltitudeMode.Normal
+                    ? CurrentMap.GetImageWithAltitude(0, 0, CurrentMap.Width >> 3, CurrentMap.Height >> 3,
+                        showStaticsToolStripMenuItem1.Checked, _altitudeMode)
+                    : CurrentMap.GetImage(0, 0, CurrentMap.Width >> 3, CurrentMap.Height >> 3,
+                        showStaticsToolStripMenuItem1.Checked);
 
-                if (showMarkersToolStripMenuItem.Checked)
+                // Skip markers in altitude mode
+                if (showMarkersToolStripMenuItem.Checked && _altitudeMode != MapAltitudeMode.Altitude)
                 {
-                    Graphics g = Graphics.FromImage(extract);
+                    using Graphics g = Graphics.FromImage(extract);
                     foreach (TreeNode obj in OverlayObjectTree.Nodes[_currentMapId].Nodes)
                     {
                         OverlayObject o = (OverlayObject)obj.Tag;
@@ -786,13 +1034,8 @@ namespace UoFiddler.Controls.UserControls
                 }
                 extract.Save(fileName, imageFormat);
             }
-            finally
-            {
-                Cursor.Current = Cursors.Default;
-            }
 
-            MessageBox.Show($"Map saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Map saved successfully.");
         }
 
         private MapMarkerForm _mapMarkerForm;
@@ -946,11 +1189,13 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            ProgressBar.Minimum = 0;
-            ProgressBar.Maximum = (CurrentMap.Width >> 3) * (CurrentMap.Height >> 3);
-            ProgressBar.Step = 1;
-            ProgressBar.Value = 0;
-            ProgressBar.Visible = true;
+            _preloadValue = 0;
+            _preloadMax = (CurrentMap.Width >> 3) * (CurrentMap.Height >> 3);
+            // Progress is drawn directly in the pictureBox so it appears under the
+            // "Preloading map..." message rather than orphaned in the toolstrip.
+            PreloadMap.Visible = false;
+            ProgressBar.Visible = false;
+            pictureBox.Invalidate();
             PreloadWorker.RunWorkerAsync(new object[] { CurrentMap, showStaticsToolStripMenuItem1.Checked });
         }
 
@@ -960,23 +1205,39 @@ namespace UoFiddler.Controls.UserControls
             bool statics = (bool)((object[])e.Argument)[1];
             int width = CurrentMap.Width >> 3;
             int height = CurrentMap.Height >> 3;
+            int total = width * height;
+            int reportEvery = Math.Max(1, total / 200); // ~200 UI updates total
+            int sinceReport = 0;
+            int done = 0;
             for (int x = 0; x < width; ++x)
             {
                 for (int y = 0; y < height; ++y)
                 {
                     CurrentMap.PreloadRenderedBlock(x, y, statics);
-                    PreloadWorker.ReportProgress(1);
+                    ++done;
+                    if (++sinceReport >= reportEvery)
+                    {
+                        sinceReport = 0;
+                        PreloadWorker.ReportProgress(done);
+                    }
                 }
             }
+
+            // Final report so the bar reaches 100%.
+            PreloadWorker.ReportProgress(done);
+            CurrentMap.MarkPreloaded(statics);
+            CurrentMap.Tiles.CloseStreams();
         }
 
         private void PreLoadProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            ProgressBar.PerformStep();
+            _preloadValue = e.ProgressPercentage;
+            pictureBox.Invalidate();
         }
 
         private void PreLoadCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            _preloadMax = 0;
             ProgressBar.Visible = false;
             PreloadMap.Visible = false;
             pictureBox.Invalidate();
@@ -1027,7 +1288,9 @@ namespace UoFiddler.Controls.UserControls
 
             OverlayObject o = (OverlayObject)OverlayObjectTree.SelectedNode.Tag;
             o.Visible = !o.Visible;
-            OverlayObjectTree.SelectedNode.ForeColor = !o.Visible ? Color.Red : Color.Black;
+            OverlayObjectTree.SelectedNode.ForeColor = !o.Visible
+                ? (Options.DarkMode ? Color.OrangeRed : Color.Red)
+                : SystemColors.ControlText;
 
             OverlayObjectTree.Invalidate();
             pictureBox.Invalidate();
@@ -1041,20 +1304,10 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickDefragStatics(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-            Map.DefragStatics(Options.OutputPath,
-                CurrentMap, CurrentMap.Width, CurrentMap.Height, false);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Statics saved to {Options.OutputPath}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
-        }
-
-        private void OnClickDefragRemoveStatics(object sender, EventArgs e)
-        {
-            Cursor.Current = Cursors.WaitCursor;
-            Map.DefragStatics(Options.OutputPath,
-                CurrentMap, CurrentMap.Width, CurrentMap.Height, true);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Statics saved to {Options.OutputPath}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            using (var form = new MapDefragStaticsForm(CurrentMap, Options.OutputPath))
+            {
+                form.ShowDialog(FindForm());
+            }
         }
 
         private void OnResizeMap(object sender, EventArgs e)
@@ -1075,30 +1328,30 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickRewriteMap(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-            Map.RewriteMap(Options.OutputPath,
-                _currentMapId, CurrentMap.Width, CurrentMap.Height);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Map saved to {Options.OutputPath}", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            using (new WaitCursorScope(this))
+            {
+                Map.RewriteMap(Options.OutputPath,
+                    _currentMapId, CurrentMap.Width, CurrentMap.Height);
+            }
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, "Files saved successfully.");
         }
 
         private void OnClickReportInvisStatics(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-            CurrentMap.ReportInvisibleStatics(Options.OutputPath);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Report saved to {Options.OutputPath}", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            using (new WaitCursorScope(this))
+            {
+                CurrentMap.ReportInvisibleStatics(Options.OutputPath);
+            }
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, "Report saved successfully.");
         }
 
         private void OnClickReportInvalidMapIDs(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-            CurrentMap.ReportInvalidMapIDs(Options.OutputPath);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Report saved to {Options.OutputPath}", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            using (new WaitCursorScope(this))
+            {
+                CurrentMap.ReportInvalidMapIDs(Options.OutputPath);
+            }
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, "Report saved successfully.");
         }
 
         private MapReplaceForm _showForm;
@@ -1296,6 +1549,102 @@ namespace UoFiddler.Controls.UserControls
             };
             _showMapReplaceTilesForm.Show();
         }
+
+        private void OnAltitudeModeNormal(object sender, EventArgs e)
+        {
+            _altitudeMode = MapAltitudeMode.Normal;
+
+            // Update checkmarks to show only this mode is selected
+            altitudeModeNormalToolStripMenuItem.Checked = true;
+            altitudeModeNormalWithAltitudeToolStripMenuItem.Checked = false;
+            altitudeModeAltitudeToolStripMenuItem.Checked = false;
+
+            pictureBox.Invalidate();
+        }
+
+        private void OnAltitudeModeNormalWithAltitude(object sender, EventArgs e)
+        {
+            _altitudeMode = MapAltitudeMode.NormalWithAltitude;
+
+            // Update checkmarks to show only this mode is selected
+            altitudeModeNormalToolStripMenuItem.Checked = false;
+            altitudeModeNormalWithAltitudeToolStripMenuItem.Checked = true;
+            altitudeModeAltitudeToolStripMenuItem.Checked = false;
+
+            pictureBox.Invalidate();
+        }
+
+        private void OnAltitudeModeAltitude(object sender, EventArgs e)
+        {
+            _altitudeMode = MapAltitudeMode.Altitude;
+
+            // Update checkmarks to show only this mode is selected
+            altitudeModeNormalToolStripMenuItem.Checked = false;
+            altitudeModeNormalWithAltitudeToolStripMenuItem.Checked = false;
+            altitudeModeAltitudeToolStripMenuItem.Checked = true;
+
+            pictureBox.Invalidate();
+        }
+
+        private void OnAltitudeIntensityChanged(object sender, EventArgs e)
+        {
+            if (sender is not ToolStripMenuItem clickedItem || clickedItem.Tag is not int intensity)
+            {
+                return;
+            }
+
+            // Update the intensity setting
+            Map.AltitudeIntensity = intensity;
+
+            // Update checkmarks on all intensity items (skip preset items and separators)
+            foreach (ToolStripItem item in altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems)
+            {
+                if (item is ToolStripMenuItem menuItem && menuItem.Tag is int)
+                {
+                    menuItem.Checked = (int)menuItem.Tag == intensity;
+                }
+            }
+
+            // Refresh the map if we're in altitude mode
+            if (_altitudeMode == MapAltitudeMode.NormalWithAltitude)
+            {
+                pictureBox.Invalidate();
+            }
+        }
+
+        private void OnAltitudePresetChanged(object sender, EventArgs e)
+        {
+            if (sender is not ToolStripMenuItem clickedItem || clickedItem.Tag is not string presetTag)
+            {
+                return;
+            }
+
+            // Update the preset setting
+            AltitudeShadingPreset newPreset = presetTag switch
+            {
+                "preset_sharp" => AltitudeShadingPreset.Sharp,
+                "preset_normal" => AltitudeShadingPreset.Normal,
+                "preset_soft" => AltitudeShadingPreset.Soft,
+                _ => AltitudeShadingPreset.Soft
+            };
+
+            Map.ShadingPreset = newPreset;
+
+            // Update checkmarks on preset items
+            foreach (ToolStripItem item in altitudeModeNormalWithAltitudeToolStripMenuItem.DropDownItems)
+            {
+                if (item is ToolStripMenuItem menuItem && menuItem.Tag is string tag && tag.StartsWith("preset_"))
+                {
+                    menuItem.Checked = tag == presetTag;
+                }
+            }
+
+            // Refresh the map if we're in altitude mode
+            if (_altitudeMode == MapAltitudeMode.NormalWithAltitude)
+            {
+                pictureBox.Invalidate();
+            }
+        }
     }
 
     public class OverlayObject
@@ -1316,7 +1665,10 @@ namespace UoFiddler.Controls.UserControls
         private readonly Color _col;
         private readonly Pen _pen;
         private readonly Brush _brush;
-        private static Brush _background;
+        // Shared, immutable label backdrop — created once and never disposed
+        // per-instance (it was previously static yet reallocated/disposed per
+        // marker, which leaked brushes and could dispose one still in use).
+        private static readonly Brush _background = new SolidBrush(Color.FromArgb(100, Color.White));
 
         public OverlayCursor(Point location, int m, string t, Color c)
         {
@@ -1327,7 +1679,6 @@ namespace UoFiddler.Controls.UserControls
             Visible = true;
             _brush = new SolidBrush(_col);
             _pen = new Pen(_brush);
-            _background = new SolidBrush(Color.FromArgb(100, Color.White));
         }
 
         public override bool IsVisible(Rectangle bounds, int m, int hScrollBar, int vScrollBar, double zoom)
@@ -1379,7 +1730,6 @@ namespace UoFiddler.Controls.UserControls
         {
             _pen?.Dispose();
             _brush?.Dispose();
-            _background?.Dispose();
         }
     }
 }

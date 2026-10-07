@@ -118,7 +118,189 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="richTextBox1.Text" xml:space="preserve">
-    <value>Version 4.15.1
+    <value>Version 4.24.0
+- Statics defrag rewritten with explicit filters (item id ceiling, out-of-block offsets, invalid z, duplicates, stacked statics), a report naming everything removed, and a Verify button that reads the result back and reconciles it against the source
+- Defrag now runs on a background worker with a working Cancel, and no longer reports success when the source files were missing and nothing was written
+- Map region copy and map diff insert work on UOP-only clients, copy land blocks byte-exactly, and can write either `map{N}.mul` or `map{N}LegacyMUL.uop`
+- Both map dialogs gain a draggable region preview with pan and zoom, so a region is picked on the map instead of typed as numbers
+- A copied region can be shifted in z, with the dialog saying up front how far it can actually move before the signed byte runs out
+- New per-profile save format option: art, gumpart, sound, MultiCollection and maps can be written as mul, as uop, following the loaded client, or chosen at save time
+- Fixed the land block sentinel size, diff patch bounds on TerMur, and facet 5 diff files never being found
+- Fixed textures on older clients throwing from a paint handler: unused idx rows were being read as verdata patches
+- Fixed hued gumps taking the process down on UOP clients
+- Fixed AnimationSequence group records being skipped or walked at the wrong stride, so bodies such as 666 and 1253 now resolve the action aliases the file declares
+- TileData can be edited for many entries at once, with Copy tile data / Paste special and a one-level undo of the last bulk apply
+- Items, Land Tiles, Gumps and Textures copy and paste images through the clipboard, and mark the entries edited since load
+
+Version 4.23.0
+- Multi tile flags survive a UOP &lt;&gt; mul round trip: the visibility word maps onto both `multi.mul` int32s instead of one boolean (8207 of 186695 shipped tiles used to lose a bit)
+- Per-tile component ids are kept in a `multi-components.txt` sidecar, so repacking no longer strips a boat's tiller man, hatch and planks or a house's doors
+- Loading a multi no longer deletes invisible tiles or reorders the tile list (this dropped 122 tiles and reshuffled 119 multis on shipped data)
+- `housing.bin` is no longer parsed as multi 7, and the multi id ceiling now covers the ids up to 9000 that ship in MultiCollection.uop
+- MultiCollection.uop is written in the client's real shape: version 4 container, 12-byte entry headers, header Adler32, zlib level 7
+- UOP gump width and height are no longer swapped
+- EA's 0x0 placeholder gumps no longer list as valid (and then fail to draw) on compressed clients
+- Gump ids up to 0x12000 are supported, including 69971..69985 shipped by 7.0.98.1 and later
+- Compressed UOP entries are read at their real on-disk size; animations, maps and gumps were being read short
+- Animation frames using zlib-wrapped Mythic compression are now decoded instead of parsed as pixels
+- Compressed map UOPs are rejected with a clear message instead of silently misread
+- Sounds no longer get 8 bytes of junk prefixed as samples (the name block is 0x28 bytes, not 32)
+- UOP Packer: container layout matches the newest client per file type, and repacking the same input is now byte-identical
+- UOP Packer: empty or out-of-range idx rows are skipped and logged instead of packed from truncated data
+- UOP Packer: unpacked art keeps High Seas status, and large custom maps are no longer truncated to the stock facet size
+- UOP Packer: compression is validated per type, failures delete the partial file, and missing `housing.bin` / component sidecar are prompted for
+- Compare plugin: matches the main reader, so no more phantom differences; wider id range, released file handles and bitmap caches, and unreadable maps report once instead of throwing from paint handlers
+- Multi CSV/XML exports carry the trailing High Seas int32; `gumpidx.mul` and `multi.idx` are truncated at the last real entry instead of padded
+- UOP name hashing rewritten as a readable lookup3 port, verified bit-for-bit over 82k inputs
+
+Version 4.22.2
+- Add export option to thumbnail list in animation tab.
+
+Version 4.22.1
+- Fix animation edit form gallery tiles dimensions.
+
+Version 4.22.0
+- Added multi-select for compare plugins.
+- Animation edit form: add anim6.mul support and a gallery. Changed how animation files are loaded .
+- Optimized file loading times and memory usage across many controls.
+- Replace TreeView with faster controls in TileData, Sounds, RadarCol, Multis, Light, and Dress tabs for quicker loading and scrolling.
+- "Select in..." cross-tab navigation now activates the target main tab and reliably selects the row (fixes TileData "Save Changes" silently failing). Same fix applied to Items, LandTiles, RadarCol, Textures, Gumps, AnimData.
+- Dark mode color fixes: replace hardcoded Color.Blue/Color.Red/Color.Black with theme-aware alternatives (CornflowerBlue, OrangeRed, SystemColors.ControlText) across SkillGroup, RadarCol, Sounds, Light, Textures, Gumps, Map, Hues, LandTiles, Items, and the Hue edit form.
+- Hue edit form preview now uses the configured preview background color instead of hardcoded white.
+- Improved radarcol color generation and control layout.
+- Compare map status strip menu moved to context menu under right mouse button for easier access. Added mouse wheel zoom.
+- Multi select possible for items, land tiles and textures.
+- Added filter to animation tab
+- Added gallery preview to animation editor
+- Improved load times for animation tab
+- Added second animation overlay to animation editor
+- Added zoom option to animation editor
+- Fixed application failure to exit when profile selection form was closed without any selection.
+- Fixed crash when exporting altitude map image with View markers enabled.
+
+Version 4.21.0
+- Fixed display order in tiledata - org comes first now.
+- Fixed refreshing of preview images in compare plugins.
+- Added jpg and png to export image in items, land, texture and gump compare plugins.
+- Added UOP file support for compare art, land and gumps. When comparing you can select which type of file you want to use Auto/UOP/MUL (UOP comes before MUL in Auto).
+
+Version 4.20.2
+- Fixed tooltip client version information in UopPacker.
+- Added option to set export file name template hexadecimal/decimal (defaults to hexadecimal).
+
+Version 4.20.1
+- UopPacker: fix gump extraction, improve sizing of extracted index.
+- UopPacker: fix validation when extracting maps.
+- UopPacker: add progress bars and minor improvements to UI.
+- Cliloc tab: added additional validation and warnings if files contain unknown bytes.
+
+Version 4.20.0
+- Migrate to .NET 10.0
+- Add dark mode (experimental).
+
+Version 4.19.4
+- Fix dynamic flag when importing from WSC - value was flipped after recent changes.
+
+Version 4.19.3
+- Improve cliloc editing.
+    * Add "Next free" button when adding new cliloc entry.
+    * Add entry will now use current selection when searching for next free number or will search starting from the number user inputs in the text box.
+    * Add tiledata import preview form.
+- Update extract/pack all logic in UopPacker plugin.
+
+Version 4.19.2
+- Fix validation when adding and replacing images in Items and Land tiles tabs.
+- Added tooltips explaining compression settings in UopPacker plugin.
+- Minor fixes to internal logger construction.
+
+Version 4.19.1
+- UopPacker: added save support for MultiCollection.uop (including housing.bin) and refreshed the plugin UI.
+- Map copy/replace dialog now supports UOP map files. #105
+- Added "Replace from folder" bulk action for Items and Land Tiles tabs. #102
+- More controls now use the unified File Saved dialog (with Open Folder shortcut) when saving.
+- Animation editor remembers the selected file filter when adding new frames. #82
+
+Version 4.19.0
+- Added support for previewing contents of animations in anim6.mul and AnimationFrame1-6.uop (no export or edit option for uop yet).
+- Fixed possible crash and slowdown during tiledata CSV import from newer client to older client.
+- More preview boxes now support change background color and use background color set in Options.
+- Small adjustments to RadarCol compare layout.
+
+Version 4.18.2
+- Fixed WSC multi import where file has absolute coordinates. Now all coordinates are converted to relative ones.
+- Added DynamicItems.xml with list of items that should be marked as dynamic when importing multis from WSC.
+- Added support for viewing and importing Multicollection.uop multis (there is no save option for now).
+- Improved CliLoc comparison. It shows word diff now with highlights.
+- Removed `New cliloc format` option. Cliloc format is now autodetected.
+
+Version 4.18.1
+- Mass import plugin now allows importing PNG and JPEG.
+- Invalid entries in Animationlist.xml will now be skipped nad will result in a message about the problem.
+- Multi editor now has additional form with shortcut list.
+- Tiledata control now has additional form with some descriptions for fields and flags (data needs further updates).
+- Option to change background color for some controls is now consolidated under options and is saved in profile file. You can still make adjustments from respective controls.
+- Fix: added Gumplist.xml to UOFiddler main folder (missed in previous version).
+- You can use F3 and Shift F3 to search next/previous in: Clilocs, Speech, Dress, Items, Land tiles, Sounds and Tiledata tabs.
+- Map preview has new options to generate preview with altitude (little bit slow but works).
+
+Version 4.18.0
+- Small fix for animdata control layout
+- Verdata preview tab added to browse contents of verdata.mul (if present). It's still work in progress.
+- Main windows tabs can now be scrolled with mouse wheel.
+- New save file confirmation dialog with open output folder button (thank you SilkySnow_ for the idea and initial PR)
+- Multi editor has some new options: line draw, rectangle fill, undo/redo, brush size S/M/L and delete that allows selecting range (needs to be used with virtual floor for best effect).
+- Updated compare plugins. Added compare animdata, radarcol and tiledata.
+- Added Gumplist.xml that allows to add descriptions and tags to gump list.
+
+Version 4.17.9
+- Added the option to display the hue index as it is ingame in every client and server (author Lichtblitz)
+
+Version 4.17.8
+- Fix for reading older artidx.mul files that were probably edited with mulpatcher or some other tool.
+
+Version 4.17.7
+- Avoid crashes when using "Export all".
+- Updated gump file names when exporting.
+
+Version 4.17.6
+- Updated layout for animation list and editor.
+
+Version 4.17.5
+- Added PNG format when inserting or replacing graphics.
+
+Version 4.17.4
+- Fixed UOP file conversion that was broken after recent UOP encoding update.
+
+Version 4.17.3
+- Fixed gump related crash in compare plugin.
+
+Version 4.17.2
+- Fixed crash in animation thumbnail list. 
+
+Version 4.17.1
+- Fixed animation palette import from text files.
+
+Version 4.17.0
+- Improved cliloc and gump file encoding. Allows reading and saving compressed clilocs and gumps (author Krubster)
+
+Version 4.16.1
+- Fixed some crashes when file paths are invalid.
+
+Version 4.16.0
+- Added reading of compressed gump file introduced in version 7.0.104 (contributor Krubster based on ClassicUO team work)
+  + support is only partial so it can only read the files and decompress them
+  + saving will still produce old file type and there is no way to generate compressed UOP yet
+
+Version 4.15.3
+- Fixed importing animation frames from gif files
+
+Version 4.15.2
+- Added reading of compressed cliloc files introduced in version 7.0.104 (authors ClassicUO team; added by Tecmo)
+  + support is only partial so it can only read the files and decompress
+  + saving will still produce old file type
+  + to read newer clilocs you need to enable "New cliloc format" in Options
+
+Version 4.15.1
 - Fixed crash when animdata frame count entry is higher than the maximum value of 64
 
 Version 4.15.0

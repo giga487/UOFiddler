@@ -14,7 +14,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Windows.Forms;
+using Ultima;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
 using UoFiddler.Controls.Helpers;
 
 namespace UoFiddler.Controls.UserControls
@@ -52,44 +54,44 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Options.LoadedUltimaClass["Light"] = true;
+            pictureBoxPreview.BackColor = Options.DarkMode ? Color.LightGray : Color.White;
 
-            treeViewLights.BeginUpdate();
-            try
+            using (new WaitCursorScope(this))
             {
-                treeViewLights.Nodes.Clear();
-                for (int i = 0; i < Ultima.Light.GetCount(); ++i)
+                Options.LoadedUltimaClass["Light"] = true;
+
+                listViewLights.BeginUpdate();
+                try
                 {
-                    if (!Ultima.Light.TestLight(i))
+                    listViewLights.Items.Clear();
+                    for (int i = 0; i < Ultima.Light.GetCount(); ++i)
                     {
-                        continue;
+                        if (!Ultima.Light.TestLight(i))
+                        {
+                            continue;
+                        }
+
+                        listViewLights.Items.Add(new ListViewItem(i.ToString()) { Tag = i });
                     }
-
-                    var treeNode = new TreeNode(i.ToString())
-                    {
-                        Tag = i
-                    };
-                    treeViewLights.Nodes.Add(treeNode);
                 }
-            }
-            finally
-            {
-                treeViewLights.EndUpdate();
-            }
+                finally
+                {
+                    listViewLights.EndUpdate();
+                }
 
-            if (treeViewLights.Nodes.Count > 0)
-            {
-                treeViewLights.SelectedNode = treeViewLights.Nodes[0];
-            }
+                if (listViewLights.Items.Count > 0)
+                {
+                    listViewLights.Items[0].Selected = true;
+                    listViewLights.Items[0].EnsureVisible();
+                }
 
-            if (!_loaded)
-            {
-                ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
-            }
+                if (!_loaded)
+                {
+                    ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
+                }
 
-            _loaded = true;
-            Cursor.Current = Cursors.Default;
+                _loaded = true;
+            }
         }
 
         private void OnFilePathChangeEvent()
@@ -97,16 +99,22 @@ namespace UoFiddler.Controls.UserControls
             Reload();
         }
 
+        private int GetSelectedLightId()
+        {
+            return listViewLights.SelectedItems.Count > 0 ? (int)listViewLights.SelectedItems[0].Tag : -1;
+        }
+
         private unsafe Bitmap GetImage()
         {
-            if (treeViewLights.SelectedNode == null)
+            int selectedId = GetSelectedLightId();
+            if (selectedId < 0)
             {
                 return null;
             }
 
             if (!iGPreviewToolStripMenuItem.Checked)
             {
-                return Ultima.Light.GetLight((int)treeViewLights.SelectedNode.Tag);
+                return Ultima.Light.GetLight(selectedId);
             }
 
             var bit = new Bitmap(pictureBoxPreview.Width, pictureBoxPreview.Height);
@@ -134,7 +142,7 @@ namespace UoFiddler.Controls.UserControls
                 }
             }
 
-            byte[] light = Ultima.Light.GetRawLight((int)treeViewLights.SelectedNode.Tag, out int lightWidth, out int lightHeight);
+            byte[] light = Ultima.Light.GetRawLight(selectedId, out int lightWidth, out int lightHeight);
 
             if (light == null)
             {
@@ -194,19 +202,20 @@ namespace UoFiddler.Controls.UserControls
             return bit;
         }
 
-        private void AfterSelect(object sender, TreeViewEventArgs e)
+        private void AfterSelect(object sender, EventArgs e)
         {
             pictureBoxPreview.Image = GetImage();
         }
 
         private void OnClickRemove(object sender, EventArgs e)
         {
-            if (treeViewLights.SelectedNode == null)
+            if (listViewLights.SelectedItems.Count == 0)
             {
                 return;
             }
 
-            int i = (int)treeViewLights.SelectedNode.Tag;
+            var selected = listViewLights.SelectedItems[0];
+            int i = (int)selected.Tag;
             DialogResult result = MessageBox.Show(string.Format("Are you sure to remove {0} (0x{0:X})", i), "Remove",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (result != DialogResult.Yes)
@@ -215,14 +224,14 @@ namespace UoFiddler.Controls.UserControls
             }
 
             Ultima.Light.Remove(i);
-            treeViewLights.Nodes.Remove(treeViewLights.SelectedNode);
-            treeViewLights.Invalidate();
+            listViewLights.Items.Remove(selected);
+            listViewLights.Invalidate();
             Options.ChangedUltimaClass["Light"] = true;
         }
 
         private void OnClickReplace(object sender, EventArgs e)
         {
-            if (treeViewLights.SelectedNode == null)
+            if (listViewLights.SelectedItems.Count == 0)
             {
                 return;
             }
@@ -232,7 +241,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = "Choose image file to replace";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -247,12 +256,12 @@ namespace UoFiddler.Controls.UserControls
                         bitmap = Utils.ConvertBmp(bitmap);
                     }
 
-                    int i = (int)treeViewLights.SelectedNode.Tag;
+                    int i = (int)listViewLights.SelectedItems[0].Tag;
 
                     Ultima.Light.Replace(i, bitmap);
 
-                    treeViewLights.Invalidate();
-                    AfterSelect(this, null);
+                    listViewLights.Invalidate();
+                    AfterSelect(this, EventArgs.Empty);
 
                     Options.ChangedUltimaClass["Light"] = true;
                 }
@@ -261,13 +270,14 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnTextChangedInsert(object sender, EventArgs e)
         {
+            Color invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
             if (Utils.ConvertStringToInt(InsertText.Text, out int index, 0, 99))
             {
-                InsertText.ForeColor = Ultima.Light.TestLight(index) ? Color.Red : Color.Black;
+                InsertText.ForeColor = Ultima.Light.TestLight(index) ? invalidColor : SystemColors.ControlText;
             }
             else
             {
-                InsertText.ForeColor = Color.Red;
+                InsertText.ForeColor = invalidColor;
             }
         }
 
@@ -294,7 +304,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = string.Format("Choose image file to insert at {0} (0x{0:X})", index);
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -302,84 +312,79 @@ namespace UoFiddler.Controls.UserControls
 
                 var bmp = new Bitmap(dialog.FileName);
                 Ultima.Light.Replace(index, bmp);
-                var treeNode = new TreeNode(index.ToString())
-                {
-                    Tag = index
-                };
+                var newItem = new ListViewItem(index.ToString()) { Tag = index };
                 bool done = false;
-                foreach (TreeNode node in treeViewLights.Nodes)
+                foreach (ListViewItem item in listViewLights.Items)
                 {
-                    if ((int)node.Tag <= index)
+                    if ((int)item.Tag <= index)
                     {
                         continue;
                     }
 
-                    treeViewLights.Nodes.Insert(node.Index, treeNode);
+                    listViewLights.Items.Insert(item.Index, newItem);
                     done = true;
                     break;
                 }
                 if (!done)
                 {
-                    treeViewLights.Nodes.Add(treeNode);
+                    listViewLights.Items.Add(newItem);
                 }
 
-                treeViewLights.Invalidate();
-                treeViewLights.SelectedNode = treeNode;
+                listViewLights.Invalidate();
+                listViewLights.SelectedItems.Clear();
+                newItem.Selected = true;
+                newItem.EnsureVisible();
                 Options.ChangedUltimaClass["Light"] = true;
             }
         }
 
         private void OnClickSave(object sender, EventArgs e)
         {
-            Ultima.Light.Save(Options.OutputPath);
-            MessageBox.Show($"Saved to {Options.OutputPath}", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            Light.Save(Options.OutputPath);
             Options.ChangedUltimaClass["Light"] = false;
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, "Files saved successfully.");
         }
 
         private void OnClickExportBmp(object sender, EventArgs e)
         {
-            if (treeViewLights.SelectedNode == null)
+            int i = GetSelectedLightId();
+            if (i < 0)
             {
                 return;
             }
 
             string path = Options.OutputPath;
-            int i = (int)treeViewLights.SelectedNode.Tag;
-            string fileName = Path.Combine(path, $"Light {i}.bmp");
-            Ultima.Light.GetLight(i).Save(fileName, ImageFormat.Bmp);
-            MessageBox.Show($"Light saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            string fileName = Path.Combine(path, $"Light {Utils.FormatExportId(i)}.bmp");
+            Light.GetLight(i).Save(fileName, ImageFormat.Bmp);
+            FileSavedDialog.Show(FindForm(), fileName, "Light saved successfully.");
         }
 
         private void OnClickExportTiff(object sender, EventArgs e)
         {
-            if (treeViewLights.SelectedNode == null)
+            int i = GetSelectedLightId();
+            if (i < 0)
             {
                 return;
             }
 
             string path = Options.OutputPath;
-            int i = (int)treeViewLights.SelectedNode.Tag;
-            string fileName = Path.Combine(path, $"Light {i}.tiff");
+            string fileName = Path.Combine(path, $"Light {Utils.FormatExportId(i)}.tiff");
             Ultima.Light.GetLight(i).Save(fileName, ImageFormat.Tiff);
-            MessageBox.Show($"Light saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Light saved successfully.");
         }
 
         private void OnClickExportJpg(object sender, EventArgs e)
         {
-            if (treeViewLights.SelectedNode == null)
+            int i = GetSelectedLightId();
+            if (i < 0)
             {
                 return;
             }
 
             string path = Options.OutputPath;
-            int i = (int)treeViewLights.SelectedNode.Tag;
-            string fileName = Path.Combine(path, $"Light {i}.jpg");
+            string fileName = Path.Combine(path, $"Light {Utils.FormatExportId(i)}.jpg");
             Ultima.Light.GetLight(i).Save(fileName, ImageFormat.Jpeg);
-            MessageBox.Show($"Light saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Light saved successfully.");
         }
 
         private void IgPreviewClicked(object sender, EventArgs e)
@@ -400,13 +405,14 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
+            Color invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
             if (Utils.ConvertStringToInt(LandTileText.Text, out int index, 0, 0x3FFF))
             {
-                LandTileText.ForeColor = !Ultima.Art.IsValidLand(index) ? Color.Red : Color.Black;
+                LandTileText.ForeColor = !Ultima.Art.IsValidLand(index) ? invalidColor : SystemColors.ControlText;
             }
             else
             {
-                LandTileText.ForeColor = Color.Red;
+                LandTileText.ForeColor = invalidColor;
             }
         }
 
@@ -439,13 +445,14 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
+            Color invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
             if (Utils.ConvertStringToInt(LightTileText.Text, out int index, 0, Ultima.Art.GetMaxItemId()))
             {
-                LightTileText.ForeColor = !Ultima.Art.IsValidStatic(index) ? Color.Red : Color.Black;
+                LightTileText.ForeColor = !Ultima.Art.IsValidStatic(index) ? invalidColor : SystemColors.ControlText;
             }
             else
             {
-                LightTileText.ForeColor = Color.Red;
+                LightTileText.ForeColor = invalidColor;
             }
         }
 

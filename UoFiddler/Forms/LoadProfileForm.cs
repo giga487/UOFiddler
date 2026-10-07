@@ -12,22 +12,28 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using Microsoft.Extensions.Logging;
 using UoFiddler.Controls.Classes;
 using UoFiddler.Classes;
+using Ultima.Helpers;
 
 namespace UoFiddler.Forms
 {
     public partial class LoadProfileForm : Form
     {
         private readonly string[] _profiles;
+        private readonly ILogger<LoadProfileForm> _log;
 
-        public LoadProfileForm()
+        public LoadProfileForm() : this(AppLog.For<LoadProfileForm>()) { }
+
+        public LoadProfileForm(ILogger<LoadProfileForm> logger)
         {
+            _log = logger;
             InitializeComponent();
 
             Icon = Options.GetFiddlerIcon();
             _profiles = GetProfiles();
-            FiddlerOptions.Logger.Information("Found profiles: {Profiles}", _profiles);
+            _log.LogInformation("Found profiles: {Profiles}", _profiles);
 
             foreach (string profile in _profiles)
             {
@@ -67,7 +73,7 @@ namespace UoFiddler.Forms
             }
 
             Options.ProfileName = $"{_profiles[comboBoxLoad.SelectedIndex]}.xml";
-            FiddlerOptions.Logger.Information("Loading profile: {ProfileName}", Options.ProfileName);
+            _log.LogInformation("Loading profile: {ProfileName}", Options.ProfileName);
             FiddlerOptions.LoadProfile($"{_profiles[comboBoxLoad.SelectedIndex]}.xml");
 
             Close();
@@ -82,7 +88,7 @@ namespace UoFiddler.Forms
             }
 
             Options.ProfileName = $"Options_{textBoxCreate.Text}.xml";
-            FiddlerOptions.Logger.Information("Creating profile: {ProfileName}", Options.ProfileName);
+            _log.LogInformation("Creating profile: {ProfileName}", Options.ProfileName);
             FiddlerOptions.LoadProfile($"{_profiles[comboBoxBasedOn.SelectedIndex]}.xml");
 
             Close();
@@ -104,14 +110,6 @@ namespace UoFiddler.Forms
         private void ComboBoxLoad_KeyUp(object sender, KeyEventArgs e)
         {
             button1.Enabled = comboBoxLoad.SelectedIndex != -1;
-        }
-
-        private void LoadProfile_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            if (DialogResult == DialogResult.Cancel)
-            {
-                Application.Exit();
-            }
         }
     }
 }

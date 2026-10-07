@@ -43,6 +43,9 @@ namespace UoFiddler.Plugin.Compare.UserControls
         private int _row;
         private bool _hue2Loaded;
         private readonly Dictionary<int, bool> _compare = new Dictionary<int, bool>();
+        private readonly HashSet<int> _multiSelected = new HashSet<int>();
+        private int _multiSelectAnchor = -1;
+        private bool _multiSelectEnabled;
         private bool _loaded;
 
         private void OnLoad(object sender, EventArgs e)
@@ -57,6 +60,13 @@ namespace UoFiddler.Plugin.Compare.UserControls
             _bmp2 = new Bitmap(pictureBox2.Width, pictureBox2.Height);
             _loaded = true;
             _row = pictureBox1.Height / _itemHeight;
+            contextMenuStrip1.Opening += (s, ev) =>
+            {
+                int count = _multiSelected.Count;
+                applyHue1ToHue2ToolStripMenuItem.Text = _multiSelectEnabled && count > 1
+                    ? $"Apply {count} Hues to left"
+                    : "Apply Hue to left";
+            };
             PaintBox1();
         }
 
@@ -81,13 +91,13 @@ namespace UoFiddler.Plugin.Compare.UserControls
                     }
 
                     Rectangle rect = new Rectangle(0, y * _itemHeight, 200, _itemHeight);
-                    if (index == _selected)
+                    if (index == _selected || _multiSelected.Contains(index))
                     {
                         g.FillRectangle(SystemBrushes.Highlight, rect);
                     }
                     else if (!Compare(index))
                     {
-                        g.FillRectangle(Brushes.Red, rect);
+                        g.FillRectangle(Options.DarkMode ? Brushes.OrangeRed : Brushes.Red, rect);
                     }
                     else
                     {
@@ -97,7 +107,7 @@ namespace UoFiddler.Plugin.Compare.UserControls
                     float size = (float)(pictureBox1.Width - 200) / 32;
                     Hue hue = Hues.List[index];
                     Rectangle stringRect = new Rectangle(3, y * _itemHeight, pictureBox1.Width, _itemHeight);
-                    g.DrawString($"{hue.Index + 1,-5} {$"(0x{hue.Index + 1:X})",-7} {hue.Name}", Font, Brushes.Black, stringRect);
+                    g.DrawString($"{hue.Index + 1,-5} {$"(0x{hue.Index + 1:X})",-7} {hue.Name}", Font, SystemBrushes.ControlText, stringRect);
 
                     for (int i = 0; i < hue.Colors.Length; i++)
                     {
@@ -112,6 +122,9 @@ namespace UoFiddler.Plugin.Compare.UserControls
             pictureBox1.Image = _bmp1;
             pictureBox1.Update();
         }
+
+        private const int CheckBoxColumnWidth = 22;
+        private const int CheckBoxGlyphSize = 14;
 
         private void PaintBox2()
         {
@@ -128,23 +141,36 @@ namespace UoFiddler.Plugin.Compare.UserControls
                     }
 
                     Rectangle rect = new Rectangle(0, y * _itemHeight, 200, _itemHeight);
-                    if (index == _selected)
+                    if (index == _selected || _multiSelected.Contains(index))
                     {
                         g.FillRectangle(SystemBrushes.Highlight, rect);
                     }
                     else if (!Compare(index))
                     {
-                        g.FillRectangle(Brushes.Red, rect);
+                        g.FillRectangle(Options.DarkMode ? Brushes.OrangeRed : Brushes.Red, rect);
                     }
                     else
                     {
                         g.FillRectangle(SystemBrushes.Window, rect);
                     }
 
+                    int textStart = 3;
+                    if (_multiSelectEnabled)
+                    {
+                        Rectangle cb = new Rectangle(
+                            4,
+                            y * _itemHeight + (_itemHeight - CheckBoxGlyphSize) / 2,
+                            CheckBoxGlyphSize,
+                            CheckBoxGlyphSize);
+                        ButtonState state = _multiSelected.Contains(index) ? ButtonState.Checked : ButtonState.Normal;
+                        ControlPaint.DrawCheckBox(g, cb, state);
+                        textStart = CheckBoxColumnWidth;
+                    }
+
                     float size = (float)(pictureBox2.Width - 200) / 32;
                     Hue hue = SecondHue.List[index];
-                    Rectangle stringRect = new Rectangle(3, y * _itemHeight, pictureBox2.Width, _itemHeight);
-                    g.DrawString($"{hue.Index + 1,-5} {$"(0x{hue.Index + 1:X})",-7} {hue.Name}", Font, Brushes.Black, stringRect);
+                    Rectangle stringRect = new Rectangle(textStart, y * _itemHeight, pictureBox2.Width, _itemHeight);
+                    g.DrawString($"{hue.Index + 1,-5} {$"(0x{hue.Index + 1:X})",-7} {hue.Name}", Font, SystemBrushes.ControlText, stringRect);
 
                     for (int i = 0; i < hue.Colors.Length; i++)
                     {
@@ -234,12 +260,38 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
+            if (CompareFiles.IsLoadedClientFile(file, "hues.mul"))
+            {
+                MessageBox.Show(
+                    "The selected file is the same as the currently loaded hues.mul.\n\n" +
+                    "Choose a different directory to compare against.",
+                    "Same File",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             SecondHue.Initialize(file);
             _hue2Loaded = true;
             vScrollBar.Value = 0;
             _selected = 0;
             PaintBox1();
             PaintBox2();
+        }
+
+        private void OnChangeMultiSelect(object sender, EventArgs e)
+        {
+            _multiSelectEnabled = chkMultiSelect.Checked;
+            if (!_multiSelectEnabled)
+            {
+                _multiSelected.Clear();
+                _multiSelectAnchor = -1;
+            }
+            PaintBox1();
+            if (_hue2Loaded)
+            {
+                PaintBox2();
+            }
         }
 
         private void OnMouseClick1(object sender, MouseEventArgs e)
@@ -252,7 +304,9 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
+            _multiSelected.Clear();
             _selected = index;
+            _multiSelectAnchor = index;
             PaintBox1();
             if (_hue2Loaded)
             {
@@ -270,11 +324,66 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
-            _selected = index;
+            if (_multiSelectEnabled)
+            {
+                Keys mods = Control.ModifierKeys;
+
+                // Shift (with or without Ctrl) applies the clicked row's resulting state to the whole
+                // range from the anchor, so a contiguous block can be selected or deselected in one action.
+                if ((mods & Keys.Shift) == Keys.Shift)
+                {
+                    int anchor = _multiSelectAnchor >= 0 && _multiSelectAnchor < Hues.List.Length
+                        ? _multiSelectAnchor
+                        : index;
+                    bool select = !_multiSelected.Contains(index);
+                    SetRangeSelection(anchor, index, select);
+                }
+                else if (e.X < CheckBoxColumnWidth || (mods & Keys.Control) == Keys.Control)
+                {
+                    if (!_multiSelected.Remove(index))
+                    {
+                        _multiSelected.Add(index);
+                    }
+                    _multiSelectAnchor = index;
+                }
+                else
+                {
+                    _selected = index;
+                    _multiSelectAnchor = index;
+                }
+            }
+            else
+            {
+                _selected = index;
+            }
+
             PaintBox1();
             if (_hue2Loaded)
             {
                 PaintBox2();
+            }
+        }
+
+        private void SetRangeSelection(int fromIndex, int toIndex, bool select)
+        {
+            int start = Math.Min(fromIndex, toIndex);
+            int end = Math.Max(fromIndex, toIndex);
+
+            for (int i = start; i <= end; i++)
+            {
+                if (i < 0 || i >= Hues.List.Length)
+                {
+                    continue;
+                }
+
+                if (select)
+                {
+                    _multiSelected.Add(i);
+                }
+                else
+                {
+                    _multiSelected.Remove(i);
+                }
             }
         }
 
@@ -323,17 +432,41 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
-            Hue org = Hues.List[_selected];
-            Hue sec = SecondHue.List[_selected];
-            sec.Colors.CopyTo(org.Colors, 0);
-            org.Name = sec.Name;
-            org.TableStart = org.Colors[0];
-            org.TableEnd = (ushort)(org.Colors[org.Colors.Length - 1] + 1057);
-            _compare[_selected] = true;
-            PaintBox1();
-            PaintBox2();
-            Options.ChangedUltimaClass["Hues"] = true;
-            ControlEvents.FireHueChangeEvent();
+            IEnumerable<int> targets = _multiSelected.Count > 0
+                ? (IEnumerable<int>)_multiSelected
+                : new[] { _selected };
+
+            bool changed = false;
+            foreach (int index in targets)
+            {
+                if (index < 0 || index >= Hues.List.Length || index >= SecondHue.List.Length)
+                {
+                    continue;
+                }
+
+                Hue org = Hues.List[index];
+                Hue sec = SecondHue.List[index];
+                if (org == null || sec == null)
+                {
+                    continue;
+                }
+
+                sec.Colors.CopyTo(org.Colors, 0);
+                org.Name = sec.Name;
+                org.TableStart = org.Colors[0];
+                org.TableEnd = (ushort)(org.Colors[org.Colors.Length - 1] + 1057);
+                _compare[index] = true;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                _multiSelected.Clear();
+                PaintBox1();
+                PaintBox2();
+                Options.ChangedUltimaClass["Hues"] = true;
+                ControlEvents.FireHueChangeEvent();
+            }
         }
 
         private void BrowseOnClick(object sender, EventArgs e)

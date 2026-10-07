@@ -41,7 +41,6 @@ namespace UoFiddler.Forms
         {
             components = new System.ComponentModel.Container();
             groupBox1 = new System.Windows.Forms.GroupBox();
-            checkBoxOverrideBackgroundColorFromTile = new System.Windows.Forms.CheckBox();
             numericUpDownItemSizeHeight = new System.Windows.Forms.NumericUpDown();
             checkBoxItemClip = new System.Windows.Forms.CheckBox();
             label1 = new System.Windows.Forms.Label();
@@ -63,6 +62,9 @@ namespace UoFiddler.Forms
             label9 = new System.Windows.Forms.Label();
             FocusColorLabel = new System.Windows.Forms.Label();
             SelectedColorLabel = new System.Windows.Forms.Label();
+            radioExportFilenameHex = new System.Windows.Forms.RadioButton();
+            radioExportFilenameDec = new System.Windows.Forms.RadioButton();
+            checkBoxExportFilenameDecPad = new System.Windows.Forms.CheckBox();
             groupBox3 = new System.Windows.Forms.GroupBox();
             map5Nametext = new System.Windows.Forms.TextBox();
             argstext = new System.Windows.Forms.TextBox();
@@ -76,12 +78,17 @@ namespace UoFiddler.Forms
             button2 = new System.Windows.Forms.Button();
             textBoxOutputPath = new System.Windows.Forms.TextBox();
             label10 = new System.Windows.Forms.Label();
+            comboBoxSaveFormat = new System.Windows.Forms.ComboBox();
+            labelSaveFormat = new System.Windows.Forms.Label();
             ColorsGroupBox = new System.Windows.Forms.GroupBox();
             checkboxRemoveTileBorder = new System.Windows.Forms.CheckBox();
             RestoreDefaultsButton = new System.Windows.Forms.Button();
             TileSelectionColorComboBox = new System.Windows.Forms.ComboBox();
             TileFocusColorComboBox = new System.Windows.Forms.ComboBox();
+            PreviewBackgroundColorLabel = new System.Windows.Forms.Label();
+            PreviewBackgroundColorButton = new System.Windows.Forms.Button();
             buttonClose = new System.Windows.Forms.Button();
+            ExportFilenamesGroupBox = new System.Windows.Forms.GroupBox();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDownItemSizeHeight).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDownItemSizeWidth).BeginInit();
@@ -89,11 +96,11 @@ namespace UoFiddler.Forms
             groupBox3.SuspendLayout();
             groupBox4.SuspendLayout();
             ColorsGroupBox.SuspendLayout();
+            ExportFilenamesGroupBox.SuspendLayout();
             SuspendLayout();
             // 
             // groupBox1
             // 
-            groupBox1.Controls.Add(checkBoxOverrideBackgroundColorFromTile);
             groupBox1.Controls.Add(numericUpDownItemSizeHeight);
             groupBox1.Controls.Add(checkBoxItemClip);
             groupBox1.Controls.Add(label1);
@@ -102,20 +109,10 @@ namespace UoFiddler.Forms
             groupBox1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            groupBox1.Size = new System.Drawing.Size(258, 130);
+            groupBox1.Size = new System.Drawing.Size(258, 118);
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Item Tab";
-            // 
-            // checkBoxOverrideBackgroundColorFromTile
-            // 
-            checkBoxOverrideBackgroundColorFromTile.Location = new System.Drawing.Point(10, 80);
-            checkBoxOverrideBackgroundColorFromTile.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            checkBoxOverrideBackgroundColorFromTile.Name = "checkBoxOverrideBackgroundColorFromTile";
-            checkBoxOverrideBackgroundColorFromTile.Size = new System.Drawing.Size(225, 36);
-            checkBoxOverrideBackgroundColorFromTile.TabIndex = 17;
-            checkBoxOverrideBackgroundColorFromTile.Text = "Set background color same as tile background";
-            checkBoxOverrideBackgroundColorFromTile.UseVisualStyleBackColor = true;
             // 
             // numericUpDownItemSizeHeight
             // 
@@ -186,7 +183,7 @@ namespace UoFiddler.Forms
             groupBox2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            groupBox2.Size = new System.Drawing.Size(258, 157);
+            groupBox2.Size = new System.Drawing.Size(258, 132);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "Misc";
@@ -229,7 +226,7 @@ namespace UoFiddler.Forms
             // 
             // buttonApply
             // 
-            buttonApply.Location = new System.Drawing.Point(321, 463);
+            buttonApply.Location = new System.Drawing.Point(318, 586);
             buttonApply.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             buttonApply.Name = "buttonApply";
             buttonApply.Size = new System.Drawing.Size(88, 27);
@@ -348,6 +345,45 @@ namespace UoFiddler.Forms
             SelectedColorLabel.Text = "Tile Selection";
             toolTip1.SetToolTip(SelectedColorLabel, "ItemSize controls the size of images in items tab");
             // 
+            // radioExportFilenameHex
+            // 
+            radioExportFilenameHex.AutoSize = true;
+            radioExportFilenameHex.Location = new System.Drawing.Point(10, 21);
+            radioExportFilenameHex.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            radioExportFilenameHex.Name = "radioExportFilenameHex";
+            radioExportFilenameHex.Size = new System.Drawing.Size(214, 19);
+            radioExportFilenameHex.TabIndex = 0;
+            radioExportFilenameHex.TabStop = true;
+            radioExportFilenameHex.Text = "Hexadecimal (e.g. Item 0x00FF.png)";
+            toolTip1.SetToolTip(radioExportFilenameHex, "Exported filenames embed the ID in hexadecimal form.");
+            radioExportFilenameHex.UseVisualStyleBackColor = true;
+            radioExportFilenameHex.CheckedChanged += OnExportFilenameFormatChanged;
+            // 
+            // radioExportFilenameDec
+            // 
+            radioExportFilenameDec.AutoSize = true;
+            radioExportFilenameDec.Location = new System.Drawing.Point(240, 21);
+            radioExportFilenameDec.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            radioExportFilenameDec.Name = "radioExportFilenameDec";
+            radioExportFilenameDec.Size = new System.Drawing.Size(182, 19);
+            radioExportFilenameDec.TabIndex = 1;
+            radioExportFilenameDec.TabStop = true;
+            radioExportFilenameDec.Text = "Decimal (e.g. Item 00255.png)";
+            toolTip1.SetToolTip(radioExportFilenameDec, "Exported filenames embed the ID in decimal form.");
+            radioExportFilenameDec.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxExportFilenameDecPad
+            // 
+            checkBoxExportFilenameDecPad.AutoSize = true;
+            checkBoxExportFilenameDecPad.Location = new System.Drawing.Point(240, 46);
+            checkBoxExportFilenameDecPad.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            checkBoxExportFilenameDecPad.Name = "checkBoxExportFilenameDecPad";
+            checkBoxExportFilenameDecPad.Size = new System.Drawing.Size(146, 19);
+            checkBoxExportFilenameDecPad.TabIndex = 2;
+            checkBoxExportFilenameDecPad.Text = "Pad decimal to 5 digits";
+            toolTip1.SetToolTip(checkBoxExportFilenameDecPad, "When using decimal format, pad the ID with leading zeros so files sort correctly.");
+            checkBoxExportFilenameDecPad.UseVisualStyleBackColor = true;
+            // 
             // groupBox3
             // 
             groupBox3.Controls.Add(label9);
@@ -370,7 +406,7 @@ namespace UoFiddler.Forms
             groupBox3.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            groupBox3.Size = new System.Drawing.Size(220, 288);
+            groupBox3.Size = new System.Drawing.Size(220, 276);
             groupBox3.TabIndex = 5;
             groupBox3.TabStop = false;
             groupBox3.Text = "Map";
@@ -444,18 +480,20 @@ namespace UoFiddler.Forms
             groupBox4.Controls.Add(button2);
             groupBox4.Controls.Add(textBoxOutputPath);
             groupBox4.Controls.Add(label10);
-            groupBox4.Location = new System.Drawing.Point(16, 405);
+            groupBox4.Controls.Add(comboBoxSaveFormat);
+            groupBox4.Controls.Add(labelSaveFormat);
+            groupBox4.Location = new System.Drawing.Point(16, 419);
             groupBox4.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             groupBox4.Name = "groupBox4";
             groupBox4.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            groupBox4.Size = new System.Drawing.Size(486, 51);
+            groupBox4.Size = new System.Drawing.Size(486, 86);
             groupBox4.TabIndex = 6;
             groupBox4.TabStop = false;
-            groupBox4.Text = "Path";
+            groupBox4.Text = "Output";
             // 
             // button2
             // 
-            button2.Location = new System.Drawing.Point(443, 16);
+            button2.Location = new System.Drawing.Point(442, 17);
             button2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             button2.Name = "button2";
             button2.Size = new System.Drawing.Size(28, 27);
@@ -466,7 +504,7 @@ namespace UoFiddler.Forms
             // 
             // textBoxOutputPath
             // 
-            textBoxOutputPath.Location = new System.Drawing.Point(89, 20);
+            textBoxOutputPath.Location = new System.Drawing.Point(87, 19);
             textBoxOutputPath.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             textBoxOutputPath.Name = "textBoxOutputPath";
             textBoxOutputPath.Size = new System.Drawing.Size(347, 23);
@@ -482,6 +520,26 @@ namespace UoFiddler.Forms
             label10.TabIndex = 0;
             label10.Text = "Output Path";
             // 
+            // comboBoxSaveFormat
+            // 
+            comboBoxSaveFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            comboBoxSaveFormat.Location = new System.Drawing.Point(87, 51);
+            comboBoxSaveFormat.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            comboBoxSaveFormat.Name = "comboBoxSaveFormat";
+            comboBoxSaveFormat.Size = new System.Drawing.Size(383, 23);
+            comboBoxSaveFormat.TabIndex = 4;
+            toolTip1.SetToolTip(comboBoxSaveFormat, "Which container a save writes for the files the client ships as either. Affects art, gumpart, sound, multis and maps; everything else has only one format.");
+            // 
+            // labelSaveFormat
+            // 
+            labelSaveFormat.AutoSize = true;
+            labelSaveFormat.Location = new System.Drawing.Point(7, 55);
+            labelSaveFormat.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            labelSaveFormat.Name = "labelSaveFormat";
+            labelSaveFormat.Size = new System.Drawing.Size(72, 15);
+            labelSaveFormat.TabIndex = 3;
+            labelSaveFormat.Text = "Save Format";
+            // 
             // ColorsGroupBox
             // 
             ColorsGroupBox.Controls.Add(checkboxRemoveTileBorder);
@@ -490,11 +548,13 @@ namespace UoFiddler.Forms
             ColorsGroupBox.Controls.Add(TileSelectionColorComboBox);
             ColorsGroupBox.Controls.Add(FocusColorLabel);
             ColorsGroupBox.Controls.Add(TileFocusColorComboBox);
-            ColorsGroupBox.Location = new System.Drawing.Point(16, 301);
+            ColorsGroupBox.Controls.Add(PreviewBackgroundColorLabel);
+            ColorsGroupBox.Controls.Add(PreviewBackgroundColorButton);
+            ColorsGroupBox.Location = new System.Drawing.Point(16, 288);
             ColorsGroupBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             ColorsGroupBox.Name = "ColorsGroupBox";
             ColorsGroupBox.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            ColorsGroupBox.Size = new System.Drawing.Size(486, 97);
+            ColorsGroupBox.Size = new System.Drawing.Size(486, 125);
             ColorsGroupBox.TabIndex = 7;
             ColorsGroupBox.TabStop = false;
             ColorsGroupBox.Text = "Tile view settings";
@@ -539,9 +599,30 @@ namespace UoFiddler.Forms
             TileFocusColorComboBox.Size = new System.Drawing.Size(153, 23);
             TileFocusColorComboBox.TabIndex = 9;
             // 
+            // PreviewBackgroundColorLabel
+            // 
+            PreviewBackgroundColorLabel.AutoSize = true;
+            PreviewBackgroundColorLabel.Location = new System.Drawing.Point(14, 91);
+            PreviewBackgroundColorLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            PreviewBackgroundColorLabel.Name = "PreviewBackgroundColorLabel";
+            PreviewBackgroundColorLabel.Size = new System.Drawing.Size(101, 15);
+            PreviewBackgroundColorLabel.TabIndex = 18;
+            PreviewBackgroundColorLabel.Text = "Background color";
+            // 
+            // PreviewBackgroundColorButton
+            // 
+            PreviewBackgroundColorButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            PreviewBackgroundColorButton.Location = new System.Drawing.Point(123, 87);
+            PreviewBackgroundColorButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            PreviewBackgroundColorButton.Name = "PreviewBackgroundColorButton";
+            PreviewBackgroundColorButton.Size = new System.Drawing.Size(134, 23);
+            PreviewBackgroundColorButton.TabIndex = 19;
+            PreviewBackgroundColorButton.UseVisualStyleBackColor = false;
+            PreviewBackgroundColorButton.Click += PreviewBackgroundColorButton_Click;
+            // 
             // buttonClose
             // 
-            buttonClose.Location = new System.Drawing.Point(415, 463);
+            buttonClose.Location = new System.Drawing.Point(414, 586);
             buttonClose.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             buttonClose.Name = "buttonClose";
             buttonClose.Size = new System.Drawing.Size(88, 27);
@@ -550,12 +631,27 @@ namespace UoFiddler.Forms
             buttonClose.UseVisualStyleBackColor = true;
             buttonClose.Click += OnClickClose;
             // 
+            // ExportFilenamesGroupBox
+            // 
+            ExportFilenamesGroupBox.Controls.Add(radioExportFilenameHex);
+            ExportFilenamesGroupBox.Controls.Add(radioExportFilenameDec);
+            ExportFilenamesGroupBox.Controls.Add(checkBoxExportFilenameDecPad);
+            ExportFilenamesGroupBox.Location = new System.Drawing.Point(16, 511);
+            ExportFilenamesGroupBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            ExportFilenamesGroupBox.Name = "ExportFilenamesGroupBox";
+            ExportFilenamesGroupBox.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            ExportFilenamesGroupBox.Size = new System.Drawing.Size(486, 69);
+            ExportFilenamesGroupBox.TabIndex = 9;
+            ExportFilenamesGroupBox.TabStop = false;
+            ExportFilenamesGroupBox.Text = "Export Filenames";
+            // 
             // OptionsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(518, 501);
+            ClientSize = new System.Drawing.Size(518, 625);
             Controls.Add(buttonClose);
+            Controls.Add(ExportFilenamesGroupBox);
             Controls.Add(ColorsGroupBox);
             Controls.Add(groupBox4);
             Controls.Add(groupBox3);
@@ -581,6 +677,8 @@ namespace UoFiddler.Forms
             groupBox4.PerformLayout();
             ColorsGroupBox.ResumeLayout(false);
             ColorsGroupBox.PerformLayout();
+            ExportFilenamesGroupBox.ResumeLayout(false);
+            ExportFilenamesGroupBox.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -598,6 +696,8 @@ namespace UoFiddler.Forms
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.ComboBox comboBoxSaveFormat;
+        private System.Windows.Forms.Label labelSaveFormat;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.Label label2;
@@ -627,6 +727,11 @@ namespace UoFiddler.Forms
         private System.Windows.Forms.CheckBox checkBoxPolSoundIdOffset;
         private System.Windows.Forms.Button buttonClose;
         private System.Windows.Forms.CheckBox checkboxRemoveTileBorder;
-        private System.Windows.Forms.CheckBox checkBoxOverrideBackgroundColorFromTile;
+        private System.Windows.Forms.Label PreviewBackgroundColorLabel;
+        private System.Windows.Forms.Button PreviewBackgroundColorButton;
+        private System.Windows.Forms.GroupBox ExportFilenamesGroupBox;
+        private System.Windows.Forms.RadioButton radioExportFilenameHex;
+        private System.Windows.Forms.RadioButton radioExportFilenameDec;
+        private System.Windows.Forms.CheckBox checkBoxExportFilenameDecPad;
     }
 }

@@ -15,6 +15,8 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using Ultima;
+using UoFiddler.Controls.Classes;
+using UoFiddler.Plugin.Compare.Classes;
 
 namespace UoFiddler.Plugin.Compare.UserControls
 {
@@ -51,7 +53,18 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
-            _cliloc1 = new StringList("1", path);
+            if (CompareFiles.IsSamePath(path, textBox2.Text))
+            {
+                MessageBox.Show(
+                    "Both sides point to the same cliloc file.\n\n" +
+                    "Choose a different file to compare against.",
+                    "Same File",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            _cliloc1 = new StringList("1", path, false);
             _cliloc1.Entries.Sort(new StringList.NumberComparer(false));
 
             if (_cliloc2 != null)
@@ -73,7 +86,18 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return;
             }
 
-            _cliloc2 = new StringList("2", path);
+            if (CompareFiles.IsSamePath(path, textBox1.Text))
+            {
+                MessageBox.Show(
+                    "Both sides point to the same cliloc file.\n\n" +
+                    "Choose a different file to compare against.",
+                    "Same File",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            _cliloc2 = new StringList("2", path, false);
             _cliloc2.Entries.Sort(new StringList.NumberComparer(false));
 
             if (_cliloc1 != null)
@@ -182,10 +206,10 @@ namespace UoFiddler.Plugin.Compare.UserControls
             switch (entry.CompareResult)
             {
                 case CompareEntry.CompareRes.Diff:
-                    e.CellStyle.ForeColor = Color.Red;
+                    e.CellStyle.ForeColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
                     break;
                 case CompareEntry.CompareRes.NewIn1:
-                    e.CellStyle.ForeColor = Color.Blue;
+                    e.CellStyle.ForeColor = Options.DarkMode ? Color.CornflowerBlue : Color.Blue;
                     break;
                 case CompareEntry.CompareRes.NewIn2:
                     e.CellStyle.ForeColor = Color.Orange;
@@ -235,7 +259,10 @@ namespace UoFiddler.Plugin.Compare.UserControls
         private void OnClickShowOnlyDiff(object sender, EventArgs e)
         {
             _showOnlyDiff = !_showOnlyDiff;
-            BuildList();
+            using (new WaitCursorScope(this))
+            {
+                BuildList();
+            }
         }
 
         private void OnClickFindNextDiff(object sender, EventArgs e)
@@ -266,6 +293,117 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 dataGridView1.FirstDisplayedScrollingRowIndex = i;
                 break;
             }
+        }
+
+        private void OnSelectionChanged(object sender, EventArgs e)
+        {
+            if (dataGridView1.SelectedRows.Count == 0)
+            {
+                diffRichTextBox1.Clear();
+                diffRichTextBox2.Clear();
+                return;
+            }
+
+            var entry = dataGridView1.SelectedRows[0].DataBoundItem as CompareEntry;
+            if (entry == null)
+            {
+                return;
+            }
+
+            ShowWordDiff(entry.Text1 ?? string.Empty, entry.Text2 ?? string.Empty);
+        }
+
+        private void ShowWordDiff(string text1, string text2)
+        {
+            diffRichTextBox1.Clear();
+            diffRichTextBox2.Clear();
+
+            if (text1 == text2)
+            {
+                diffRichTextBox1.Text = text1;
+                diffRichTextBox2.Text = text2;
+                return;
+            }
+
+            var diff = ComputeWordDiff(text1, text2);
+            bool first1 = true, first2 = true;
+
+            foreach (var (op, word) in diff)
+            {
+                switch (op)
+                {
+                    case WordDiffOp.Equal:
+                        AppendWord(diffRichTextBox1, word, SystemColors.Window, ref first1);
+                        AppendWord(diffRichTextBox2, word, SystemColors.Window, ref first2);
+                        break;
+                    case WordDiffOp.Delete:
+                        AppendWord(diffRichTextBox1, word, Options.DarkMode ? Color.FromArgb(140, 30, 30) : Color.FromArgb(255, 200, 200), ref first1);
+                        break;
+                    case WordDiffOp.Insert:
+                        AppendWord(diffRichTextBox2, word, Options.DarkMode ? Color.FromArgb(30, 100, 40) : Color.FromArgb(200, 255, 200), ref first2);
+                        break;
+                }
+            }
+
+            diffRichTextBox1.SelectionStart = 0;
+            diffRichTextBox1.SelectionLength = 0;
+            diffRichTextBox2.SelectionStart = 0;
+            diffRichTextBox2.SelectionLength = 0;
+        }
+
+        private static void AppendWord(RichTextBox rtb, string word, Color backColor, ref bool isFirst)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionBackColor = backColor;
+            rtb.SelectionColor = SystemColors.WindowText;
+            rtb.SelectedText = isFirst ? word : " " + word;
+            isFirst = false;
+        }
+
+        private enum WordDiffOp { Equal, Delete, Insert }
+
+        private static List<(WordDiffOp Op, string Word)> ComputeWordDiff(string text1, string text2)
+        {
+            string[] a = text1.Split(' ');
+            string[] b = text2.Split(' ');
+            int m = a.Length, n = b.Length;
+
+            var dp = new int[m + 1, n + 1];
+            for (int i = 1; i <= m; i++)
+            {
+                for (int j = 1; j <= n; j++)
+                {
+                    dp[i, j] = a[i - 1] == b[j - 1]
+                        ? dp[i - 1, j - 1] + 1
+                        : Math.Max(dp[i - 1, j], dp[i, j - 1]);
+                }
+            }
+
+            var result = new List<(WordDiffOp, string)>();
+            int ii = m, jj = n;
+            while (ii > 0 || jj > 0)
+            {
+                if (ii > 0 && jj > 0 && a[ii - 1] == b[jj - 1])
+                {
+                    result.Add((WordDiffOp.Equal, a[ii - 1]));
+                    ii--;
+                    jj--;
+                }
+                else if (jj > 0 && (ii == 0 || dp[ii, jj - 1] >= dp[ii - 1, jj]))
+                {
+                    result.Add((WordDiffOp.Insert, b[jj - 1]));
+                    jj--;
+                }
+                else
+                {
+                    result.Add((WordDiffOp.Delete, a[ii - 1]));
+                    ii--;
+                }
+            }
+
+            result.Reverse();
+            return result;
         }
 
         private void OnHeaderClicked(object sender, DataGridViewCellMouseEventArgs e)
@@ -324,11 +462,11 @@ namespace UoFiddler.Plugin.Compare.UserControls
 
     public class NumberComparer : IComparer<CompareEntry>
     {
-        private readonly bool _mDesc;
+        private readonly bool _sortDescending;
 
-        public NumberComparer(bool desc)
+        public NumberComparer(bool sortDescending)
         {
-            _mDesc = desc;
+            _sortDescending = sortDescending;
         }
 
         public int Compare(CompareEntry objA, CompareEntry objB)
@@ -338,7 +476,7 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return 0;
             }
 
-            if (_mDesc)
+            if (_sortDescending)
             {
                 return objA.Number < objB.Number ? 1 : -1;
             }
@@ -351,11 +489,11 @@ namespace UoFiddler.Plugin.Compare.UserControls
 
     public class FlagComparer : IComparer<CompareEntry>
     {
-        private readonly bool _mDesc;
+        private readonly bool _sortDescending;
 
-        public FlagComparer(bool desc)
+        public FlagComparer(bool sortDescending)
         {
-            _mDesc = desc;
+            _sortDescending = sortDescending;
         }
 
         public int Compare(CompareEntry objA, CompareEntry objB)
@@ -367,7 +505,7 @@ namespace UoFiddler.Plugin.Compare.UserControls
                     return 0;
                 }
 
-                if (_mDesc)
+                if (_sortDescending)
                 {
                     return objA.Number < objB.Number ? 1 : -1;
                 }
@@ -375,7 +513,7 @@ namespace UoFiddler.Plugin.Compare.UserControls
                 return objA.Number < objB.Number ? -1 : 1;
             }
 
-            if (_mDesc)
+            if (_sortDescending)
             {
                 return (byte)objA.CompareResult < (byte)objB.CompareResult ? 1 : -1;
             }
@@ -388,16 +526,16 @@ namespace UoFiddler.Plugin.Compare.UserControls
 
     public class TextComparer1 : IComparer<CompareEntry>
     {
-        private readonly bool _desc;
+        private readonly bool _sortDescending;
 
-        public TextComparer1(bool desc)
+        public TextComparer1(bool sortDescending)
         {
-            _desc = desc;
+            _sortDescending = sortDescending;
         }
 
         public int Compare(CompareEntry objA, CompareEntry objB)
         {
-            return _desc
+            return _sortDescending
                 ? string.CompareOrdinal(objB.Text1, objA.Text1)
                 : string.CompareOrdinal(objA.Text1, objB.Text1);
         }
@@ -405,16 +543,16 @@ namespace UoFiddler.Plugin.Compare.UserControls
 
     public class TextComparer2 : IComparer<CompareEntry>
     {
-        private readonly bool _desc;
+        private readonly bool _sortDescending;
 
-        public TextComparer2(bool desc)
+        public TextComparer2(bool sortDescending)
         {
-            _desc = desc;
+            _sortDescending = sortDescending;
         }
 
         public int Compare(CompareEntry objA, CompareEntry objB)
         {
-            return _desc
+            return _sortDescending
                 ? string.CompareOrdinal(objB.Text2, objA.Text2)
                 : string.CompareOrdinal(objA.Text2, objB.Text2);
         }

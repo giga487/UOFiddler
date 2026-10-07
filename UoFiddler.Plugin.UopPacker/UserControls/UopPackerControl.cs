@@ -10,10 +10,16 @@
  ***************************************************************************/
 
 using System;
+using System.Drawing;
 using System.IO;
-using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using UoFiddler.Plugin.UopPacker.Classes;
+using Microsoft.Extensions.Logging;
+using Ultima;
+using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
+using Ultima.Uop;
+using Ultima.Helpers;
 
 namespace UoFiddler.Plugin.UopPacker.UserControls
 {
@@ -29,12 +35,155 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
 
             var fileTypes = Enum.GetNames(typeof(FileType));
 
-            uoptype.DataSource = fileTypes;
-            multype.DataSource = fileTypes.SkipLast(1).ToArray(); // remove multi collection from ToUOP() conversion (not supported yet)
+            multype.SelectedIndexChanged += OnMulTypeChanged;
+            uoptype.SelectedIndexChanged += OnUopTypeChanged;
+            mulMapIndex.ValueChanged += OnMulTypeChanged;
+            uopMapIndex.ValueChanged += OnUopTypeChanged;
+
+            uoptype.DataSource = new System.Collections.Generic.List<string>(fileTypes);
+            multype.DataSource = new System.Collections.Generic.List<string>(fileTypes);
 
             mulMapIndex.ReadOnly = uopMapIndex.ReadOnly = true;
 
+            // Single output folder for both directions; individual filenames are derived from the selected FileType.
+            outfolder.PlaceholderText = "folder where .mul/.idx will be written";
+            outuopfolder.PlaceholderText = "folder where .uop will be written";
+
+            packAllGumpCompressionBox.SelectedIndex = 0;
+            compressionBox.SelectedIndex = 0;
+            extract.CheckedChanged += OnPackAllModeChanged;
+            pack.CheckedChanged += OnPackAllModeChanged;
+            UpdatePackAllCompressionVisibility();
+
+            RefreshMulTypeUi();
+            RefreshUopTypeUi();
+
+            ApplyDarkModeIfNeeded();
+
             Dock = DockStyle.Fill;
+        }
+
+        private void ApplyDarkModeIfNeeded()
+        {
+            if (!Options.DarkMode)
+            {
+                return;
+            }
+
+            Color tabBg = Color.FromArgb(32, 32, 32);
+            ExtractAllFilesTabPage.UseVisualStyleBackColor = false;
+            ExtractAllFilesTabPage.BackColor = tabBg;
+            ExtractSingleFileTabPage.UseVisualStyleBackColor = false;
+            ExtractSingleFileTabPage.BackColor = tabBg;
+
+            // Reset hardcoded white BackColors so dark mode visual styles apply.
+            TextBox[] whiteTextBoxes =
+            {
+                inmul, inidx, inhousingbin, outuopfolder, inuop, outfolder, inputfolder, outputfolder
+            };
+            foreach (var tb in whiteTextBoxes)
+            {
+                tb.BackColor = SystemColors.Window;
+            }
+
+            multype.BackColor = SystemColors.Window;
+            uoptype.BackColor = SystemColors.Window;
+            mulMapIndex.BackColor = SystemColors.Window;
+            uopMapIndex.BackColor = SystemColors.Window;
+            packAllGumpCompressionBox.BackColor = SystemColors.Window;
+            packAllHousingBin.BackColor = SystemColors.Window;
+            compressionBox.BackColor = SystemColors.Window;
+
+            statustext.ForeColor = Color.OrangeRed;
+        }
+
+        private void OnPackAllModeChanged(object sender, EventArgs e) => UpdatePackAllCompressionVisibility();
+
+        private void UpdatePackAllCompressionVisibility()
+        {
+            bool show = pack.Checked;
+            packAllGumpCompressionLabel.Visible = show;
+            packAllGumpCompressionBox.Visible = show;
+            packAllHousingBinLabel.Visible = show;
+            packAllHousingBin.Visible = show;
+            packAllHousingBinBtn.Visible = show;
+        }
+
+        /// <summary>
+        /// Names the batch tab uses for the multi pair. They deliberately match the single file tab, so a
+        /// MultiCollection.uop extracted in one mode can be repacked by the other.
+        /// </summary>
+        private const string _batchMultiMulName = "multi.mul";
+
+        private const string _batchMultiIdxName = "multi.idx";
+
+        private void OnMulTypeChanged(object sender, EventArgs e) => RefreshMulTypeUi();
+
+        private void OnUopTypeChanged(object sender, EventArgs e) => RefreshUopTypeUi();
+
+        private void RefreshMulTypeUi()
+        {
+            if (multype == null || !Enum.TryParse(multype.SelectedValue?.ToString() ?? string.Empty, out FileType type))
+            {
+                return;
+            }
+
+            bool isMap = type == FileType.MapLegacyMul;
+            bool isMulti = type == FileType.MultiCollection;
+
+            inidx.Enabled = inidxbtn.Enabled = !isMap;
+            mulMapIndex.Enabled = isMap;
+
+            // What the shipped files use, and whether the type has any other valid choice, is recorded
+            // once in UopFileNames. Gumpart is the one type the client also accepts zlib and Mythic for,
+            // so its selection is left wherever the user put it rather than reset on every type change.
+            if (type != FileType.GumpartLegacyMul)
+            {
+                compressionBox.SelectedItem = UopFileNames.DefaultCompression(type).ToString();
+            }
+
+            compressionBox.Enabled = !UopFileNames.IsCompressionFixed(type);
+
+            inhousingbin.Visible = inhousingbinbtn.Visible = labelHousingBin.Visible = isMulti;
+
+            // Previously-picked paths belong to the old type; clear them so the user can't accidentally
+            // run a conversion against the wrong file.
+            inmul.Text = string.Empty;
+            inidx.Text = string.Empty;
+            inhousingbin.Text = string.Empty;
+
+            var (mulName, idxName, uopName) = UopFileNames.For(type, (int)mulMapIndex.Value);
+            inmul.PlaceholderText = mulName;
+            inidx.PlaceholderText = idxName ?? string.Empty;
+            inhousingbin.PlaceholderText = "housing.bin";
+
+            outputUopFileLabel.Text = string.IsNullOrEmpty(uopName) ? string.Empty : "Will create: " + uopName;
+        }
+
+        private void RefreshUopTypeUi()
+        {
+            if (uoptype == null || !Enum.TryParse(uoptype.SelectedValue?.ToString() ?? string.Empty, out FileType type))
+            {
+                return;
+            }
+
+            bool isMap = type == FileType.MapLegacyMul;
+            bool isMulti = type == FileType.MultiCollection;
+
+            uopMapIndex.Enabled = isMap;
+
+            inuop.Text = string.Empty;
+
+            var (mulName, idxName, uopName) = UopFileNames.For(type, (int)uopMapIndex.Value);
+            inuop.PlaceholderText = uopName;
+
+            // Preview what will be written under the output folder.
+            string preview = idxName != null ? $"{mulName}, {idxName}" : mulName;
+            if (isMulti)
+            {
+                preview += $", housing.bin, {Path.GetFileName(MultiComponentSidecar.GetDefaultPath(mulName))}";
+            }
+            outputFilesLabel.Text = "Will create: " + preview;
         }
 
         public UopPackerControl(string version) : this()
@@ -62,17 +211,15 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             }
         }
 
-        private void OutputUopSelect(object sender, EventArgs e)
+        private void OutputUopFolderSelect(object sender, EventArgs e)
         {
-            FileDialog.FilterIndex = 2;
-
-            if (FileDialog.ShowDialog() == DialogResult.OK)
+            if (FolderDialog.ShowDialog() == DialogResult.OK)
             {
-                outuop.Text = FileDialog.FileName;
+                outuopfolder.Text = FolderDialog.SelectedPath;
             }
         }
 
-        private void ToUop(object sender, EventArgs e)
+        private async void ToUop(object sender, EventArgs e)
         {
             var selectedFileType = multype?.SelectedValue?.ToString() ?? string.Empty;
             if (!Enum.TryParse(selectedFileType, out FileType fileType))
@@ -87,71 +234,156 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
                 return;
             }
 
-            if (inidx.Text.Length == 0)
+            if (!File.Exists(inmul.Text))
+            {
+                MessageBox.Show("The input mul does not exist");
+                return;
+            }
+
+            if (inidx.Text.Length == 0 && fileType != FileType.MapLegacyMul)
             {
                 MessageBox.Show("You must specify the input idx");
                 return;
             }
 
-            if (outuop.Text.Length == 0)
+            if (fileType != FileType.MapLegacyMul && !File.Exists(inidx.Text))
             {
-                MessageBox.Show("You must specify the output uop");
+                MessageBox.Show("The input idx does not exist");
                 return;
             }
 
-            if (!File.Exists(inmul.Text))
+            if (outuopfolder.Text.Length == 0)
             {
-                MessageBox.Show("The input mul does not exists");
+                MessageBox.Show("You must specify the output folder");
                 return;
             }
 
-            if (!File.Exists(inidx.Text))
+            if (!Directory.Exists(outuopfolder.Text))
             {
-                MessageBox.Show("The input idx does not exists");
+                MessageBox.Show("The output folder does not exist");
                 return;
             }
 
-            if (File.Exists(outuop.Text))
+            string housingBin = string.Empty;
+            if (fileType == FileType.MultiCollection)
             {
-                MessageBox.Show("Output file already exists");
-                return;
+                housingBin = inhousingbin.Text;
+                if (string.IsNullOrWhiteSpace(housingBin))
+                {
+                    MessageBox.Show("You must specify the input housing.bin. MultiCollection.uop is incomplete without it - extract it from the original UOP first.");
+                    return;
+                }
+
+                if (!File.Exists(housingBin))
+                {
+                    MessageBox.Show("The input housing.bin does not exist");
+                    return;
+                }
+
+                if (!ConfirmComponentSidecar(inmul.Text))
+                {
+                    return;
+                }
             }
 
+            var (_, _, uopName) = UopFileNames.For(fileType, (int)mulMapIndex.Value);
+            string outUopPath = Path.Combine(outuopfolder.Text, uopName);
+            string inIdxPath = fileType == FileType.MapLegacyMul ? null : inidx.Text;
+
+            if (File.Exists(outUopPath))
+            {
+                var prompt = MessageBox.Show(
+                    $"{uopName} already exists in the output folder and will be overwritten.\n\nProceed?",
+                    "Overwrite existing file",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (prompt != DialogResult.Yes)
+                {
+                    return;
+                }
+                // ToUop opens output with FileMode.Create, which overwrites.
+            }
+
+            CompressionFlag selectedCompressionMethod = CompressionFlag.None;
+            if (compressionBox.SelectedItem != null)
+            {
+                Enum.TryParse(compressionBox.SelectedItem.ToString(), out selectedCompressionMethod);
+            }
+
+            if (fileType == FileType.MultiCollection)
+            {
+                // Not negotiable: every entry of every shipped MultiCollection.uop is zlib compressed.
+                selectedCompressionMethod = CompressionFlag.Zlib;
+            }
+            else if (selectedCompressionMethod != CompressionFlag.None
+                     && (fileType == FileType.ArtLegacyMul || fileType == FileType.MapLegacyMul || fileType == FileType.SoundLegacyMul))
+            {
+                var prompt = MessageBox.Show(
+                    $"Every {fileType} entry in every shipped client is stored uncompressed.\n\n"
+                    + "A compressed map UOP cannot be read back by UOFiddler at all, and compressed art or "
+                    + "sound entries are outside anything the client has been observed to accept.\n\n"
+                    + "Use " + selectedCompressionMethod + " anyway?",
+                    "Unusual compression for this file type",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (prompt != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            bool succeeded = false;
+            string inMul = inmul.Text;
+            int mapIdx = (int)mulMapIndex.Value;
             try
             {
                 multouop.Text = "Converting...";
                 multouop.Enabled = false;
+                uoptomul.Enabled = false;
+                singleFileProgressBar.Value = 0;
+                singleFileProgressBar.Visible = true;
+                label10.Visible = true;
 
-                LegacyMulFileConverter.ToUop(inmul.Text, inidx.Text, outuop.Text, fileType, (int)mulMapIndex.Value);
+                var progress = new Progress<int>(p => singleFileProgressBar.Value = Math.Min(100, Math.Max(0, p)));
+
+                await Task.Run(() => LegacyMulFileConverter.ToUop(inMul, inIdxPath, outUopPath, fileType, mapIdx, selectedCompressionMethod, housingBin, progress));
+                succeeded = true;
             }
-            catch
+            catch (Exception ex)
             {
-                MessageBox.Show("An error occurred");
+                LogConverterError(ex, nameof(ToUop), inMul, outUopPath, fileType);
+                MessageBox.Show($"An error occurred.\r\n{ex.Message}");
             }
             finally
             {
                 multouop.Text = "Convert";
                 multouop.Enabled = true;
+                uoptomul.Enabled = true;
+                singleFileProgressBar.Visible = false;
+                label10.Visible = false;
+            }
+
+            if (succeeded)
+            {
+                FileSavedDialog.Show(FindForm(), outUopPath, "UOP file saved successfully.", "Conversion complete");
             }
         }
 
-        private void OutMulSelect(object sender, EventArgs e)
+        private void InputHousingBinSelect(object sender, EventArgs e)
         {
-            FileDialog.FilterIndex = 1;
+            FileDialog.FilterIndex = 4;
 
             if (FileDialog.ShowDialog() == DialogResult.OK)
             {
-                outmul.Text = FileDialog.FileName;
+                inhousingbin.Text = FileDialog.FileName;
             }
         }
 
-        private void OutputIdxSelect(object sender, EventArgs e)
+        private void OutFolderSelect(object sender, EventArgs e)
         {
-            FileDialog.FilterIndex = 3;
-
-            if (FileDialog.ShowDialog() == DialogResult.OK)
+            if (FolderDialog.ShowDialog() == DialogResult.OK)
             {
-                outidx.Text = FileDialog.FileName;
+                outfolder.Text = FolderDialog.SelectedPath;
             }
         }
 
@@ -165,24 +397,12 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             }
         }
 
-        private void ToMul(object sender, EventArgs e)
+        private async void ToMul(object sender, EventArgs e)
         {
             var selectedFileType = uoptype?.SelectedValue?.ToString() ?? string.Empty;
             if (!Enum.TryParse(selectedFileType, out FileType fileType))
             {
                 MessageBox.Show("You must specify input type");
-                return;
-            }
-
-            if (outmul.Text.Length == 0)
-            {
-                MessageBox.Show("You must specify the output mul");
-                return;
-            }
-
-            if (outidx.Text.Length == 0 && fileType != FileType.MapLegacyMul)
-            {
-                MessageBox.Show("You must specify the output idx");
                 return;
             }
 
@@ -194,37 +414,108 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
 
             if (!File.Exists(inuop.Text))
             {
-                MessageBox.Show("The input file does not exists");
+                MessageBox.Show("The input file does not exist");
                 return;
             }
 
-            if (File.Exists(outmul.Text))
+            if (outfolder.Text.Length == 0)
             {
-                MessageBox.Show("Output mul file already exists");
+                MessageBox.Show("You must specify the output folder");
                 return;
             }
 
-            if (File.Exists(outidx.Text) && fileType != FileType.MapLegacyMul)
+            if (!Directory.Exists(outfolder.Text))
             {
-                MessageBox.Show("Output index file already exists");
+                MessageBox.Show("The output folder does not exist");
                 return;
             }
 
+            int mapIdx = (int)uopMapIndex.Value;
+            var (mulName, idxName, _) = UopFileNames.For(fileType, mapIdx);
+
+            string outMulPath = Path.Combine(outfolder.Text, mulName);
+            string outIdxPath = idxName != null ? Path.Combine(outfolder.Text, idxName) : null;
+            string housingBinPath = fileType == FileType.MultiCollection
+                ? Path.Combine(outfolder.Text, "housing.bin")
+                : string.Empty;
+
+            var conflicts = new System.Collections.Generic.List<string>();
+            if (File.Exists(outMulPath))
+            {
+                conflicts.Add(mulName);
+            }
+
+            if (outIdxPath != null && File.Exists(outIdxPath))
+            {
+                conflicts.Add(idxName);
+            }
+
+            if (!string.IsNullOrEmpty(housingBinPath) && File.Exists(housingBinPath))
+            {
+                conflicts.Add("housing.bin");
+            }
+
+            if (conflicts.Count > 0)
+            {
+                var prompt = MessageBox.Show(
+                    $"These files already exist in the output folder and will be overwritten:\n\n  {string.Join("\n  ", conflicts)}\n\nProceed?",
+                    "Overwrite existing files",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (prompt != DialogResult.Yes)
+                {
+                    return;
+                }
+                // FromUop opens outputs with FileMode.Create, which overwrites.
+            }
+
+            bool succeeded = false;
+            string inUop = inuop.Text;
             try
             {
                 uoptomul.Text = "Converting...";
                 uoptomul.Enabled = false;
+                multouop.Enabled = false;
+                singleFileProgressBar.Value = 0;
+                singleFileProgressBar.Visible = true;
+                label10.Visible = true;
 
-                _conv.FromUop(inuop.Text, outmul.Text, outidx.Text, fileType, (int)uopMapIndex.Value);
+                var progress = new Progress<int>(p => singleFileProgressBar.Value = Math.Min(100, Math.Max(0, p)));
+
+                await Task.Run(() => _conv.FromUop(inUop, outMulPath, outIdxPath, fileType, mapIdx, housingBinPath, progress));
+                succeeded = true;
             }
-            catch
+            catch (Exception ex)
             {
-                MessageBox.Show("An error occurred");
+                LogConverterError(ex, nameof(ToMul), inUop, outMulPath, fileType);
+                MessageBox.Show($"An error occurred.\r\n{ex.Message}");
             }
             finally
             {
                 uoptomul.Text = "Convert";
                 uoptomul.Enabled = true;
+                multouop.Enabled = true;
+                singleFileProgressBar.Visible = false;
+                label10.Visible = false;
+            }
+
+            if (succeeded)
+            {
+                var written = new System.Collections.Generic.List<string> { Path.GetFileName(outMulPath) };
+                if (!string.IsNullOrEmpty(outIdxPath))
+                {
+                    written.Add(Path.GetFileName(outIdxPath));
+                }
+
+                if (!string.IsNullOrEmpty(housingBinPath))
+                {
+                    written.Add(Path.GetFileName(housingBinPath));
+                    written.Add(Path.GetFileName(MultiComponentSidecar.GetDefaultPath(outMulPath)));
+                }
+
+                FileSavedDialog.Show(FindForm(), outfolder.Text,
+                    $"Saved: {string.Join(", ", written)}",
+                    "Conversion complete");
             }
         }
 
@@ -233,98 +524,179 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
             if (FolderDialog.ShowDialog() == DialogResult.OK)
             {
                 inputfolder.Text = FolderDialog.SelectedPath;
+
+                if (string.IsNullOrWhiteSpace(packAllHousingBin.Text))
+                {
+                    string candidate = Path.Combine(FolderDialog.SelectedPath, "housing.bin");
+                    if (File.Exists(candidate))
+                    {
+                        packAllHousingBin.Text = candidate;
+                    }
+                }
+            }
+        }
+
+        private void SelectOutputFolder_Click(object sender, EventArgs e)
+        {
+            if (FolderDialog.ShowDialog() == DialogResult.OK)
+            {
+                outputfolder.Text = FolderDialog.SelectedPath;
+            }
+        }
+
+        private void PackAllHousingBinSelect(object sender, EventArgs e)
+        {
+            FileDialog.FilterIndex = 4;
+
+            if (FileDialog.ShowDialog() == DialogResult.OK)
+            {
+                packAllHousingBin.Text = FileDialog.FileName;
             }
         }
 
         private int _total;
         private int _success;
+        private int _skippedExists;
+        private int _missingInput;
 
-        private void Extract(string inFile, string outFile, string outIdx, FileType type, int typeIndex, string housingBinFile = "")
+        private void Extract(string inputBase, string outputBase, string inFile, string outFile, string outIdx, FileType type, int typeIndex, IProgress<int> progress, IProgress<string> status, string housingBinFile = "")
         {
             try
             {
-                statustext.Text = inFile;
-                Refresh();
-                inFile = FixPath(inFile);
+                status?.Report(inFile);
+                inFile = FixInputPath(inputBase, inFile);
 
                 if (!File.Exists(inFile))
                 {
-                    MessageBox.Show($"Input file {inFile} doesn't exist");
+                    ++_missingInput;
                     return;
                 }
 
-                outFile = FixPath(outFile);
+                outFile = FixOutputPath(inputBase, outputBase, outFile);
 
                 if (File.Exists(outFile))
                 {
-                    MessageBox.Show($"Output file {outFile} already exists");
+                    ++_skippedExists;
                     return;
                 }
 
                 if (!string.IsNullOrWhiteSpace(housingBinFile))
                 {
-                    housingBinFile = FixPath(housingBinFile);
+                    housingBinFile = FixOutputPath(inputBase, outputBase, housingBinFile);
                     if (File.Exists(housingBinFile))
                     {
-                        MessageBox.Show($"Output file {housingBinFile} already exists");
+                        ++_skippedExists;
                         return;
                     }
                 }
 
-                outIdx = FixPath(outIdx);
+                outIdx = FixOutputPath(inputBase, outputBase, outIdx);
                 ++_total;
 
-                _conv.FromUop(inFile, outFile, outIdx, type, typeIndex, housingBinFile);
+                _conv.FromUop(inFile, outFile, outIdx, type, typeIndex, housingBinFile, progress);
 
                 ++_success;
             }
             catch (Exception e)
             {
-                MessageBox.Show($"An error occurred while performing the action.\r\n{e.Message}");
+                LogConverterError(e, nameof(Extract), inFile, outFile, type);
             }
         }
 
-        private void Pack(string inFile, string inIdx, string outFile, FileType type, int typeIndex)
+        private void Pack(string inputBase, string outputBase, string inFile, string inIdx, string outFile, FileType type, int typeIndex, CompressionFlag compression, IProgress<int> progress, IProgress<string> status, string housingBinFile = "")
         {
             try
             {
-                statustext.Text = inFile;
-                Refresh();
-                inFile = FixPath(inFile);
+                status?.Report(inFile);
+                inFile = FixInputPath(inputBase, inFile);
 
                 if (!File.Exists(inFile))
                 {
-                    MessageBox.Show($"Input file {inFile} doesn't exist");
+                    ++_missingInput;
                     return;
                 }
 
-                outFile = FixPath(outFile);
+                outFile = FixOutputPath(inputBase, outputBase, outFile);
 
                 if (File.Exists(outFile))
                 {
-                    MessageBox.Show($"Output file {outFile} already exists");
+                    ++_skippedExists;
                     return;
                 }
 
-                inIdx = FixPath(inIdx);
+                inIdx = FixInputPath(inputBase, inIdx);
+
+                if (!string.IsNullOrWhiteSpace(housingBinFile))
+                {
+                    housingBinFile = FixInputPath(inputBase, housingBinFile);
+                }
+
                 ++_total;
 
-                LegacyMulFileConverter.ToUop(inFile, inIdx, outFile, type, typeIndex);
+                LegacyMulFileConverter.ToUop(inFile, inIdx, outFile, type, typeIndex, compression, housingBinFile ?? string.Empty, progress);
 
                 ++_success;
             }
             catch (Exception e)
             {
-                MessageBox.Show($"An error occurred while performing the action.\r\n{e.Message}");
+                LogConverterError(e, nameof(Pack), inFile, outFile, type);
             }
         }
 
-        private string FixPath(string file)
+        /// <summary>
+        /// multi.mul has nowhere to store a tile's component ids, so UOFiddler keeps them in a text
+        /// sidecar next to the mul. Packing without it succeeds but gives every tile zero components -
+        /// boats lose their tiller man, hatch and planks, houses lose their doors. Ask first.
+        /// </summary>
+        private static bool ConfirmComponentSidecar(string mulPath)
         {
-            return (file == null) ? null : Path.Combine(inputfolder.Text, file);
+            MultiComponentSidecar.Status status = MultiComponentSidecar.Probe(mulPath);
+
+            if (!status.IsEmpty)
+            {
+                return true;
+            }
+
+            string detail = status.Exists
+                ? $"The component sidecar\n\n{status.Path}\n\nexists but contains no component ids."
+                : $"No component sidecar was found at\n\n{status.Path}";
+
+            var prompt = MessageBox.Show(
+                detail
+                + "\n\nEvery tile will be packed with zero components. Boats will lose their tiller man, "
+                + "hatch and planks, and customisable houses will lose their doors.\n\n"
+                + "Extract the original MultiCollection.uop first to produce the sidecar.\n\nPack anyway?",
+                "Multi component ids will be dropped",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            return prompt == DialogResult.Yes;
         }
 
-        private void StartFolderButtonClick(object sender, EventArgs e)
+        private static void LogConverterError(Exception ex, string operation, string input, string output, FileType type)
+        {
+            ILogger logger = AppLog.For(typeof(UopPackerControl));
+
+            logger.LogError(ex, "UopPacker {Operation} failed (type={FileType}, input={Input}, output={Output})",
+                operation, type, input, output);
+        }
+
+        private static string FixInputPath(string inputBase, string file)
+        {
+            return (file == null) ? null : Path.Combine(inputBase, file);
+        }
+
+        private static string FixOutputPath(string inputBase, string outputBase, string file)
+        {
+            if (file == null)
+            {
+                return null;
+            }
+            string baseFolder = string.IsNullOrWhiteSpace(outputBase) ? inputBase : outputBase;
+            return Path.Combine(baseFolder, file);
+        }
+
+        private async void StartFolderButtonClick(object sender, EventArgs e)
         {
             if (inputfolder.Text.Length == 0)
             {
@@ -332,46 +704,197 @@ namespace UoFiddler.Plugin.UopPacker.UserControls
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(outputfolder.Text) && !Directory.Exists(outputfolder.Text))
+            {
+                var create = MessageBox.Show(
+                    $"The output folder does not exist:\r\n{outputfolder.Text}\r\n\r\nCreate it?",
+                    "Output folder",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+                if (create != DialogResult.Yes)
+                {
+                    return;
+                }
+                try
+                {
+                    Directory.CreateDirectory(outputfolder.Text);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not create output folder.\r\n{ex.Message}");
+                    return;
+                }
+            }
+
+            string inputBase = inputfolder.Text;
+            string outputBase = outputfolder.Text;
+
             if (extract.Checked)
             {
-                _success = _total = 0;
-
-                Extract("artLegacyMUL.uop", "art.mul", "artidx.mul", FileType.ArtLegacyMul, 0);
-                Extract("gumpartLegacyMUL.uop", "gumpart.mul", "gumpidx.mul", FileType.GumpartLegacyMul, 0);
-                Extract("soundLegacyMUL.uop", "sound.mul", "soundidx.mul", FileType.SoundLegacyMul, 0);
-                Extract("MultiCollection.uop", "multi-unpacked.mul", "multi-unpacked.idx", FileType.MultiCollection, 0, "housing.bin");
-
-                for (int i = 0; i <= 5; ++i)
-                {
-                    string map = $"map{i}";
-
-                    Extract(map + "LegacyMUL.uop", map + ".mul", null, FileType.MapLegacyMul, i);
-                    Extract(map + "xLegacyMUL.uop", map + "x.mul", null, FileType.MapLegacyMul, i);
-                }
-
-                statustext.Text = $"Done ({_success}/{_total} files extracted)";
+                await RunExtractAllAsync(inputBase, outputBase);
             }
             else if (pack.Checked)
             {
-                _success = _total = 0;
-
-                Pack("art.mul", "artidx.mul", "artLegacyMUL.uop", FileType.ArtLegacyMul, 0);
-                Pack("gumpart.mul", "gumpidx.mul", "gumpartLegacyMUL.uop", FileType.GumpartLegacyMul, 0);
-                Pack("sound.mul", "soundidx.mul", "soundLegacyMUL.uop", FileType.SoundLegacyMul, 0);
-
-                for (int i = 0; i <= 5; ++i)
+                CompressionFlag gumpCompression = CompressionFlag.None;
+                if (packAllGumpCompressionBox.SelectedItem != null)
                 {
-                    string map = $"map{i}";
-
-                    Pack(map + ".mul", null, map + "LegacyMUL.uop", FileType.MapLegacyMul, i);
-                    Pack(map + "x.mul", null, map + "xLegacyMUL.uop", FileType.MapLegacyMul, i);
+                    Enum.TryParse(packAllGumpCompressionBox.SelectedItem.ToString(), out gumpCompression);
                 }
 
-                statustext.Text = $"Done ({_success}/{_total} files packed)";
+                string housingBinPath = string.IsNullOrWhiteSpace(packAllHousingBin.Text)
+                    ? "housing.bin"
+                    : packAllHousingBin.Text;
+
+                if (!string.IsNullOrWhiteSpace(packAllHousingBin.Text))
+                {
+                    string resolved = Path.IsPathRooted(housingBinPath)
+                        ? housingBinPath
+                        : Path.Combine(inputBase, housingBinPath);
+                    if (!File.Exists(resolved))
+                    {
+                        MessageBox.Show($"The specified housing.bin does not exist:\r\n{resolved}");
+                        return;
+                    }
+                }
+
+                string batchMultiMul = Path.Combine(inputBase, _batchMultiMulName);
+                if (File.Exists(batchMultiMul) && !ConfirmComponentSidecar(batchMultiMul))
+                {
+                    return;
+                }
+
+                await RunPackAllAsync(inputBase, outputBase, gumpCompression, housingBinPath);
             }
             else
             {
                 MessageBox.Show("You must select an option");
+            }
+        }
+
+        private async Task RunExtractAllAsync(string inputBase, string outputBase)
+        {
+            _success = _total = _skippedExists = _missingInput = 0;
+
+            var (overallProgress, statusProgress) = BeginBatchUi();
+            try
+            {
+                const int totalFiles = 4 + 6 * 2;
+                int fileIndex = 0;
+
+                IProgress<int> Per() => new ScaledProgress(overallProgress, fileIndex, totalFiles);
+
+                await Task.Run(() =>
+                {
+                    Extract(inputBase, outputBase, "artLegacyMUL.uop", "art.mul", "artidx.mul", FileType.ArtLegacyMul, 0, Per(), statusProgress); ++fileIndex;
+                    Extract(inputBase, outputBase, "gumpartLegacyMUL.uop", "gumpart.mul", "gumpidx.mul", FileType.GumpartLegacyMul, 0, Per(), statusProgress); ++fileIndex;
+                    Extract(inputBase, outputBase, "soundLegacyMUL.uop", "sound.mul", "soundidx.mul", FileType.SoundLegacyMul, 0, Per(), statusProgress); ++fileIndex;
+                    Extract(inputBase, outputBase, "MultiCollection.uop", _batchMultiMulName, _batchMultiIdxName, FileType.MultiCollection, 0, Per(), statusProgress, "housing.bin"); ++fileIndex;
+
+                    for (int i = 0; i <= 5; ++i)
+                    {
+                        string map = $"map{i}";
+                        Extract(inputBase, outputBase, map + "LegacyMUL.uop", map + ".mul", null, FileType.MapLegacyMul, i, Per(), statusProgress); ++fileIndex;
+                        Extract(inputBase, outputBase, map + "xLegacyMUL.uop", map + "x.mul", null, FileType.MapLegacyMul, i, Per(), statusProgress); ++fileIndex;
+                    }
+                });
+
+                string extractMessage = BuildBatchSummary("extracted");
+                statustext.Text = extractMessage;
+                string writtenTo = string.IsNullOrWhiteSpace(outputBase) ? inputBase : outputBase;
+                FileSavedDialog.Show(FindForm(), writtenTo, extractMessage, "Extraction complete");
+            }
+            finally
+            {
+                EndBatchUi();
+            }
+        }
+
+        private async Task RunPackAllAsync(string inputBase, string outputBase, CompressionFlag gumpCompression, string housingBinPath)
+        {
+            _success = _total = _skippedExists = _missingInput = 0;
+
+            var (overallProgress, statusProgress) = BeginBatchUi();
+            try
+            {
+                int totalFiles = 4 + 6 * 2;
+                int fileIndex = 0;
+
+                IProgress<int> Per() => new ScaledProgress(overallProgress, fileIndex, totalFiles);
+
+                await Task.Run(() =>
+                {
+                    Pack(inputBase, outputBase, "art.mul", "artidx.mul", "artLegacyMUL.uop", FileType.ArtLegacyMul, 0, CompressionFlag.None, Per(), statusProgress); ++fileIndex;
+                    Pack(inputBase, outputBase, "gumpart.mul", "gumpidx.mul", "gumpartLegacyMUL.uop", FileType.GumpartLegacyMul, 0, gumpCompression, Per(), statusProgress); ++fileIndex;
+                    Pack(inputBase, outputBase, "sound.mul", "soundidx.mul", "soundLegacyMUL.uop", FileType.SoundLegacyMul, 0, CompressionFlag.None, Per(), statusProgress); ++fileIndex;
+                    Pack(inputBase, outputBase, _batchMultiMulName, _batchMultiIdxName, "MultiCollection.uop", FileType.MultiCollection, 0, CompressionFlag.Zlib, Per(), statusProgress, housingBinPath); ++fileIndex;
+
+                    for (int i = 0; i <= 5; ++i)
+                    {
+                        string map = $"map{i}";
+                        Pack(inputBase, outputBase, map + ".mul", null, map + "LegacyMUL.uop", FileType.MapLegacyMul, i, CompressionFlag.None, Per(), statusProgress); ++fileIndex;
+                        Pack(inputBase, outputBase, map + "x.mul", null, map + "xLegacyMUL.uop", FileType.MapLegacyMul, i, CompressionFlag.None, Per(), statusProgress); ++fileIndex;
+                    }
+                });
+
+                string packMessage = BuildBatchSummary("packed");
+                statustext.Text = packMessage;
+                string writtenTo = string.IsNullOrWhiteSpace(outputBase) ? inputBase : outputBase;
+                FileSavedDialog.Show(FindForm(), writtenTo, packMessage, "Pack complete");
+            }
+            finally
+            {
+                EndBatchUi();
+            }
+        }
+
+        private string BuildBatchSummary(string verb)
+        {
+            var parts = new System.Collections.Generic.List<string> { $"{_success}/{_total} files {verb}" };
+            if (_skippedExists > 0)
+            {
+                parts.Add($"{_skippedExists} skipped (output exists)");
+            }
+            if (_missingInput > 0)
+            {
+                parts.Add($"{_missingInput} missing input");
+            }
+            return $"Done ({string.Join(", ", parts)})";
+        }
+
+        private (IProgress<int> overall, IProgress<string> status) BeginBatchUi()
+        {
+            StartFolderButton.Enabled = false;
+            everyFileProgressBar.Value = 0;
+            everyFileProgressBar.Visible = true;
+
+            var overall = new Progress<int>(p => everyFileProgressBar.Value = Math.Min(100, Math.Max(0, p)));
+            var status = new Progress<string>(s => statustext.Text = s);
+            return (overall, status);
+        }
+
+        private void EndBatchUi()
+        {
+            everyFileProgressBar.Visible = false;
+            StartFolderButton.Enabled = true;
+        }
+
+        private sealed class ScaledProgress : IProgress<int>
+        {
+            private readonly IProgress<int> _outer;
+            private readonly int _fileIndex;
+            private readonly int _totalFiles;
+
+            public ScaledProgress(IProgress<int> outer, int fileIndex, int totalFiles)
+            {
+                _outer = outer;
+                _fileIndex = fileIndex;
+                _totalFiles = totalFiles;
+            }
+
+            public void Report(int innerPct)
+            {
+                int overall = (_fileIndex * 100 + innerPct) / _totalFiles;
+                _outer.Report(overall);
             }
         }
     }

@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<AssemblyName>MultiEditor</AssemblyName>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net10.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AssemblyTitle>MultiEditor</AssemblyTitle>
 		<Product>MultiEditor</Product>
-		<Copyright>Copyright © 2024</Copyright>
+		<Copyright>Copyright © 2026</Copyright>
 		<AssemblyVersion>1.5.0.0</AssemblyVersion>
 		<FileVersion>1.5.0.0</FileVersion>
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
@@ -25,6 +25,12 @@
 		<GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
 	</PropertyGroup>
 	<ItemGroup>
+		<Compile Update="Forms\ShortcutsHelpForm.cs">
+			<SubType>Form</SubType>
+		</Compile>
+		<Compile Update="Forms\ShortcutsHelpForm.Designer.cs">
+			<DependentUpon>ShortcutsHelpForm.cs</DependentUpon>
+		</Compile>
 		<Compile Update="UserControls\MultiEditorControl.cs">
 			<SubType>UserControl</SubType>
 		</Compile>
@@ -48,6 +54,9 @@
 		</ProjectReference>
 	</ItemGroup>
 	<ItemGroup>
+		<EmbeddedResource Update="Forms\ShortcutsHelpForm.resx">
+			<DependentUpon>ShortcutsHelpForm.cs</DependentUpon>
+		</EmbeddedResource>
 		<EmbeddedResource Update="UserControls\MultiEditorControl.resx">
 			<DependentUpon>MultiEditorControl.cs</DependentUpon>
 		</EmbeddedResource>
@@ -60,9 +69,5 @@
 		<Content Include="multieditor.xml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-	</ItemGroup>
-	<ItemGroup>
-	  <PackageReference Include="System.Drawing.Common" Version="8.0.8" />
-	  <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
 	</ItemGroup>
 </Project>

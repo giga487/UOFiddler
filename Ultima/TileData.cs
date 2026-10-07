@@ -1,5 +1,7 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Ultima.Helpers;
@@ -245,6 +247,13 @@ namespace Ultima
 
             // Read new flags if file format support them
             if (!Art.IsUOAHS())
+            {
+                return;
+            }
+
+            // CSV may have been exported from an older client version that did not include extended HSA flags.
+            // Any missing flags default to 0, which is already set above.
+            if (i >= split.Length)
             {
                 return;
             }
@@ -820,6 +829,13 @@ namespace Ultima
                 return;
             }
 
+            // CSV may have been exported from an older client version that did not include extended HSA flags.
+            // Any missing flags default to 0, which is already set above.
+            if (i >= split.Length)
+            {
+                return;
+            }
+
             temp = Convert.ToByte(split[i++]);
             if (temp != 0)
             {
@@ -1317,73 +1333,62 @@ namespace Ultima
                 LandTable = new LandData[0x4000];
 
                 var buffer = new byte[fs.Length];
-                GCHandle gc = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-                long currentPos = 0;
-                try
+                fs.ReadExactly(buffer, 0, buffer.Length);
+                int currentPos = 0;
+
+                int landStructSize = useNeWTileDataFormat ? sizeof(NewLandTileDataMul) : sizeof(OldLandTileDataMul);
+
+                for (int i = 0; i < 0x4000; i += 32)
                 {
-                    fs.Read(buffer, 0, buffer.Length);
-                    for (int i = 0; i < 0x4000; i += 32)
+                    _landHeader[j++] = BinaryPrimitives.ReadInt32LittleEndian(buffer.AsSpan(currentPos));
+                    currentPos += 4;
+                    for (int count = 0; count < 32; ++count)
                     {
-                        var ptrHeader = new IntPtr(gc.AddrOfPinnedObject() + currentPos);
-                        currentPos += 4;
-                        _landHeader[j++] = (int)Marshal.PtrToStructure(ptrHeader, typeof(int));
-                        for (int count = 0; count < 32; ++count)
+                        if (useNeWTileDataFormat)
                         {
-                            var ptr = new IntPtr(gc.AddrOfPinnedObject() + currentPos);
-                            if (useNeWTileDataFormat)
-                            {
-                                currentPos += sizeof(NewLandTileDataMul);
-                                var cur = (NewLandTileDataMul)Marshal.PtrToStructure(ptr, typeof(NewLandTileDataMul));
-                                LandTable[i + count] = new LandData(cur);
-                            }
-                            else
-                            {
-                                currentPos += sizeof(OldLandTileDataMul);
-                                var cur = (OldLandTileDataMul)Marshal.PtrToStructure(ptr, typeof(OldLandTileDataMul));
-                                LandTable[i + count] = new LandData(cur);
-                            }
+                            var cur = Unsafe.ReadUnaligned<NewLandTileDataMul>(ref buffer[currentPos]);
+                            LandTable[i + count] = new LandData(cur);
                         }
-                    }
-
-                    long remaining = buffer.Length - currentPos;
-
-                    int structSize = useNeWTileDataFormat ? sizeof(NewItemTileDataMul) : sizeof(OldItemTileDataMul);
-
-                    _itemHeader = new int[remaining / ((structSize * 32) + 4)];
-                    int itemLength = _itemHeader.Length * 32;
-
-                    ItemTable = new ItemData[itemLength];
-                    HeightTable = new int[itemLength];
-
-                    j = 0;
-                    for (int i = 0; i < itemLength; i += 32)
-                    {
-                        var ptrHeader = new IntPtr(gc.AddrOfPinnedObject() + currentPos);
-                        currentPos += 4;
-                        _itemHeader[j++] = (int)Marshal.PtrToStructure(ptrHeader, typeof(int));
-                        for (int count = 0; count < 32; ++count)
+                        else
                         {
-                            var ptr = new IntPtr(gc.AddrOfPinnedObject() + currentPos);
-                            if (useNeWTileDataFormat)
-                            {
-                                currentPos += sizeof(NewItemTileDataMul);
-                                var cur = (NewItemTileDataMul)Marshal.PtrToStructure(ptr, typeof(NewItemTileDataMul));
-                                ItemTable[i + count] = new ItemData(cur);
-                                HeightTable[i + count] = cur.height;
-                            }
-                            else
-                            {
-                                currentPos += sizeof(OldItemTileDataMul);
-                                var cur = (OldItemTileDataMul)Marshal.PtrToStructure(ptr, typeof(OldItemTileDataMul));
-                                ItemTable[i + count] = new ItemData(cur);
-                                HeightTable[i + count] = cur.height;
-                            }
+                            var cur = Unsafe.ReadUnaligned<OldLandTileDataMul>(ref buffer[currentPos]);
+                            LandTable[i + count] = new LandData(cur);
                         }
+                        currentPos += landStructSize;
                     }
                 }
-                finally
+
+                long remaining = buffer.Length - currentPos;
+
+                int structSize = useNeWTileDataFormat ? sizeof(NewItemTileDataMul) : sizeof(OldItemTileDataMul);
+
+                _itemHeader = new int[remaining / ((structSize * 32) + 4)];
+                int itemLength = _itemHeader.Length * 32;
+
+                ItemTable = new ItemData[itemLength];
+                HeightTable = new int[itemLength];
+
+                j = 0;
+                for (int i = 0; i < itemLength; i += 32)
                 {
-                    gc.Free();
+                    _itemHeader[j++] = BinaryPrimitives.ReadInt32LittleEndian(buffer.AsSpan(currentPos));
+                    currentPos += 4;
+                    for (int count = 0; count < 32; ++count)
+                    {
+                        if (useNeWTileDataFormat)
+                        {
+                            var cur = Unsafe.ReadUnaligned<NewItemTileDataMul>(ref buffer[currentPos]);
+                            ItemTable[i + count] = new ItemData(cur);
+                            HeightTable[i + count] = cur.height;
+                        }
+                        else
+                        {
+                            var cur = Unsafe.ReadUnaligned<OldItemTileDataMul>(ref buffer[currentPos]);
+                            ItemTable[i + count] = new ItemData(cur);
+                            HeightTable[i + count] = cur.height;
+                        }
+                        currentPos += structSize;
+                    }
                 }
             }
         }
@@ -1590,21 +1595,25 @@ namespace Ultima
                         continue;
                     }
 
+                    string[] split = line.Split(';');
+                    if (split.Length < 44)
+                    {
+                        continue;
+                    }
+
+                    int id = TileDataHelpers.ConvertStringToInt(split[0]);
+                    if (id < 0 || id >= ItemTable.Length)
+                    {
+                        continue;
+                    }
+
                     try
                     {
-                        string[] split = line.Split(';');
-                        if (split.Length < 44)
-                        {
-                            continue;
-                        }
-
-                        int id = TileDataHelpers.ConvertStringToInt(split[0]);
                         ItemTable[id].ReadData(split);
                     }
                     catch
                     {
-                        // TODO: ignored?
-                        // ignored
+                        // Malformed CSV field value — skip
                     }
                 }
             }
@@ -1633,21 +1642,25 @@ namespace Ultima
                         continue;
                     }
 
+                    string[] split = line.Split(';');
+                    if (split.Length < 35)
+                    {
+                        continue;
+                    }
+
+                    int id = TileDataHelpers.ConvertStringToInt(split[0]);
+                    if (id < 0 || id >= LandTable.Length)
+                    {
+                        continue;
+                    }
+
                     try
                     {
-                        string[] split = line.Split(';');
-                        if (split.Length < 35)
-                        {
-                            continue;
-                        }
-
-                        int id = TileDataHelpers.ConvertStringToInt(split[0]);
                         LandTable[id].ReadData(split);
                     }
                     catch
                     {
-                        // TODO: ignored?
-                        // ignored
+                        // Malformed CSV field value — skip
                     }
                 }
             }

@@ -12,12 +12,14 @@ namespace Ultima
         private static FileIndex _fileIndex3 = new FileIndex("Anim3.idx", "Anim3.mul", -1);
         private static FileIndex _fileIndex4 = new FileIndex("Anim4.idx", "Anim4.mul", -1);
         private static FileIndex _fileIndex5 = new FileIndex("Anim5.idx", "Anim5.mul", -1);
+        private static FileIndex _fileIndex6 = new FileIndex("Anim6.idx", "Anim6.mul", -1);
 
         private static AnimIdx[] _animCache;
         private static AnimIdx[] _animCache2;
         private static AnimIdx[] _animCache3;
         private static AnimIdx[] _animCache4;
         private static AnimIdx[] _animCache5;
+        private static AnimIdx[] _animCache6;
 
         static AnimationEdit()
         {
@@ -50,6 +52,11 @@ namespace Ultima
             {
                 _animCache5 = new AnimIdx[_fileIndex5.IdxLength / 12];
             }
+
+            if (_fileIndex6.IdxLength > 0)
+            {
+                _animCache6 = new AnimIdx[_fileIndex6.IdxLength / 12];
+            }
         }
 
         /// <summary>
@@ -62,6 +69,7 @@ namespace Ultima
             _fileIndex3 = new FileIndex("Anim3.idx", "Anim3.mul", -1);
             _fileIndex4 = new FileIndex("Anim4.idx", "Anim4.mul", -1);
             _fileIndex5 = new FileIndex("Anim5.idx", "Anim5.mul", -1);
+            _fileIndex6 = new FileIndex("Anim6.idx", "Anim6.mul", -1);
 
             InitializeCache();
         }
@@ -148,6 +156,22 @@ namespace Ultima
                     }
 
                     break;
+                case 6:
+                    fileIndex = _fileIndex6;
+                    if (body < 200)
+                    {
+                        index = body * 110;
+                    }
+                    else if (body < 400)
+                    {
+                        index = 22000 + ((body - 200) * 65);
+                    }
+                    else
+                    {
+                        index = 35000 + ((body - 400) * 175);
+                    }
+
+                    break;
             }
 
             index += action * 5;
@@ -176,6 +200,8 @@ namespace Ultima
                     return _animCache4;
                 case 5:
                     return _animCache5;
+                case 6:
+                    return _animCache6;
                 default:
                     return _animCache;
             }
@@ -197,6 +223,16 @@ namespace Ultima
 
         public static bool IsActionDefined(int fileType, int body, int action)
         {
+            // Reject actions beyond the body's physical idx block before computing
+            // the index; otherwise index = base + action*5 crosses into the next
+            // body's records. Replaces a prior off-by-one GetAnimLength check
+            // (animCount < action) that both missed the boundary and used the
+            // now-clamped category count.
+            if (action < 0 || action >= Animations.GetActionCapacity(body, fileType))
+            {
+                return false;
+            }
+
             AnimIdx[] cache = GetCache(fileType);
 
             GetFileIndex(body, fileType, action, 0, out FileIndex fileIndex, out int index);
@@ -204,12 +240,6 @@ namespace Ultima
             if (cache?[index] != null)
             {
                 return cache[index].Frames?.Count > 0;
-            }
-
-            int animCount = Animations.GetAnimLength(body, fileType);
-            if (animCount < action)
-            {
-                return false;
             }
 
             bool valid = fileIndex.Valid(index, out int length, out int _, out bool _);
@@ -316,6 +346,11 @@ namespace Ultima
                     cache = _animCache5;
                     fileIndex = _fileIndex5;
                     break;
+                case 6:
+                    filename = "anim6";
+                    cache = _animCache6;
+                    fileIndex = _fileIndex6;
+                    break;
             }
 
             string idx = Path.Combine(path, filename + ".idx");
@@ -355,6 +390,8 @@ namespace Ultima
 
     public sealed class AnimIdx
     {
+        public readonly int PaletteCapacity = 0x100;
+
         private readonly int _idxExtra;
 
         public ushort[] Palette { get; private set; }
@@ -362,7 +399,8 @@ namespace Ultima
 
         public AnimIdx(int index, FileIndex fileIndex)
         {
-            Palette = new ushort[0x100];
+            Palette = new ushort[PaletteCapacity];
+
             Stream stream = fileIndex.Seek(index, out int length, out int extra, out bool _);
             if ((stream == null) || (length < 1))
             {
@@ -370,9 +408,13 @@ namespace Ultima
             }
 
             _idxExtra = extra;
-            using (var bin = new BinaryReader(stream))
+
+            // leaveOpen: stream is owned by the shared FileIndex; disposing the
+            // BinaryReader must not close it, or the next FileIndex.Seek pays a
+            // full re-open.
+            using (var bin = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true))
             {
-                for (int i = 0; i < 0x100; ++i)
+                for (int i = 0; i < PaletteCapacity; ++i)
                 {
                     Palette[i] = (ushort)(bin.ReadUInt16() ^ 0x8000);
                 }
@@ -395,15 +437,14 @@ namespace Ultima
                     Frames.Add(new FrameEdit(bin));
                 }
             }
-            stream.Close();
         }
 
         public AnimIdx(BinaryReader bin, int extra)
         {
-            Palette = new ushort[0x100];
             _idxExtra = extra;
 
-            for (int i = 0; i < 0x100; ++i)
+            Palette = new ushort[PaletteCapacity];
+            for (int i = 0; i < PaletteCapacity; ++i)
             {
                 Palette[i] = (ushort)(bin.ReadUInt16() ^ 0x8000);
             }
@@ -529,7 +570,7 @@ namespace Ultima
                 case 0:
                     using (var tex = new StreamWriter(new FileStream(filename, FileMode.Create, FileAccess.ReadWrite)))
                     {
-                        for (int i = 0; i < 0x100; ++i)
+                        for (int i = 0; i < PaletteCapacity; ++i)
                         {
                             tex.WriteLine(Palette[i]);
                         }
@@ -546,17 +587,17 @@ namespace Ultima
 
         private unsafe void SavePaletteImage(string filename, ImageFormat imageFormat)
         {
-            using (var bmp = new Bitmap(0x100, 20, PixelFormat.Format16bppArgb1555))
+            using (var bmp = new Bitmap(PaletteCapacity, 20, PixelFormat.Format16bppArgb1555))
             {
                 BitmapData bd = bmp.LockBits(
-                    new Rectangle(0, 0, 0x100, 20), ImageLockMode.WriteOnly, PixelFormat.Format16bppArgb1555);
+                    new Rectangle(0, 0, PaletteCapacity, 20), ImageLockMode.WriteOnly, PixelFormat.Format16bppArgb1555);
                 var line = (ushort*) bd.Scan0;
                 int delta = bd.Stride >> 1;
 
                 for (int y = 0; y < bd.Height; ++y, line += delta)
                 {
                     ushort* cur = line;
-                    for (int i = 0; i < 0x100; ++i)
+                    for (int i = 0; i < PaletteCapacity; ++i)
                     {
                         *cur++ = Palette[i];
                     }
@@ -582,20 +623,24 @@ namespace Ultima
                 idx.Write(-1);
                 idx.Write(-1);
                 idx.Write(-1);
+
                 return;
             }
+
             long start = bin.BaseStream.Position;
             idx.Write((int)start);
 
-            for (int i = 0; i < 0x100; ++i)
+            for (int i = 0; i < PaletteCapacity; ++i)
             {
                 bin.Write((ushort)(Palette[i] ^ 0x8000));
             }
 
             long startPosition = bin.BaseStream.Position;
             bin.Write(Frames.Count);
+
             long seek = bin.BaseStream.Position;
             long curr = bin.BaseStream.Position + (4 * Frames.Count);
+
             foreach (FrameEdit frame in Frames)
             {
                 bin.BaseStream.Seek(seek, SeekOrigin.Begin);
@@ -622,11 +667,12 @@ namespace Ultima
                 indexpos = bin.BaseStream.Position;
                 return;
             }
+
             bin.Write((int)animpos);
             indexpos = bin.BaseStream.Position;
             bin.BaseStream.Seek(animpos, SeekOrigin.Begin);
 
-            for (int i = 0; i < 0x100; ++i)
+            for (int i = 0; i < PaletteCapacity; ++i)
             {
                 bin.Write((ushort)(Palette[i] ^ 0x8000));
             }

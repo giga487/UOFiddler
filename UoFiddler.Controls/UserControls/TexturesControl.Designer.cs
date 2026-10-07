@@ -49,8 +49,12 @@ namespace UoFiddler.Controls.UserControls
             asTiffToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             asJpgToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             asPngToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            selectInLandTilesTabToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             replaceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            copyImageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            pasteImageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            clipboardToolStripSeparator = new System.Windows.Forms.ToolStripSeparator();
             replaceStartingFromToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ReplaceStartingFromTb = new System.Windows.Forms.ToolStripTextBox();
             insertAtToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -59,8 +63,8 @@ namespace UoFiddler.Controls.UserControls
             toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             topMenuToolStrip = new System.Windows.Forms.ToolStrip();
-            toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             SaveButton = new System.Windows.Forms.ToolStripButton();
+            toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             IndexToolStripLabel = new System.Windows.Forms.ToolStripLabel();
             searchByIdToolStripTextBox = new System.Windows.Forms.ToolStripTextBox();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -71,9 +75,10 @@ namespace UoFiddler.Controls.UserControls
             ExportAllAsJpeg = new System.Windows.Forms.ToolStripMenuItem();
             ExportAllAsPng = new System.Windows.Forms.ToolStripMenuItem();
             panel = new System.Windows.Forms.Panel();
-            TextureTileView = new TileView.TileViewControl();
+            TextureTileView = new UoFiddler.Controls.UserControls.TileView.TileViewControl();
             statusStrip = new System.Windows.Forms.StatusStrip();
             GraphicLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            toolStripSeparator6 = new System.Windows.Forms.ToolStripSeparator();
             contextMenuStrip.SuspendLayout();
             topMenuToolStrip.SuspendLayout();
             panel.SuspendLayout();
@@ -82,9 +87,10 @@ namespace UoFiddler.Controls.UserControls
             // 
             // contextMenuStrip
             // 
-            contextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { showFreeSlotsToolStripMenuItem, findNextFreeSlotToolStripMenuItem, toolStripSeparator5, exportImageToolStripMenuItem, toolStripSeparator2, replaceToolStripMenuItem, replaceStartingFromToolStripMenuItem, insertAtToolStripMenuItem, removeToolStripMenuItem, toolStripSeparator3, saveToolStripMenuItem });
+            contextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { showFreeSlotsToolStripMenuItem, findNextFreeSlotToolStripMenuItem, toolStripSeparator5, exportImageToolStripMenuItem, toolStripSeparator6, selectInLandTilesTabToolStripMenuItem, toolStripSeparator2, copyImageToolStripMenuItem, pasteImageToolStripMenuItem, clipboardToolStripSeparator, replaceToolStripMenuItem, replaceStartingFromToolStripMenuItem, insertAtToolStripMenuItem, removeToolStripMenuItem, toolStripSeparator3, saveToolStripMenuItem });
             contextMenuStrip.Name = "contextMenuStrip1";
-            contextMenuStrip.Size = new System.Drawing.Size(194, 198);
+            contextMenuStrip.Size = new System.Drawing.Size(194, 248);
+            contextMenuStrip.Opening += contextMenuStrip_Opening;
             // 
             // showFreeSlotsToolStripMenuItem
             // 
@@ -141,10 +147,38 @@ namespace UoFiddler.Controls.UserControls
             asPngToolStripMenuItem.Text = "As Png";
             asPngToolStripMenuItem.Click += OnClickExportPng;
             // 
+            // selectInLandTilesTabToolStripMenuItem
+            // 
+            selectInLandTilesTabToolStripMenuItem.Name = "selectInLandTilesTabToolStripMenuItem";
+            selectInLandTilesTabToolStripMenuItem.Size = new System.Drawing.Size(193, 22);
+            selectInLandTilesTabToolStripMenuItem.Text = "Select in Land Tiles tab";
+            selectInLandTilesTabToolStripMenuItem.Click += OnClickSelectInLandTiles;
+            // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
             toolStripSeparator2.Size = new System.Drawing.Size(190, 6);
+            // 
+            // copyImageToolStripMenuItem
+            // 
+            copyImageToolStripMenuItem.Name = "copyImageToolStripMenuItem";
+            copyImageToolStripMenuItem.ShortcutKeyDisplayString = "Ctrl+C";
+            copyImageToolStripMenuItem.Size = new System.Drawing.Size(193, 22);
+            copyImageToolStripMenuItem.Text = "Copy Image";
+            copyImageToolStripMenuItem.Click += OnClickCopyImage;
+            // 
+            // pasteImageToolStripMenuItem
+            // 
+            pasteImageToolStripMenuItem.Name = "pasteImageToolStripMenuItem";
+            pasteImageToolStripMenuItem.ShortcutKeyDisplayString = "Ctrl+V";
+            pasteImageToolStripMenuItem.Size = new System.Drawing.Size(193, 22);
+            pasteImageToolStripMenuItem.Text = "Paste Image";
+            pasteImageToolStripMenuItem.Click += OnClickPasteImage;
+            // 
+            // clipboardToolStripSeparator
+            // 
+            clipboardToolStripSeparator.Name = "clipboardToolStripSeparator";
+            clipboardToolStripSeparator.Size = new System.Drawing.Size(190, 6);
             // 
             // replaceToolStripMenuItem
             // 
@@ -210,12 +244,6 @@ namespace UoFiddler.Controls.UserControls
             topMenuToolStrip.TabIndex = 4;
             topMenuToolStrip.Text = "toolStrip1";
             // 
-            // toolStripSeparator4
-            // 
-            toolStripSeparator4.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
-            toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new System.Drawing.Size(6, 25);
-            // 
             // SaveButton
             // 
             SaveButton.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
@@ -225,6 +253,12 @@ namespace UoFiddler.Controls.UserControls
             SaveButton.Size = new System.Drawing.Size(35, 22);
             SaveButton.Text = "Save";
             SaveButton.Click += OnClickSave;
+            // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new System.Drawing.Size(6, 25);
             // 
             // IndexToolStripLabel
             // 
@@ -306,7 +340,7 @@ namespace UoFiddler.Controls.UserControls
             TextureTileView.FocusIndex = -1;
             TextureTileView.Location = new System.Drawing.Point(0, 0);
             TextureTileView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            TextureTileView.MultiSelect = false;
+            TextureTileView.MultiSelect = true;
             TextureTileView.Name = "TextureTileView";
             TextureTileView.Size = new System.Drawing.Size(675, 347);
             TextureTileView.TabIndex = 6;
@@ -336,6 +370,11 @@ namespace UoFiddler.Controls.UserControls
             GraphicLabel.Name = "GraphicLabel";
             GraphicLabel.Size = new System.Drawing.Size(51, 17);
             GraphicLabel.Text = "Graphic:";
+            // 
+            // toolStripSeparator6
+            // 
+            toolStripSeparator6.Name = "toolStripSeparator6";
+            toolStripSeparator6.Size = new System.Drawing.Size(190, 6);
             // 
             // TexturesControl
             // 
@@ -372,6 +411,9 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ToolStripTextBox InsertText;
         private System.Windows.Forms.ToolStripMenuItem removeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem replaceToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem copyImageToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem pasteImageToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator clipboardToolStripSeparator;
         private System.Windows.Forms.ToolStripButton SaveButton;
         private System.Windows.Forms.ToolStrip topMenuToolStrip;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
@@ -394,6 +436,8 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ToolStripLabel IndexToolStripLabel;
         private System.Windows.Forms.ToolStripTextBox searchByIdToolStripTextBox;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
+        private System.Windows.Forms.ToolStripMenuItem selectInLandTilesTabToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem saveToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
     }
 }

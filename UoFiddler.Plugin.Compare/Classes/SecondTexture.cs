@@ -13,8 +13,28 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         public static void SetFileIndex(string idxPath, string mulPath)
         {
-            _fileIndex = new SecondFileIndex(idxPath, mulPath, 0x4000);
+            // Build first so a failure leaves the previous index usable.
+            var newIndex = new SecondFileIndex(idxPath, mulPath, 0x4000);
+
+            SecondFileIndex oldIndex = _fileIndex;
+            Bitmap[] oldCache = _cache;
+
+            _fileIndex = newIndex;
             _cache = new Bitmap[0x4000];
+            _streamBuffer = null;
+
+            // The caller must have dropped any bitmap it still holds (see CompareTextureControl) before
+            // we get here - GetTexture hands out the cached instance, not a copy.
+            oldIndex?.Dispose();
+
+            if (oldCache != null)
+            {
+                for (int i = 0; i < oldCache.Length; ++i)
+                {
+                    oldCache[i]?.Dispose();
+                    oldCache[i] = null;
+                }
+            }
         }
 
         // public static int GetIdxLength()
@@ -24,7 +44,13 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         public static bool IsValidTexture(int index)
         {
+            if (_cache == null)
+            {
+                return false;
+            }
+
             index &= 0x3FFF;
+
             if (_cache[index] != null)
             {
                 return true;
@@ -37,6 +63,11 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         public static Bitmap GetTexture(int index)
         {
+            if (_cache == null)
+            {
+                return null;
+            }
+
             index &= 0x3FFF;
 
             if (_cache[index] != null)
@@ -83,7 +114,7 @@ namespace UoFiddler.Plugin.Compare.Classes
                 _streamBuffer = new byte[max];
             }
 
-            stream.Read(_streamBuffer, 0, max);
+            stream.ReadExactly(_streamBuffer, 0, max);
 
             fixed (byte* data = _streamBuffer)
             {

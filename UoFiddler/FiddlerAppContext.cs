@@ -1,9 +1,9 @@
-﻿/***************************************************************************
+/***************************************************************************
  *
  * $Author: Turley
- * 
+ *
  * "THE BEER-WARE LICENSE"
- * As long as you retain this notice you can do whatever you want with 
+ * As long as you retain this notice you can do whatever you want with
  * this stuff. If we meet some day, and you think this stuff is worth it,
  * you can buy me a beer in return.
  *
@@ -11,47 +11,76 @@
 
 using System;
 using System.Windows.Forms;
-using Serilog;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using UoFiddler.Classes;
 using UoFiddler.Controls.Classes;
 using UoFiddler.Controls.UserControls;
 using UoFiddler.Forms;
+using Ultima.Helpers;
 
 namespace UoFiddler
 {
     internal sealed class FiddlerAppContext : ApplicationContext
     {
-        private readonly ILogger _logger;
+        private readonly ILogger<FiddlerAppContext> _logger;
 
-        internal FiddlerAppContext(ILogger logger)
+        internal FiddlerAppContext(IServiceProvider services)
         {
-            _logger = logger;
+            AppLog.Initialize(services.GetRequiredService<ILoggerFactory>());
+            _logger = services.GetRequiredService<ILogger<FiddlerAppContext>>();
 
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            AppSettings.Load();
+            Options.DarkMode = AppSettings.DarkMode;
+            Options.ExportFilenameInHex = AppSettings.ExportFilenameInHex;
+            Options.ExportFilenameDecimalPadded = AppSettings.ExportFilenameDecimalPadded;
+            if (AppSettings.DarkMode)
+            {
+                Application.SetColorMode(SystemColorMode.Dark);
+            }
             Application.ApplicationExit += OnApplicationExit;
 
-            FiddlerOptions.SetLogger(_logger);
             FiddlerOptions.Startup();
 
-            _logger.Information("Starting loading profile form...");
-            var profile = new LoadProfileForm { TopMost = true };
+            _logger.LogInformation("Starting loading profile form...");
+            var profile = new LoadProfileForm(services.GetRequiredService<ILogger<LoadProfileForm>>()) { TopMost = true };
             var profileResult = profile.ShowDialog();
             if (profileResult == DialogResult.Cancel)
             {
-                _logger.Information("No profile loaded... exiting");
+                _logger.LogInformation("No profile loaded... exiting");
                 return;
+            }
+
+            if (AppSettings.DarkMode)
+            {
+                if (Options.TileFocusColor.ToArgb() == System.Drawing.Color.DarkRed.ToArgb())
+                    Options.TileFocusColor = System.Drawing.Color.Red;
+                if (Options.TileSelectionColor.ToArgb() == System.Drawing.Color.DodgerBlue.ToArgb())
+                    Options.TileSelectionColor = System.Drawing.Color.MediumTurquoise;
+                if (Options.PreviewBackgroundColor.ToArgb() == System.Drawing.Color.White.ToArgb())
+                    Options.PreviewBackgroundColor = System.Drawing.Color.FromArgb(32, 32, 32);
+            }
+            else
+            {
+                if (Options.TileFocusColor.ToArgb() == System.Drawing.Color.Red.ToArgb())
+                    Options.TileFocusColor = System.Drawing.Color.DarkRed;
+                if (Options.TileSelectionColor.ToArgb() == System.Drawing.Color.MediumTurquoise.ToArgb())
+                    Options.TileSelectionColor = System.Drawing.Color.DodgerBlue;
+                if (Options.PreviewBackgroundColor.ToArgb() == System.Drawing.Color.FromArgb(32, 32, 32).ToArgb())
+                    Options.PreviewBackgroundColor = System.Drawing.Color.White;
             }
 
             if (FiddlerOptions.UpdateCheckOnStart)
             {
-                _logger.Information("Update check. Current version is {Version}", FiddlerOptions.AppVersion);
+                _logger.LogInformation("Update check. Current version is {Version}", FiddlerOptions.AppVersion);
                 UpdateRunner.RunAsync(FiddlerOptions.RepositoryOwner, FiddlerOptions.RepositoryName, FiddlerOptions.AppVersion, false).GetAwaiter().GetResult();
             }
 
-            _logger.Information("Starting main form...");
-            MainForm = new MainForm
+            _logger.LogInformation("Starting main form...");
+            MainForm = new MainForm(services.GetRequiredService<ILogger<MainForm>>())
             {
                 Text = $"{Application.ProductName} (Profile: {Options.ProfileName.Replace("Options_", "").Replace(".xml", "")})"
             };
@@ -62,7 +91,7 @@ namespace UoFiddler
         {
             FiddlerOptions.SaveProfile();
             MapControl.SaveMapOverlays();
-            _logger.Information("UOFiddler - Application exit");
+            _logger.LogInformation("UOFiddler - Application exit");
         }
     }
 }

@@ -16,7 +16,9 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Ultima;
+using Ultima.Uop;
 using UoFiddler.Controls.Classes;
+using UoFiddler.Controls.Forms;
 using UoFiddler.Controls.Helpers;
 
 namespace UoFiddler.Controls.UserControls
@@ -36,6 +38,10 @@ namespace UoFiddler.Controls.UserControls
 
         private int _soundIdOffset;
 
+        // Shared underline font for translated entries — one instance reused
+        // across all list items, recreated each reload (the control Font may change).
+        private Font _underlineFont;
+
         public SoundsControl()
         {
             InitializeComponent();
@@ -44,9 +50,12 @@ namespace UoFiddler.Controls.UserControls
             _spTimer = new Timer();
             _spTimer.Tick += OnSpTimerTick;
 
-            treeView.LabelEdit = true;
-            treeView.BeforeLabelEdit += TreeView_BeforeLabelEdit;
-            treeView.AfterLabelEdit += TreeViewOnAfterLabelEdit;
+            listView.LabelEdit = true;
+            listView.BeforeLabelEdit += ListView_BeforeLabelEdit;
+            listView.AfterLabelEdit += ListViewOnAfterLabelEdit;
+            // ListView's default Sort() uses ListView.Sorting; enable
+            // ascending text sort so the existing toggle keeps working.
+            listView.Sorting = System.Windows.Forms.SortOrder.Ascending;
 
             _soundIdOffset = GetSoundIdOffset();
         }
@@ -73,79 +82,78 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Options.LoadedUltimaClass["Sound"] = true;
-
-            int? oldItem = null;
-
-            if (treeView.SelectedNode != null)
+            using (new WaitCursorScope(this))
             {
-                oldItem = (int)treeView.SelectedNode.Tag;
-            }
+                Options.LoadedUltimaClass["Sound"] = true;
 
-            treeView.BeginUpdate();
-            try
-            {
-                treeView.Nodes.Clear();
+                int? oldItem = null;
 
-                _soundIdOffset = GetSoundIdOffset();
-
-                var cache = new List<TreeNode>();
-                for (int i = 0; i < _soundsLength; ++i)
+                if (listView.SelectedItems.Count > 0)
                 {
-                    if (Sounds.IsValidSound(i, out string name, out bool translated))
-                    {
-                        TreeNode node = new TreeNode($"0x{i + _soundIdOffset:X3} {name}")
-                        {
-                            Tag = i
-                        };
-
-                        if (translated)
-                        {
-                            node.ForeColor = Color.Blue;
-                            node.NodeFont = new Font(Font, FontStyle.Underline);
-                        }
-
-                        cache.Add(node);
-                    }
-                    else if (showFreeSlotsToolStripMenuItem.Checked)
-                    {
-                        TreeNode node = new TreeNode($"0x{i:X3} ")
-                        {
-                            Tag = i,
-                            ForeColor = Color.Red
-                        };
-
-                        cache.Add(node);
-                    }
+                    oldItem = (int)listView.SelectedItems[0].Tag;
                 }
 
-                treeView.Nodes.AddRange(cache.ToArray());
-            }
-            finally
-            {
-                treeView.EndUpdate();
-            }
+                listView.BeginUpdate();
+                try
+                {
+                    listView.Items.Clear();
 
-            if (treeView.Nodes.Count > 0)
-            {
-                treeView.SelectedNode = treeView.Nodes[0];
-            }
+                    _soundIdOffset = GetSoundIdOffset();
 
-            _sp = new System.Media.SoundPlayer();
-            if (!_loaded)
-            {
-                ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
-            }
+                    _underlineFont?.Dispose();
+                    _underlineFont = new Font(Font, FontStyle.Underline);
 
-            _loaded = true;
-            _playing = false;
+                    var cache = new List<ListViewItem>();
+                    for (int i = 0; i < _soundsLength; ++i)
+                    {
+                        if (Sounds.IsValidSound(i, out string name, out bool translated))
+                        {
+                            var item = new ListViewItem($"0x{i + _soundIdOffset:X3} {name}") { Tag = i };
 
-            Cursor.Current = Cursors.Default;
+                            if (translated)
+                            {
+                                item.ForeColor = Options.DarkMode ? Color.CornflowerBlue : Color.Blue;
+                                item.Font = _underlineFont;
+                            }
 
-            if (oldItem != null)
-            {
-                SearchId(oldItem.Value);
+                            cache.Add(item);
+                        }
+                        else if (showFreeSlotsToolStripMenuItem.Checked)
+                        {
+                            cache.Add(new ListViewItem($"0x{i:X3} ")
+                            {
+                                Tag = i,
+                                ForeColor = Options.DarkMode ? Color.OrangeRed : Color.Red
+                            });
+                        }
+                    }
+
+                    listView.Items.AddRange(cache.ToArray());
+                }
+                finally
+                {
+                    listView.EndUpdate();
+                }
+
+                if (listView.Items.Count > 0)
+                {
+                    listView.Items[0].Selected = true;
+                    listView.Items[0].EnsureVisible();
+                }
+
+                _sp = new System.Media.SoundPlayer();
+                if (!_loaded)
+                {
+                    ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
+                }
+
+                _loaded = true;
+                _playing = false;
+
+                if (oldItem != null)
+                {
+                    SearchId(oldItem.Value);
+                }
             }
         }
 
@@ -183,12 +191,21 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickPlay(object sender, EventArgs e)
         {
-            PlaySound((int)treeView.SelectedNode.Tag);
+            if (listView.SelectedItems.Count == 0)
+            {
+                return;
+            }
+            PlaySound((int)listView.SelectedItems[0].Tag);
         }
 
-        private void OnDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void OnDoubleClick(object sender, MouseEventArgs e)
         {
-            PlaySound((int)e.Node.Tag);
+            ListViewHitTestInfo hit = listView.HitTest(e.Location);
+            if (hit.Item == null)
+            {
+                return;
+            }
+            PlaySound((int)hit.Item.Tag);
         }
 
         private void OnClickStop(object sender, EventArgs e)
@@ -217,7 +234,7 @@ namespace UoFiddler.Controls.UserControls
             stopButton.Visible = false;
             StopSoundButton.Enabled = false;
 
-            if (treeView.SelectedNode == null)
+            if (listView.SelectedItems.Count == 0)
             {
                 return;
             }
@@ -247,17 +264,18 @@ namespace UoFiddler.Controls.UserControls
             }
         }
 
-        private void BeforeSelect(object sender, TreeViewCancelEventArgs e)
+        private void AfterSelect(object sender, EventArgs e)
         {
+            // Mirror the old TreeView BeforeSelect behaviour: stop playback
+            // when the user moves to a different row.
             if (_playing)
             {
                 StopSound();
             }
-        }
 
-        private void AfterSelect(object sender, EventArgs e)
-        {
-            if (treeView.SelectedNode == null)
+            ListViewItem selected = listView.SelectedItems.Count > 0 ? listView.SelectedItems[0] : null;
+
+            if (selected == null)
             {
                 playSoundToolStripMenuItem.Enabled = false;
                 extractSoundToolStripMenuItem.Enabled = false;
@@ -266,13 +284,13 @@ namespace UoFiddler.Controls.UserControls
                 replaceToolStripMenuItem.Text = "Insert/Replace";
             }
 
-            if (treeView.SelectedNode != null)
+            if (selected != null)
             {
-                double length = Sounds.GetSoundLength((int)treeView.SelectedNode.Tag);
+                double length = Sounds.GetSoundLength((int)selected.Tag);
                 seconds.Text = length > 0 ? $"{length:f}s" : "Empty Slot";
             }
 
-            bool isValidSound = treeView.SelectedNode != null && Sounds.IsValidSound((int)treeView.SelectedNode.Tag, out _, out _);
+            bool isValidSound = selected != null && Sounds.IsValidSound((int)selected.Tag, out _, out _);
 
             playSoundToolStripMenuItem.Enabled = isValidSound;
             extractSoundToolStripMenuItem.Enabled = isValidSound;
@@ -281,12 +299,12 @@ namespace UoFiddler.Controls.UserControls
             replaceToolStripMenuItem.Enabled = true;
             replaceToolStripMenuItem.Text = isValidSound ? "Replace" : "Insert";
 
-            SelectedSoundGroup.Visible = treeView.SelectedNode != null;
+            SelectedSoundGroup.Visible = selected != null;
 
-            if (treeView.SelectedNode != null)
+            if (selected != null)
             {
-                SelectedSoundGroup.Text = $"Current Sound: {treeView.SelectedNode.Text} - Duration: {seconds.Text}";
-                IdInsertTextbox.Text = $"0x{(int)treeView.SelectedNode.Tag + _soundIdOffset:X}";
+                SelectedSoundGroup.Text = $"Current Sound: {selected.Text} - Duration: {seconds.Text}";
+                IdInsertTextbox.Text = $"0x{(int)selected.Tag + _soundIdOffset:X}";
             }
         }
 
@@ -301,28 +319,28 @@ namespace UoFiddler.Controls.UserControls
             }
 
             int? oldItem = null;
-            if (treeView.SelectedNode != null)
+            if (listView.SelectedItems.Count > 0)
             {
-                oldItem = (int)treeView.SelectedNode.Tag;
+                oldItem = (int)listView.SelectedItems[0].Tag;
             }
 
             const string delimiter = " ";
 
-            treeView.BeginUpdate();
+            listView.BeginUpdate();
 
-            for (int i = 0; i < treeView.Nodes.Count; ++i)
+            for (int i = 0; i < listView.Items.Count; ++i)
             {
-                string name = treeView.Nodes[i].Text;
+                string name = listView.Items[i].Text;
 
                 int splitIndex = nameSortToolStripMenuItem.Checked
                     ? name.IndexOf(delimiter, StringComparison.Ordinal)
                     : name.LastIndexOf(delimiter, StringComparison.Ordinal);
 
-                treeView.Nodes[i].Text = $"{name.Substring(splitIndex).Trim()} {name.Substring(0, splitIndex).Trim()}";
+                listView.Items[i].Text = $"{name.Substring(splitIndex).Trim()} {name.Substring(0, splitIndex).Trim()}";
             }
 
-            treeView.Sort();
-            treeView.EndUpdate();
+            listView.Sort();
+            listView.EndUpdate();
 
             if (oldItem != null)
             {
@@ -333,12 +351,13 @@ namespace UoFiddler.Controls.UserControls
         private void DoSearchName(string name, bool next, bool prev)
         {
             int index = 0;
+            int selectedIndex = listView.SelectedItems.Count > 0 ? listView.SelectedItems[0].Index : -1;
 
             if (prev)
             {
-                if (treeView.SelectedNode.Index >= 0)
+                if (selectedIndex >= 0)
                 {
-                    index = treeView.SelectedNode.Index - _soundIdOffset;
+                    index = selectedIndex - _soundIdOffset;
                 }
 
                 if (index <= 0)
@@ -348,16 +367,15 @@ namespace UoFiddler.Controls.UserControls
 
                 for (int i = index - 1; i >= 0; --i)
                 {
-                    TreeNode node = treeView.Nodes[i];
-                    if (!node.Text.ContainsCaseInsensitive(name))
+                    ListViewItem item = listView.Items[i];
+                    if (!item.Text.ContainsCaseInsensitive(name))
                     {
                         continue;
                     }
 
-                    treeView.SelectedNode = node;
-
-                    node.EnsureVisible();
-
+                    listView.SelectedItems.Clear();
+                    item.Selected = true;
+                    item.EnsureVisible();
                     return;
                 }
             }
@@ -365,29 +383,28 @@ namespace UoFiddler.Controls.UserControls
             {
                 if (next)
                 {
-                    if (treeView.SelectedNode.Index >= 0)
+                    if (selectedIndex >= 0)
                     {
-                        index = treeView.SelectedNode.Index + 1;
+                        index = selectedIndex + 1;
                     }
 
-                    if (index >= treeView.Nodes.Count)
+                    if (index >= listView.Items.Count)
                     {
                         index = 0;
                     }
                 }
 
-                for (int i = index; i < treeView.Nodes.Count; ++i)
+                for (int i = index; i < listView.Items.Count; ++i)
                 {
-                    TreeNode node = treeView.Nodes[i];
-                    if (!node.Text.ContainsCaseInsensitive(name))
+                    ListViewItem item = listView.Items[i];
+                    if (!item.Text.ContainsCaseInsensitive(name))
                     {
                         continue;
                     }
 
-                    treeView.SelectedNode = node;
-
-                    node.EnsureVisible();
-
+                    listView.SelectedItems.Clear();
+                    item.Selected = true;
+                    item.EnsureVisible();
                     return;
                 }
             }
@@ -395,12 +412,12 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickExtract(object sender, EventArgs e)
         {
-            if (treeView.SelectedNode == null)
+            if (listView.SelectedItems.Count == 0)
             {
                 return;
             }
 
-            int id = (int)treeView.SelectedNode.Tag;
+            int id = (int)listView.SelectedItems[0].Tag;
 
             Sounds.IsValidSound(id, out string name, out _);
 
@@ -425,25 +442,20 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickSave(object sender, EventArgs e)
         {
-            Cursor.Current = Cursors.WaitCursor;
-            string path = Options.OutputPath;
-            Sounds.Save(path);
-            Cursor.Current = Cursors.Default;
-            MessageBox.Show($"Saved to {path}", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
-            Options.ChangedUltimaClass["Sound"] = false;
+            ClientFileSaveCommand.Run(this, FileType.SoundLegacyMul, Sounds.Save, "Sound");
         }
 
         private void OnClickRemove(object sender, EventArgs e)
         {
-            if (treeView.SelectedNode == null)
+            if (listView.SelectedItems.Count == 0)
             {
                 return;
             }
 
-            int id = (int)treeView.SelectedNode.Tag;
+            ListViewItem selected = listView.SelectedItems[0];
+            int id = (int)selected.Tag;
 
-            DialogResult result = MessageBox.Show($"Are you sure to remove {treeView.SelectedNode.Text}?", "Remove",
+            DialogResult result = MessageBox.Show($"Are you sure to remove {selected.Text}?", "Remove",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
 
             if (result != DialogResult.Yes)
@@ -455,12 +467,13 @@ namespace UoFiddler.Controls.UserControls
 
             if (!showFreeSlotsToolStripMenuItem.Checked)
             {
-                treeView.SelectedNode.Remove();
+                listView.Items.Remove(selected);
             }
             else
             {
-                treeView.SelectedNode.Text = $"0x{(int)treeView.SelectedNode.Tag + _soundIdOffset:X3}";
-                treeView.SelectedNode.ForeColor = Color.Red;
+                selected.Text = $"0x{id + _soundIdOffset:X3}";
+                selected.ForeColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
+                selected.Font = Font;
             }
 
             AfterSelect(this, e);
@@ -473,24 +486,23 @@ namespace UoFiddler.Controls.UserControls
 
             Sounds.SaveSoundListToCsv(fileName, _soundIdOffset);
 
-            MessageBox.Show($"SoundList saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "SoundList saved successfully.");
         }
 
         public bool SearchId(int id)
         {
-            for (int i = 0; i < treeView.Nodes.Count; ++i)
+            for (int i = 0; i < listView.Items.Count; ++i)
             {
-                TreeNode node = treeView.Nodes[i];
+                ListViewItem item = listView.Items[i];
 
-                if ((int)node.Tag != id)
+                if ((int)item.Tag != id)
                 {
                     continue;
                 }
 
-                treeView.SelectedNode = node;
-                node.EnsureVisible();
-
+                listView.SelectedItems.Clear();
+                item.Selected = true;
+                item.EnsureVisible();
                 return true;
             }
 
@@ -530,7 +542,12 @@ namespace UoFiddler.Controls.UserControls
                 file = _wavChosen;
             }
 
-            int id = (int)treeView.SelectedNode.Tag;
+            if (listView.SelectedItems.Count == 0)
+            {
+                return;
+            }
+
+            int id = (int)listView.SelectedItems[0].Tag;
             string name = Path.GetFileName(file);
 
             if (!File.Exists(file))
@@ -545,7 +562,7 @@ namespace UoFiddler.Controls.UserControls
 
             if (Sounds.IsValidSound(id, out _, out _))
             {
-                DialogResult result = MessageBox.Show($"Are you sure to replace {treeView.SelectedNode.Text}?",
+                DialogResult result = MessageBox.Show($"Are you sure to replace {listView.SelectedItems[0].Text}?",
                     "Replace", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
 
                 if (result != DialogResult.Yes)
@@ -564,61 +581,59 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            TreeNode node = new TreeNode($"0x{id + _soundIdOffset:X3} {name}");
+            ListViewItem item = new ListViewItem($"0x{id + _soundIdOffset:X3} {name}") { Tag = id };
 
             if (nameSortToolStripMenuItem.Checked)
             {
-                node.Text = $"{name} 0x{id + _soundIdOffset:X3}";
+                item.Text = $"{name} 0x{id + _soundIdOffset:X3}";
             }
-
-            node.Tag = id;
 
             bool done = false;
 
-            for (int i = 0; i < treeView.Nodes.Count; ++i)
+            for (int i = 0; i < listView.Items.Count; ++i)
             {
-                if ((int)treeView.Nodes[i].Tag != id)
+                if ((int)listView.Items[i].Tag != id)
                 {
                     continue;
                 }
 
                 done = true;
 
-                treeView.Nodes.RemoveAt(i);
-                treeView.Nodes.Insert(i, node);
+                listView.Items.RemoveAt(i);
+                listView.Items.Insert(i, item);
 
                 break;
             }
 
             if (!done)
             {
-                treeView.Nodes.Add(node);
-                treeView.Sort();
+                listView.Items.Add(item);
+                listView.Sort();
             }
 
-            node.EnsureVisible();
-
-            treeView.SelectedNode = node;
-            treeView.Invalidate();
+            listView.SelectedItems.Clear();
+            item.Selected = true;
+            item.EnsureVisible();
+            listView.Invalidate();
 
             Options.ChangedUltimaClass["Sound"] = true;
         }
 
         private void NextFreeSlotToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            for (int i = treeView.Nodes.IndexOf(treeView.SelectedNode) + 1; i < treeView.Nodes.Count; ++i)
+            int start = listView.SelectedItems.Count > 0 ? listView.SelectedItems[0].Index + 1 : 0;
+            for (int i = start; i < listView.Items.Count; ++i)
             {
-                TreeNode node = treeView.Nodes[i];
+                ListViewItem item = listView.Items[i];
 
-                if (Sounds.IsValidSound((int)node.Tag, out _, out _))
+                if (Sounds.IsValidSound((int)item.Tag, out _, out _))
                 {
                     continue;
                 }
 
-                treeView.SelectedNode = node;
-
-                node.EnsureVisible();
-
+                listView.SelectedItems.Clear();
+                item.Selected = true;
+                item.EnsureVisible();
                 return;
             }
         }
@@ -634,19 +649,19 @@ namespace UoFiddler.Controls.UserControls
             }
             else if (e.KeyCode == Keys.F2)
             {
-                if (treeView.SelectedNode == null)
+                if (listView.SelectedItems.Count == 0)
                 {
                     return;
                 }
 
-                treeView.SelectedNode.BeginEdit();
+                listView.SelectedItems[0].BeginEdit();
 
                 e.Handled = true;
                 e.SuppressKeyPress = true;
             }
             else if (e.KeyCode == Keys.Enter)
             {
-                if (treeView.Nodes.OfType<TreeNode>().Any(n => n.IsEditing))
+                if (_isEditingLabel)
                 {
                     return;
                 }
@@ -665,9 +680,13 @@ namespace UoFiddler.Controls.UserControls
             }
         }
 
-        private void TreeViewOnAfterLabelEdit(object sender, NodeLabelEditEventArgs e)
+        private bool _isEditingLabel;
+
+        private void ListViewOnAfterLabelEdit(object sender, LabelEditEventArgs e)
         {
-            int id = (int)e.Node.Tag;
+            _isEditingLabel = false;
+            ListViewItem item = listView.Items[e.Item];
+            int id = (int)item.Tag;
 
             UoSound sound = Sounds.GetSound(id);
 
@@ -689,23 +708,37 @@ namespace UoFiddler.Controls.UserControls
 
             Sounds.IsValidSound(id, out string name, out _);
 
-            e.Node.Text = $"0x{id + _soundIdOffset:X3} {name}";
+            item.Text = nameSortToolStripMenuItem.Checked
+                ? $"{name} 0x{id + _soundIdOffset:X3}"
+                : $"0x{id + _soundIdOffset:X3} {name}";
 
-            if (nameSortToolStripMenuItem.Checked)
-            {
-                e.Node.Text = $"{name} 0x{id + _soundIdOffset:X3}";
-            }
-
+            // ListView semantics: CancelEdit=true rejects the framework's
+            // auto-apply of e.Label, since we already updated Text above.
             e.CancelEdit = true;
         }
 
-        private void TreeView_BeforeLabelEdit(object sender, NodeLabelEditEventArgs e)
+        private void ListView_BeforeLabelEdit(object sender, LabelEditEventArgs e)
         {
-            int id = (int)e.Node.Tag;
+            ListViewItem item = listView.Items[e.Item];
+            int id = (int)item.Tag;
 
             if (Sounds.IsValidSound(id, out string name, out bool translated) && !translated)
             {
-                treeView.SetEditText(name);
+                _isEditingLabel = true;
+                // Seed the in-place edit textbox with the bare name (not the
+                // formatted "0x... name" label) so renaming is ergonomic.
+                BeginInvoke(new Action(() =>
+                {
+                    foreach (Control c in listView.Controls)
+                    {
+                        if (c is TextBox edit)
+                        {
+                            edit.Text = name;
+                            edit.SelectAll();
+                            break;
+                        }
+                    }
+                }));
             }
             else
             {
@@ -748,6 +781,23 @@ namespace UoFiddler.Controls.UserControls
             {
                 MessageBox.Show($"Can't find Sound with ID {SearchNameTextbox.Text}?");
             }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.F3)
+            {
+                GoNextResultButton_Click(null, EventArgs.Empty);
+                return true;
+            }
+
+            if (keyData == (Keys.F3 | Keys.Shift))
+            {
+                GoPrevResultButton_Click(null, EventArgs.Empty);
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void SearchByNameButton_Click(object sender, EventArgs e)

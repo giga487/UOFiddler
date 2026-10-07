@@ -35,7 +35,69 @@ namespace UoFiddler.Controls.UserControls
             ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
 
             _lastNodeIndex = 0;
-            treeViewItems.HideSelection = false;
+        }
+
+        // Virtual ListView backing arrays. _displayedItems maps a row position
+        // to the wearable's objType. _displayedColors is parallel and holds
+        // the per-row foreground color, computed once at BuildDressList time
+        // (Color.Empty = default/inherit). Built fresh on every sort change.
+        private int[] _displayedItems = Array.Empty<int>();
+        private Color[] _displayedColors = Array.Empty<Color>();
+
+        private int GetSelectedObjType()
+        {
+            return listViewItems.SelectedIndices.Count > 0
+                ? _displayedItems[listViewItems.SelectedIndices[0]]
+                : -1;
+        }
+
+        private static string FormatDressRow(int objType, byte quality, string name)
+        {
+            return string.Create(null, stackalloc char[80], $"0x{objType:X4} (0x{quality:X2}) {name}");
+        }
+
+        private void OnRetrieveItemVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
+        {
+            if ((uint)e.ItemIndex >= (uint)_displayedItems.Length)
+            {
+                e.Item = new ListViewItem(string.Empty);
+                return;
+            }
+
+            int objType = _displayedItems[e.ItemIndex];
+            ref readonly ItemData row = ref TileData.ItemTable[objType];
+            var lvi = new ListViewItem(FormatDressRow(objType, row.Quality, row.Name ?? string.Empty))
+            {
+                Tag = objType
+            };
+
+            Color color = _displayedColors[e.ItemIndex];
+            if (!color.IsEmpty)
+            {
+                lvi.ForeColor = color;
+            }
+
+            e.Item = lvi;
+        }
+
+        private void OnListItemSelectedIndexChanged(object sender, EventArgs e)
+        {
+            int objType = GetSelectedObjType();
+            if (objType >= 0)
+            {
+                UpdateSelection(objType);
+            }
+        }
+
+        private void SelectRow(int rowPos)
+        {
+            listViewItems.SelectedIndices.Clear();
+            if ((uint)rowPos < (uint)_displayedItems.Length)
+            {
+                listViewItems.SelectedIndices.Add(rowPos);
+                listViewItems.EnsureVisible(rowPos);
+                listViewItems.FocusedItem = listViewItems.Items[rowPos];
+            }
         }
 
         private static readonly int[] _drawOrder ={
@@ -105,9 +167,9 @@ namespace UoFiddler.Controls.UserControls
         private bool _gargoyle;
         private bool _showPd = true;
         private bool _animate;
-        private Timer _mTimer;
+        private Timer _animationTimer;
         private Bitmap[] _animation;
-        private int _mFrameIndex;
+        private int _frameIndex;
         private int _facing = 1;
         private int _action = 1;
         private bool _loaded;
@@ -141,15 +203,15 @@ namespace UoFiddler.Controls.UserControls
             _facing = 1;
             _action = 1;
 
-            if (_mTimer != null)
+            if (_animationTimer != null)
             {
-                if (_mTimer.Enabled)
+                if (_animationTimer.Enabled)
                 {
-                    _mTimer.Stop();
+                    _animationTimer.Stop();
                 }
 
-                _mTimer.Dispose();
-                _mTimer = null;
+                _animationTimer.Dispose();
+                _animationTimer = null;
             }
 
             if (_animation != null)
@@ -161,7 +223,7 @@ namespace UoFiddler.Controls.UserControls
             }
 
             _animation = null;
-            _mFrameIndex = 0;
+            _frameIndex = 0;
 
             EquipTable.Initialize();
             GumpTable.Initialize();
@@ -176,43 +238,44 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Options.LoadedUltimaClass["TileData"] = true;
-            Options.LoadedUltimaClass["Art"] = true;
-            Options.LoadedUltimaClass["Hues"] = true;
-            Options.LoadedUltimaClass["Animations"] = true;
-            Options.LoadedUltimaClass["Gumps"] = true;
-
-            checkBoxGargoyle.Visible = Art.IsUOAHS();
-
-            extractAnimationToolStripMenuItem.Visible = false;
-            DressPic.Image = new Bitmap(DressPic.Width, DressPic.Height);
-            pictureBoxDress.Image = new Bitmap(pictureBoxDress.Width, pictureBoxDress.Height);
-
-            checkedListBoxWear.BeginUpdate();
-            checkedListBoxWear.Items.Clear();
-            for (int i = 0; i < _layers.Length; ++i)
+            using (new WaitCursorScope(this))
             {
-                _layers[i] = 0;
-                checkedListBoxWear.Items.Add($"0x{i:X2}", true);
-                _layerVisible[i] = true;
+                Options.LoadedUltimaClass["TileData"] = true;
+                Options.LoadedUltimaClass["Art"] = true;
+                Options.LoadedUltimaClass["Hues"] = true;
+                Options.LoadedUltimaClass["Animations"] = true;
+                Options.LoadedUltimaClass["Gumps"] = true;
+
+                checkBoxGargoyle.Visible = Art.IsUOAHS();
+
+                extractAnimationToolStripMenuItem.Visible = false;
+                DressPic.Image = new Bitmap(DressPic.Width, DressPic.Height);
+                pictureBoxDress.Image = new Bitmap(pictureBoxDress.Width, pictureBoxDress.Height);
+
+                checkedListBoxWear.BeginUpdate();
+                checkedListBoxWear.Items.Clear();
+                for (int i = 0; i < _layers.Length; ++i)
+                {
+                    _layers[i] = 0;
+                    checkedListBoxWear.Items.Add($"0x{i:X2}", true);
+                    _layerVisible[i] = true;
+                }
+                checkedListBoxWear.EndUpdate();
+
+                checkBoxHuman.Checked = true;
+                checkBoxElve.Checked = false;
+                checkBoxGargoyle.Checked = false;
+                checkBoxfemale.Checked = false;
+
+                groupBoxAnimate.Visible = false;
+                animateToolStripMenuItem.Visible = false;
+                FacingBar.Value = (_facing + 3) & 7;
+                ActionBar.Value = _action;
+                toolTip1.SetToolTip(FacingBar, FacingBar.Value.ToString());
+                BuildDressList();
+                DrawPaperdoll();
+                _loaded = true;
             }
-            checkedListBoxWear.EndUpdate();
-
-            checkBoxHuman.Checked = true;
-            checkBoxElve.Checked = false;
-            checkBoxGargoyle.Checked = false;
-            checkBoxfemale.Checked = false;
-
-            groupBoxAnimate.Visible = false;
-            animateToolStripMenuItem.Visible = false;
-            FacingBar.Value = (_facing + 3) & 7;
-            ActionBar.Value = _action;
-            toolTip1.SetToolTip(FacingBar, FacingBar.Value.ToString());
-            BuildDressList();
-            DrawPaperdoll();
-            _loaded = true;
-            Cursor.Current = Cursors.Default;
         }
 
         private void OnFilePathChangeEvent()
@@ -494,7 +557,7 @@ namespace UoFiddler.Controls.UserControls
 
         private void DoAnimation()
         {
-            if (_mTimer != null)
+            if (_animationTimer != null)
             {
                 return;
             }
@@ -648,25 +711,25 @@ namespace UoFiddler.Controls.UserControls
                     }
                 }
             }
-            _mFrameIndex = 0;
-            _mTimer = new Timer
+            _frameIndex = 0;
+            _animationTimer = new Timer
             {
-                Interval = 150// 1000 / count;
+                Interval = 150  // 1000 / count;
             };
-            _mTimer.Tick += AnimTick;
-            _mTimer.Start();
+            _animationTimer.Tick += AnimTick;
+            _animationTimer.Start();
         }
 
         private void AnimTick(object sender, EventArgs e)
         {
-            ++_mFrameIndex;
+            ++_frameIndex;
 
-            if (_mFrameIndex >= _animation.Length)
+            if (_frameIndex >= _animation.Length)
             {
-                _mFrameIndex = 0;
+                _frameIndex = 0;
             }
 
-            if (_animation?[_mFrameIndex] == null)
+            if (_animation?[_frameIndex] == null)
             {
                 return;
             }
@@ -674,14 +737,14 @@ namespace UoFiddler.Controls.UserControls
             using (Graphics graph = Graphics.FromImage(DressPic.Image))
             {
                 graph.Clear(Color.Transparent);
-                graph.DrawImage(_animation[_mFrameIndex], _drawPoint);
+                graph.DrawImage(_animation[_frameIndex], _drawPoint);
             }
             DressPic.Invalidate();
         }
 
-        private void AfterSelectTreeView(object sender, TreeViewEventArgs e)
+        private void UpdateSelection(int objType)
         {
-            int ani = TileData.ItemTable[(int)e.Node.Tag].Animation;
+            int ani = TileData.ItemTable[objType].Animation;
             int gump = ani + 50000;
             int gumpOrig = gump;
             int hue = 0;
@@ -736,13 +799,13 @@ namespace UoFiddler.Controls.UserControls
 
             TextBox.Clear();
             TextBox.AppendText(
-                $"Objtype: 0x{(int)e.Node.Tag:X4}\nLayer: 0x{TileData.ItemTable[(int)e.Node.Tag].Quality:X2}\n");
+                $"Objtype: 0x{objType:X4}\nLayer: 0x{TileData.ItemTable[objType].Quality:X2}\n");
             TextBox.AppendText($"GumpID: 0x{gump:X4} (0x{gumpOrig:X4})\nHue: {hue + 1}\n");
-            TextBox.AppendText($"Animation: 0x{ani:X4} (0x{TileData.ItemTable[(int)e.Node.Tag].Animation:X4})\n");
+            TextBox.AppendText($"Animation: 0x{ani:X4} (0x{TileData.ItemTable[objType].Animation:X4})\n");
             TextBox.AppendText(
                 $"ValidGump: {Gumps.IsValidIndex(gump)}\nValidAnim: {Animations.IsActionDefined(ani, 0, 0)}\n");
             TextBox.AppendText(
-                $"ValidLayer: {Array.IndexOf(_drawOrder, TileData.ItemTable[(int)e.Node.Tag].Quality) != -1}");
+                $"ValidLayer: {Array.IndexOf(_drawOrder, TileData.ItemTable[objType].Quality) != -1}");
         }
 
         private void OnClick_Animate(object sender, EventArgs e)
@@ -801,12 +864,12 @@ namespace UoFiddler.Controls.UserControls
 
         private void DressItem()
         {
-            if (treeViewItems.SelectedNode == null)
+            int objType = GetSelectedObjType();
+            if (objType < 0)
             {
                 return;
             }
 
-            int objType = (int) treeViewItems.SelectedNode.Tag;
 
             int layer = TileData.ItemTable[objType].Quality;
 
@@ -911,7 +974,10 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnChangeSort(object sender, EventArgs e)
         {
-            treeViewItems.TreeViewNodeSorter = LayerSort.Checked ? new LayerSorter() : (IComparer)new ObjTypeSorter();
+            // Rebuild from scratch — N is small (wearables only), and rebuilding
+            // is simpler than mutating the parallel _displayedItems/_displayedColors
+            // arrays in place.
+            BuildDressList();
         }
 
         private void OnClick_ChangeDisplay(object sender, EventArgs e)
@@ -936,74 +1002,109 @@ namespace UoFiddler.Controls.UserControls
 
         private void BuildDressList()
         {
-            treeViewItems.BeginUpdate();
-            treeViewItems.Nodes.Clear();
-
-            if (TileData.ItemTable != null)
+            if (TileData.ItemTable == null)
             {
-                for (int i = 0; i < TileData.ItemTable.Length; ++i)
-                {
-                    if (!TileData.ItemTable[i].Wearable)
-                    {
-                        continue;
-                    }
-
-                    int ani = TileData.ItemTable[i].Animation;
-                    if (ani == 0)
-                    {
-                        continue;
-                    }
-
-                    int hue = 0;
-                    int gump = ani + 50000;
-
-                    ConvertBody(ref ani, ref gump, ref hue);
-
-                    if (!Gumps.IsValidIndex(gump))
-                    {
-                        ConvertGump(ref gump, ref hue);
-                    }
-
-                    bool hasAnimation = Animations.IsActionDefined(ani, 0, 0);
-
-                    bool hasGump = Gumps.IsValidIndex(gump);
-
-                    TreeNode node = new TreeNode($"0x{i:X4} (0x{TileData.ItemTable[i].Quality:X2}) {TileData.ItemTable[i].Name}")
-                    {
-                        Tag = i
-                    };
-
-                    if (Array.IndexOf(_drawOrder, TileData.ItemTable[i].Quality) == -1)
-                    {
-                        node.ForeColor = Color.DarkRed;
-                    }
-                    else if (!hasAnimation)
-                    {
-                        node.ForeColor = !hasGump ? Color.Red : Color.Orange;
-                    }
-                    else if (!hasGump)
-                    {
-                        node.ForeColor = Color.Blue;
-                    }
-
-                    treeViewItems.Nodes.Add(node);
-                }
+                _displayedItems = Array.Empty<int>();
+                _displayedColors = Array.Empty<Color>();
+                listViewItems.VirtualListSize = 0;
+                listViewItems.Invalidate();
+                return;
             }
 
-            treeViewItems.EndUpdate();
+            var items = new List<int>(2048);
+            var colors = new List<Color>(2048);
+            for (int i = 0; i < TileData.ItemTable.Length; ++i)
+            {
+                if (!TileData.ItemTable[i].Wearable)
+                {
+                    continue;
+                }
+
+                int ani = TileData.ItemTable[i].Animation;
+                if (ani == 0)
+                {
+                    continue;
+                }
+
+                int hue = 0;
+                int gump = ani + 50000;
+
+                ConvertBody(ref ani, ref gump, ref hue);
+
+                if (!Gumps.IsValidIndex(gump))
+                {
+                    ConvertGump(ref gump, ref hue);
+                }
+
+                bool hasAnimation = Animations.IsActionDefined(ani, 0, 0);
+                bool hasGump = Gumps.IsValidIndex(gump);
+
+                Color color = Color.Empty;
+                if (Array.IndexOf(_drawOrder, TileData.ItemTable[i].Quality) == -1)
+                {
+                    color = Options.DarkMode ? Color.OrangeRed : Color.DarkRed;
+                }
+                else if (!hasAnimation)
+                {
+                    color = !hasGump ? (Options.DarkMode ? Color.OrangeRed : Color.Red) : Color.Orange;
+                }
+                else if (!hasGump)
+                {
+                    color = Options.DarkMode ? Color.CornflowerBlue : Color.Blue;
+                }
+
+                items.Add(i);
+                colors.Add(color);
+            }
+
+            // Default order is ascending objType (the iteration order above).
+            // Layer-sort: stable sort the parallel arrays by ItemTable[id].Quality.
+            if (LayerSort.Checked)
+            {
+                var perm = new int[items.Count];
+                for (int k = 0; k < perm.Length; ++k)
+                {
+                    perm[k] = k;
+                }
+                Array.Sort(perm, (a, b) =>
+                {
+                    int qa = TileData.ItemTable[items[a]].Quality;
+                    int qb = TileData.ItemTable[items[b]].Quality;
+                    if (qa != qb)
+                    {
+                        return qa - qb;
+                    }
+                    return a - b; // stable
+                });
+                _displayedItems = new int[items.Count];
+                _displayedColors = new Color[items.Count];
+                for (int k = 0; k < perm.Length; ++k)
+                {
+                    _displayedItems[k] = items[perm[k]];
+                    _displayedColors[k] = colors[perm[k]];
+                }
+            }
+            else
+            {
+                _displayedItems = items.ToArray();
+                _displayedColors = colors.ToArray();
+            }
+
+            listViewItems.VirtualListSize = _displayedItems.Length;
+            listViewItems.Invalidate();
         }
 
         public void RefreshDrawing()
         {
-            if (_mTimer != null)
+            if (_animationTimer != null)
             {
-                if (_mTimer.Enabled)
+                if (_animationTimer.Enabled)
                 {
-                    _mTimer.Stop();
+                    _animationTimer.Stop();
                 }
 
-                _mTimer.Dispose();
-                _mTimer = null;
+                _animationTimer.Dispose();
+                _animationTimer = null;
             }
 
             if (_animation != null)
@@ -1015,7 +1116,7 @@ namespace UoFiddler.Controls.UserControls
             }
 
             _animation = null;
-            _mFrameIndex = 0;
+            _frameIndex = 0;
 
             DrawPaperdoll();
         }
@@ -1078,13 +1179,14 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnResizePictureDress(object sender, EventArgs e)
         {
-            if (treeViewItems.SelectedNode == null)
+            int objType = GetSelectedObjType();
+            if (objType < 0)
             {
                 return;
             }
 
             pictureBoxDress.Image = new Bitmap(pictureBoxDress.Width, pictureBoxDress.Height);
-            AfterSelectTreeView(this, new TreeViewEventArgs(treeViewItems.SelectedNode));
+            UpdateSelection(objType);
         }
 
         private void OnResizeDressPic(object sender, EventArgs e)
@@ -1243,8 +1345,8 @@ namespace UoFiddler.Controls.UserControls
             {
                 string fileName = Path.Combine(outputPath, $"Dress PD.{fileExtension}");
                 DressPic.Image.Save(fileName, imageFormat);
-                MessageBox.Show($"Paperdoll saved to {fileName}", "Saved", MessageBoxButtons.OK,
-                    MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+
+                FileSavedDialog.Show(FindForm(), fileName, "Paperdoll saved successfully.");
             }
             else
             {
@@ -1258,8 +1360,8 @@ namespace UoFiddler.Controls.UserControls
                     DressPic.Image.Save(fileName, imageFormat);
                 }
 
-                MessageBox.Show($"InGame saved to {fileName}", "Saved", MessageBoxButtons.OK,
-                    MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+
+                FileSavedDialog.Show(FindForm(), fileName, "InGame saved successfully.");
             }
         }
 
@@ -1295,8 +1397,7 @@ namespace UoFiddler.Controls.UserControls
                 _animation[i].Save(Path.Combine(path, $"{fileName}-{i}.{fileExtension}"), imageFormat);
             }
 
-            MessageBox.Show($"InGame Anim saved to '{fileName}-X.{fileExtension}'", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), path, "InGame Anim saved successfully.");
         }
 
         private void ExportAnimatedGif(bool looping)
@@ -1331,8 +1432,7 @@ namespace UoFiddler.Controls.UserControls
                 stream.WriteByte(0);
             }
 
-            MessageBox.Show($"InGame Anim saved to {outputFile}", "Saved", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), outputFile, "InGame Anim saved successfully.");
         }
         private void OnClickExtractAnimGifLooping(object sender, EventArgs e)
         {
@@ -1606,8 +1706,7 @@ namespace UoFiddler.Controls.UserControls
                 tex.WriteLine("</table> </body> </html>");
             }
 
-            MessageBox.Show($"Report saved to '{fileName}'", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Report saved successfully.");
         }
 
         private void MountTextBoxOnKeyDown(object sender, KeyEventArgs e)
@@ -1631,7 +1730,10 @@ namespace UoFiddler.Controls.UserControls
             RefreshDrawing();
         }
 
-        private readonly List<TreeNode> _searchResults = new List<TreeNode>();
+        // Search results are *row positions* in _displayedItems, not raw objTypes,
+        // so cycling next/previous matches the user's visual order. Recomputed
+        // when the search text changes or the list is rebuilt.
+        private readonly List<int> _searchResults = new List<int>();
 
         private int _lastNodeIndex;
 
@@ -1648,13 +1750,7 @@ namespace UoFiddler.Controls.UserControls
 
             if (_lastSearchText != searchText)
             {
-                _searchResults.Clear();
-
-                _lastSearchText = searchText;
-
-                _lastNodeIndex = 0;
-
-                SearchNodes(searchText, treeViewItems.Nodes[0]);
+                RebuildSearchResults(searchText);
             }
 
             if (_lastNodeIndex < 0 || _searchResults.Count == 0)
@@ -1667,28 +1763,85 @@ namespace UoFiddler.Controls.UserControls
                 _lastNodeIndex = 0;
             }
 
-            TreeNode selectedNode = _searchResults[_lastNodeIndex];
-
+            SelectRow(_searchResults[_lastNodeIndex]);
             _lastNodeIndex++;
-
-            treeViewItems.SelectedNode = selectedNode;
         }
 
-        private void SearchNodes(string searchText, TreeNode startNode)
+        private void RebuildSearchResults(string searchText)
         {
-            while (startNode != null)
+            _searchResults.Clear();
+            _lastSearchText = searchText;
+            _lastNodeIndex = 0;
+            for (int i = 0; i < _displayedItems.Length; ++i)
             {
-                if (startNode.Text.ContainsCaseInsensitive(searchText))
+                int objType = _displayedItems[i];
+                ref readonly ItemData row = ref TileData.ItemTable[objType];
+                string text = FormatDressRow(objType, row.Quality, row.Name ?? string.Empty);
+                if (text.ContainsCaseInsensitive(searchText))
                 {
-                    _searchResults.Add(startNode);
+                    _searchResults.Add(i);
                 }
-
-                startNode = startNode.NextNode;
             }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.F3)
+            {
+                SearchByName();
+                return true;
+            }
+
+            if (keyData == (Keys.F3 | Keys.Shift))
+            {
+                SearchByNamePrevious();
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void SearchByNamePrevious()
+        {
+            var searchText = SearchItemTextBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(searchText))
+            {
+                return;
+            }
+
+            if (_lastSearchText != searchText)
+            {
+                RebuildSearchResults(searchText);
+            }
+
+            if (_searchResults.Count == 0)
+            {
+                return;
+            }
+
+            if (_lastNodeIndex >= _searchResults.Count)
+            {
+                _lastNodeIndex = 0;
+            }
+
+            _lastNodeIndex -= 2;
+            if (_lastNodeIndex < 0)
+            {
+                _lastNodeIndex = _searchResults.Count + _lastNodeIndex;
+            }
+
+            SelectRow(_searchResults[_lastNodeIndex]);
+            _lastNodeIndex++;
         }
 
         private void SearchItemTextBox_KeyUp(object sender, KeyEventArgs e)
         {
+            if (e.KeyCode == Keys.F3)
+            {
+                return;
+            }
+
             SearchByName();
         }
 
@@ -1728,39 +1881,6 @@ namespace UoFiddler.Controls.UserControls
         }
     }
 
-    public class ObjTypeSorter : IComparer
-    {
-        public int Compare(object x, object y)
-        {
-            TreeNode tx = x as TreeNode;
-            TreeNode ty = y as TreeNode;
-            return string.CompareOrdinal(tx?.Text, ty?.Text);
-        }
-    }
-
-    public class LayerSorter : IComparer
-    {
-        public int Compare(object x, object y)
-        {
-            TreeNode tx = x as TreeNode;
-            TreeNode ty = y as TreeNode;
-
-            int layerX = TileData.ItemTable[(int)tx.Tag].Quality;
-            int layerY = TileData.ItemTable[(int)ty.Tag].Quality;
-
-            if (layerX == layerY)
-            {
-                return 0;
-            }
-
-            if (layerX < layerY)
-            {
-                return -1;
-            }
-
-            return 1;
-        }
-    }
 
     public static class GumpTable
     {

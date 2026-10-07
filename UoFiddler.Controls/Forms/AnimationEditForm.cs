@@ -34,6 +34,29 @@ namespace UoFiddler.Controls.Forms
         private bool _showOnlyValid;
         private static bool _drawEmpty;
         private static bool _drawFull;
+        private static int _lastAddFilterIndex = 1;
+
+        private float _zoomFactor = 1.0f;
+
+        // Second-animation overlay state
+        private bool _secondAnimActivated;
+        private int _secondAnimId;
+        private int _secondAnimFileIndex = 1;        // 1..5 = anim..anim5 MUL (default = anim)
+        private int _secondAnimOpacity = 50;         // 0..100
+        private SecondAnimColorMode _secondAnimColorMode = SecondAnimColorMode.Original;
+        private Color _secondAnimCustomColor = Color.Magenta;
+        private bool _isSecondAnimInFront;
+        private bool _drawSecondAnimBox;
+
+        private enum SecondAnimColorMode
+        {
+            Original,
+            Green,
+            Magenta,
+            Cyan,
+            Red,
+            Custom
+        }
         private static readonly Color _whiteConvert = Color.FromArgb(255, 255, 255, 255);
 
         private static readonly Pen _blackUnDrawTransparent = new Pen(Color.FromArgb(0, 0, 0, 0), 1);
@@ -50,7 +73,39 @@ namespace UoFiddler.Controls.Forms
             Icon = Options.GetFiddlerIcon();
 
             SelectFileToolStripComboBox.SelectedIndex = 0;
+
+            // ComboBox.SelectedIndex is not serialized by the WinForms designer (it gets stripped
+            // from InitializeComponent whenever the form is opened in the designer), so the default
+            // selections are applied here in the constructor instead.
+            ZoomComboBox.SelectedIndex = 0;
+            SecondAnimFileComboBox.SelectedIndex = 0;
+            SecondAnimColorComboBox.SelectedIndex = 0;
+
+            AnimationListTreeView.ShowNodeToolTips = true;
             FramesListView.MultiSelect = true;
+
+            if (Options.DarkMode)
+            {
+                // .NET 10 SystemColorMode.Dark overlays a dark theme on
+                // visual-style buttons that can swallow clicks on Buttons with
+                // BackgroundImage. Forcing FlatStyle.Flat bypasses theming.
+                PlayButton.FlatStyle = FlatStyle.Flat;
+                PlayButton.FlatAppearance.BorderSize = 1;
+                PlayButton.UseVisualStyleBackColor = false;
+                PlayButton.BackColor = Color.FromArgb(60, 60, 60);
+
+                // Brighter R/G/B label colors for dark backgrounds — the
+                // designer-time Red/Green(dark)/Navy are unreadable.
+                Color red = Color.Tomato;
+                Color green = Color.LimeGreen;
+                Color blue = Color.DodgerBlue;
+                ColorRedLabel.ForeColor = red;
+                ColorGreenLabel.ForeColor = green;
+                ColorBlueLabel.ForeColor = blue;
+                BackgroundRedLabel.ForeColor = red;
+                BackgroundGreenLabel.ForeColor = green;
+                BackgroundBlueLabel.ForeColor = blue;
+            }
 
             _fileType = 0;
             _currentDir = 0;
@@ -59,25 +114,11 @@ namespace UoFiddler.Controls.Forms
             _loaded = false;
         }
 
+        // Indexed by MobType enum: Monster=0, Sea=1, Animal=2, Human=3, Equipment=4.
+        // Equipment composites onto a humanoid and shares the human action set.
         private readonly string[][] _animNames =
         {
-            new string[]
-            {
-                "Walk",
-                "Run",
-                "Idle",
-                "Eat",
-                "Alert",
-                "Attack1",
-                "Attack2",
-                "GetHit",
-                "Die1",
-                "Idle",
-                "Fidget",
-                "LieDown",
-                "Die2"
-            }, //animal
-            new string[]
+            new[] // Monster (22)
             {
                 "Walk",
                 "Idle",
@@ -101,8 +142,36 @@ namespace UoFiddler.Controls.Forms
                 "Fly",
                 "TakeOff",
                 "GetHitInAir"
-            }, //Monster
-            new string[]
+            },
+            new[] // Sea (9)
+            {
+                "Walk",
+                "Run",
+                "Idle",
+                "Idle",
+                "Fidget",
+                "Attack1",
+                "Attack2",
+                "GetHit",
+                "Die1"
+            },
+            new[] // Animal (13)
+            {
+                "Walk",
+                "Run",
+                "Idle",
+                "Eat",
+                "Alert",
+                "Attack1",
+                "Attack2",
+                "GetHit",
+                "Die1",
+                "Idle",
+                "Fidget",
+                "LieDown",
+                "Die2"
+            },
+            new[] // Human (35)
             {
                 "Walk_01",
                 "WalkStaff_01",
@@ -139,13 +208,124 @@ namespace UoFiddler.Controls.Forms
                 "Bow_Lesser_01",
                 "Salute_Armed1h_01",
                 "Ingest_Eat_01"
-            } //human
+            },
+            null // Equipment — uses the Human action list (resolved below)
         };
+
+        private static readonly char[] _typeTag = { 'M', 'S', 'L', 'H', 'E' };
+
+        // Color used for "invalid" (no frames) tree nodes and helpers. Bright
+        // red is hard to read on a dark background; switch to OrangeRed in
+        // dark mode (matches the convention used elsewhere in the app).
+        private static readonly Color _invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
+
+        // In-file body ids shown in the gallery tab, populated alongside the tree.
+        private readonly System.Collections.Generic.List<int> _galleryBodies = new();
+
+        private string[] ResolveActionNames(MobType mobType)
+        {
+            // Equipment composites onto a humanoid; reuse the human action list.
+            int idx = mobType == MobType.Equipment ? (int)MobType.Human : (int)mobType;
+            return _animNames[idx];
+        }
+
+        // mobtypes.txt flag bits — see docs/file-formats/mobtypes.txt.md.
+        // flags == 0 means "use the default action set for this category" —
+        // the body has a normal complete animation set, so no dimming.
+        // flags != 0 means the body explicitly opts into specific optional
+        // actions; absent bits in that case indicate the action falls back
+        // to a category default. We dim those for informational purposes.
+        private static bool MobTypeHasAction(MobType type, uint flags, int action)
+        {
+            return GetMissingActionFlag(type, flags, action) == null;
+        }
+
+        /// <summary>
+        /// Returns the missing flag's name (e.g. "walk") if the given action
+        /// is dimmed for this body, or null if the action is not gated /
+        /// the body has it dedicated.
+        /// </summary>
+        private static string GetMissingActionFlag(MobType type, uint flags, int action)
+        {
+            if (flags == 0u)
+            {
+                return null;
+            }
+
+            (uint bit, string name) = GetActionBit(type, action);
+            if (bit == 0u || (flags & bit) != 0u)
+            {
+                return null;
+            }
+
+            return name;
+        }
+
+        private static (uint bit, string name) GetActionBit(MobType type, int action)
+        {
+            switch (type)
+            {
+                case MobType.Monster:
+                    return action switch
+                    {
+                        0 => (0x0001u, "dedicated walk"),
+                        2 => (0x0100u, "die A"),
+                        3 => (0x0200u, "die B"),
+                        4 => (0x0020u, "attack 1"),
+                        5 => (0x0040u, "attack 2"),
+                        7 => (0x1000u, "bow attack"),
+                        8 => (0x1000u, "bow attack"),
+                        9 => (0x2000u, "throw attack"),
+                        10 => (0x0400u, "block / get-hit"),
+                        13 => (0x0080u, "cast spell"),
+                        14 => (0x0080u, "cast spell"),
+                        15 => (0x0400u, "block / get-hit"),
+                        16 => (0x0400u, "block / get-hit"),
+                        _ => (0u, null)
+                    };
+                case MobType.Animal:
+                    return action switch
+                    {
+                        0 => (0x0001u, "dedicated walk"),
+                        1 => (0x0002u, "dedicated run"),
+                        3 => (0x8000u, "eat"),
+                        5 => (0x0020u, "attack 1"),
+                        6 => (0x0040u, "attack 2"),
+                        7 => (0x0400u, "block / get-hit"),
+                        8 => (0x0100u, "die A"),
+                        12 => (0x0200u, "die B"),
+                        _ => (0u, null)
+                    };
+                case MobType.Sea:
+                    return action switch
+                    {
+                        0 => (0x0001u, "dedicated walk"),
+                        1 => (0x0002u, "dedicated run"),
+                        5 => (0x0020u, "attack 1"),
+                        6 => (0x0040u, "attack 2"),
+                        7 => (0x0400u, "block / get-hit"),
+                        8 => (0x0100u, "die A"),
+                        _ => (0u, null)
+                    };
+                case MobType.Human:
+                case MobType.Equipment:
+                default:
+                    return (0u, null);
+            }
+        }
+
+        private static string BuildDimmedTooltip(string missingFlag, uint flags)
+        {
+            return $"Greyed out: mobtypes.txt flag for '{missingFlag}' is not set on this body "
+                   + $"(flags=0x{flags:X}). The client would substitute a default action; frames "
+                   + "are still editable here.";
+        }
 
         private void OnLoad(object sender, EventArgs e)
         {
             Options.LoadedUltimaClass["AnimationEdit"] = true;
 
+            _galleryBodies.Clear();
             AnimationListTreeView.BeginUpdate();
             try
             {
@@ -156,21 +336,27 @@ namespace UoFiddler.Controls.Forms
                     TreeNode[] nodes = new TreeNode[count];
                     for (int i = 0; i < count; ++i)
                     {
+                        MobType mobType = Animations.GetBodyMobType(i, _fileType);
                         int animLength = Animations.GetAnimLength(i, _fileType);
-                        string type = animLength == 22 ? "H" : animLength == 13 ? "L" : "P";
+                        string[] names = ResolveActionNames(mobType);
+                        // mobtypes.txt is keyed by server body id; reverse-map for anim2..6.
+                        int serverBody = _fileType == 1 ? i : BodyConverter.GetTrueBody(_fileType, i);
+                        uint mobFlags = MobTypes.IsLoaded && serverBody >= 0 ? MobTypes.GetFlags(serverBody) : 0u;
+                        char typeTag = _typeTag[(int)mobType];
                         TreeNode node = new TreeNode
                         {
                             Tag = i,
-                            Text = $"{type}: {i} ({BodyConverter.GetTrueBody(_fileType, i)})"
+                            Text = $"{typeTag}: {i} ({BodyConverter.GetTrueBody(_fileType, i)})"
                         };
 
                         bool valid = false;
                         for (int j = 0; j < animLength; ++j)
                         {
+                            string name = j < names.Length ? names[j] : $"Action{j}";
                             TreeNode treeNode = new TreeNode
                             {
                                 Tag = j,
-                                Text = string.Format("{0:D2} {1}", j, _animNames[animLength == 22 ? 1 : animLength == 13 ? 0 : 2][j])
+                                Text = string.Format("{0:D2} {1}", j, name)
                             };
 
                             if (AnimationEdit.IsActionDefined(_fileType, i, j))
@@ -179,7 +365,17 @@ namespace UoFiddler.Controls.Forms
                             }
                             else
                             {
-                                treeNode.ForeColor = Color.Red;
+                                treeNode.ForeColor = _invalidColor;
+                            }
+
+                            if (MobTypes.IsLoaded && treeNode.ForeColor != _invalidColor)
+                            {
+                                string missing = GetMissingActionFlag(mobType, mobFlags, j);
+                                if (missing != null)
+                                {
+                                    treeNode.ForeColor = Color.Gray;
+                                    treeNode.ToolTipText = BuildDimmedTooltip(missing, mobFlags);
+                                }
                             }
 
                             node.Nodes.Add(treeNode);
@@ -192,7 +388,12 @@ namespace UoFiddler.Controls.Forms
                                 continue;
                             }
 
-                            node.ForeColor = Color.Red;
+                            node.ForeColor = _invalidColor;
+                        }
+
+                        if (valid)
+                        {
+                            _galleryBodies.Add(i);
                         }
 
                         nodes[i] = node;
@@ -205,6 +406,9 @@ namespace UoFiddler.Controls.Forms
             {
                 AnimationListTreeView.EndUpdate();
             }
+
+            GalleryTileView.VirtualListSize = _galleryBodies.Count;
+            GalleryTileView.Invalidate();
 
             if (AnimationListTreeView.Nodes.Count > 0)
             {
@@ -277,6 +481,102 @@ namespace UoFiddler.Controls.Forms
 
             PalettePictureBox.Image?.Dispose();
             PalettePictureBox.Image = bmp;
+        }
+
+        private void GalleryTileViewDrawItem(object sender, UoFiddler.Controls.UserControls.TileView.TileViewControl.DrawTileListItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= _galleryBodies.Count)
+            {
+                return;
+            }
+
+            int body = _galleryBodies[e.Index];
+            Point itemPoint = new Point(e.Bounds.X + GalleryTileView.TilePadding.Left, e.Bounds.Y + GalleryTileView.TilePadding.Top);
+            Rectangle tileRect = new Rectangle(itemPoint, GalleryTileView.TileSize);
+            using var previousClip = e.Graphics.Clip;
+            using var clipRegion = new Region(tileRect);
+            e.Graphics.Clip = clipRegion;
+
+            if (!GalleryTileView.SelectedIndices.Contains(e.Index))
+            {
+                using var bgBrush = new SolidBrush(GalleryTileView.BackColor);
+                e.Graphics.FillRectangle(bgBrush, tileRect);
+            }
+
+            Bitmap bmp = TryGetFirstFrame(body);
+            if (bmp != null)
+            {
+                int maxW = tileRect.Width;
+                int maxH = tileRect.Height - 18;
+                int drawWidth = bmp.Width;
+                int drawHeight = bmp.Height;
+                if (drawWidth > maxW || drawHeight > maxH)
+                {
+                    float scale = Math.Min((float)maxW / drawWidth, (float)maxH / drawHeight);
+                    drawWidth = (int)(drawWidth * scale);
+                    drawHeight = (int)(drawHeight * scale);
+                }
+                int drawX = tileRect.X + (tileRect.Width - drawWidth) / 2;
+                int drawY = tileRect.Y + Math.Max(0, (tileRect.Height - 18 - drawHeight) / 2);
+                e.Graphics.DrawImage(bmp, drawX, drawY, drawWidth, drawHeight);
+            }
+
+            int serverBody = _fileType == 1 ? body : BodyConverter.GetTrueBody(_fileType, body);
+            string label = serverBody >= 0 && serverBody != body ? $"{body} ({serverBody})" : body.ToString();
+            using var stringFormat = new StringFormat();
+            stringFormat.Alignment = StringAlignment.Center;
+            stringFormat.LineAlignment = StringAlignment.Far;
+            e.Graphics.DrawString(label, GalleryTileView.Font, SystemBrushes.ControlText,
+                new RectangleF(tileRect.X, tileRect.Y, tileRect.Width, tileRect.Height), stringFormat);
+
+            e.Graphics.Clip = previousClip;
+        }
+
+        private Bitmap TryGetFirstFrame(int body)
+        {
+            // Walk a few action slots — body 0 may not have action 0 defined,
+            // but a later action may exist; pick the first that returns frames.
+            int animLength = Animations.GetAnimLength(body, _fileType);
+            for (int action = 0; action < animLength; ++action)
+            {
+                if (!AnimationEdit.IsActionDefined(_fileType, body, action))
+                {
+                    continue;
+                }
+
+                AnimIdx anim = AnimationEdit.GetAnimation(_fileType, body, action, 1);
+                if (anim?.Frames == null || anim.Frames.Count == 0)
+                {
+                    continue;
+                }
+
+                Bitmap[] frames = anim.GetFrames();
+                if (frames != null && frames.Length > 0 && frames[0] != null)
+                {
+                    return frames[0];
+                }
+            }
+            return null;
+        }
+
+        private void GalleryTileViewMouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            int idx = GalleryTileView.FocusIndex;
+            if (idx < 0 || idx >= _galleryBodies.Count)
+            {
+                return;
+            }
+
+            int body = _galleryBodies[idx];
+            TreeNode target = GetNode(body);
+            if (target == null)
+            {
+                return;
+            }
+
+            AnimationTabControl.SelectedTab = AnimationEditPage;
+            AnimationListTreeView.SelectedNode = target;
+            AnimationListTreeView.Focus();
         }
 
         private void AfterSelectTreeView(object sender, TreeViewEventArgs e)
@@ -364,6 +664,7 @@ namespace UoFiddler.Controls.Forms
                 FramesListView.EndUpdate();
             }
 
+            UpdateSecondAnimWarning();
             AnimationPictureBox.Invalidate();
             SetPaletteBox();
         }
@@ -374,20 +675,38 @@ namespace UoFiddler.Controls.Forms
             Bitmap[] currentBits = edit.GetFrames();
             Bitmap bmp = currentBits[(int)e.Item.Tag];
             var penColor = FramesListView.SelectedItems.Contains(e.Item) ? Color.Red : Color.Gray;
-            e.Graphics.DrawRectangle(new Pen(penColor), e.Bounds.X, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height);
+            using (var borderPen = new Pen(penColor))
+            {
+                e.Graphics.DrawRectangle(borderPen, e.Bounds.X, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height);
+            }
             e.Graphics.DrawImage(bmp, e.Bounds.X, e.Bounds.Y, bmp.Width,  bmp.Height);
             e.DrawText(TextFormatFlags.Bottom | TextFormatFlags.HorizontalCenter);
         }
 
         private void OnAnimChanged(object sender, EventArgs e)
         {
-            if (SelectFileToolStripComboBox.SelectedIndex == _fileType)
+            int selected = SelectFileToolStripComboBox.SelectedIndex;
+            if (selected == _fileType)
             {
                 return;
             }
 
-            _fileType = SelectFileToolStripComboBox.SelectedIndex;
-            OnLoad(this, EventArgs.Empty);
+            if (selected >= 1 && Files.GetFilePath($"anim{(selected == 1 ? "" : selected.ToString())}.mul") == null)
+            {
+                MessageBox.Show(
+                    $"anim{(selected == 1 ? "" : selected.ToString())}.mul is not present in the client directory.",
+                    "File not found",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                SelectFileToolStripComboBox.SelectedIndex = _fileType;
+                return;
+            }
+
+            _fileType = selected;
+            using (new WaitCursorScope(this))
+            {
+                OnLoad(this, EventArgs.Empty);
+            }
         }
 
         private void OnDirectionChanged(object sender, EventArgs e)
@@ -405,19 +724,24 @@ namespace UoFiddler.Controls.Forms
 
         private void AnimationPictureBox_OnPaintFrame(object sender, PaintEventArgs e)
         {
-            AnimIdx edit = AnimationEdit.GetAnimation(_fileType, _currentBody, _currentAction, _currentDir);
-            if (edit == null)
-            {
-                return;
-            }
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
 
-            Bitmap[] currentBits = edit.GetFrames();
-
+            // Background and centre crosshair are drawn first, so both the primary
+            // animation and the overlay always paint above the crosshair lines.
             e.Graphics.Clear(Color.LightGray);
             e.Graphics.DrawLine(Pens.Black, new Point(_framePoint.X, 0), new Point(_framePoint.X, AnimationPictureBox.Height));
             e.Graphics.DrawLine(Pens.Black, new Point(0, _framePoint.Y), new Point(AnimationPictureBox.Width, _framePoint.Y));
 
-            if (currentBits?.Length > 0 && currentBits[FramesTrackBar.Value] != null)
+            if (_secondAnimActivated && !_isSecondAnimInFront)
+            {
+                DrawSecondAnimation(e.Graphics);
+            }
+
+            AnimIdx edit = AnimationEdit.GetAnimation(_fileType, _currentBody, _currentAction, _currentDir);
+            Bitmap[] currentBits = edit?.GetFrames();
+
+            if (edit != null && currentBits?.Length > 0 && FramesTrackBar.Value < currentBits.Length && currentBits[FramesTrackBar.Value] != null)
             {
                 int varW;
                 int varH;
@@ -445,18 +769,30 @@ namespace UoFiddler.Controls.Forms
                     varFh = currentBits[FramesTrackBar.Value].Height;
                 }
 
-                int x = _framePoint.X - edit.Frames[FramesTrackBar.Value].Center.X;
-                int y = _framePoint.Y - edit.Frames[FramesTrackBar.Value].Center.Y - currentBits[FramesTrackBar.Value].Height;
+                int x = _framePoint.X - (int)(edit.Frames[FramesTrackBar.Value].Center.X * _zoomFactor);
+                int y = _framePoint.Y - (int)(edit.Frames[FramesTrackBar.Value].Center.Y * _zoomFactor) - (int)(currentBits[FramesTrackBar.Value].Height * _zoomFactor);
+
+                int scaledW = (int)(currentBits[FramesTrackBar.Value].Width * _zoomFactor);
+                int scaledH = (int)(currentBits[FramesTrackBar.Value].Height * _zoomFactor);
+                int scaledFw = (int)(varFw * _zoomFactor);
+                int scaledFh = (int)(varFh * _zoomFactor);
+                int scaledEw = (int)(varW * _zoomFactor);
+                int scaledEh = (int)(varH * _zoomFactor);
 
                 using (var whiteTransparent = new SolidBrush(Color.FromArgb(160, 255, 255, 255)))
                 {
-                    e.Graphics.FillRectangle(whiteTransparent, new Rectangle(x, y, varFw, varFh));
+                    e.Graphics.FillRectangle(whiteTransparent, new Rectangle(x, y, scaledFw, scaledFh));
                 }
 
-                e.Graphics.DrawRectangle(Pens.Red, new Rectangle(x, y, varW, varH));
-                e.Graphics.DrawImage(currentBits[FramesTrackBar.Value], x, y);
+                e.Graphics.DrawRectangle(Pens.Red, new Rectangle(x, y, scaledEw, scaledEh));
+                e.Graphics.DrawImage(currentBits[FramesTrackBar.Value], new Rectangle(x, y, scaledW, scaledH));
 
                 //e.Graphics.DrawLine(Pens.Red, new Point(0, 335-(int)numericUpDown1.Value), new Point(animationPictureBox.Width, 335-(int)numericUpDown1.Value));
+            }
+
+            if (_secondAnimActivated && _isSecondAnimInFront)
+            {
+                DrawSecondAnimation(e.Graphics);
             }
 
             // Draw Reference Point Arrow
@@ -474,6 +810,229 @@ namespace UoFiddler.Controls.Forms
             e.Graphics.DrawPolygon(_blackUndraw, arrayPoints);
         }
         //End of Soulblighter Modification
+
+        private void OnZoomChanged(object sender, EventArgs e)
+        {
+            string text = ZoomComboBox.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (int.TryParse(text.TrimEnd('%').Trim(), out int percent) && percent > 0)
+            {
+                _zoomFactor = percent / 100.0f;
+                AnimationPictureBox.Invalidate();
+            }
+        }
+
+        private Color GetSecondAnimTintColor()
+        {
+            switch (_secondAnimColorMode)
+            {
+                case SecondAnimColorMode.Green: return Color.Lime;
+                case SecondAnimColorMode.Magenta: return Color.Magenta;
+                case SecondAnimColorMode.Cyan: return Color.Cyan;
+                case SecondAnimColorMode.Red: return Color.Red;
+                case SecondAnimColorMode.Custom: return _secondAnimCustomColor;
+                default: return Color.White;
+            }
+        }
+
+        private void DrawSecondAnimation(Graphics graphics)
+        {
+            if (!_secondAnimActivated || _secondAnimFileIndex < 1 || _secondAnimFileIndex > 5)
+            {
+                return;
+            }
+
+            // Action and direction follow the primary selection — equipment shares the human
+            // action set, so no action remapping is needed for the matching use case.
+            AnimIdx edit = AnimationEdit.GetAnimation(_secondAnimFileIndex, _secondAnimId, _currentAction, _currentDir);
+            Bitmap[] frames = edit?.GetFrames();
+            if (frames == null || frames.Length == 0)
+            {
+                return;
+            }
+
+            // Crash safety: wrap an out-of-range index (the overlay may have fewer frames
+            // than the primary animation) instead of indexing past the array.
+            int index = FramesTrackBar.Value;
+            if (index < 0 || index >= frames.Length)
+            {
+                index = 0;
+            }
+
+            Bitmap frame = frames[index];
+            if (frame == null)
+            {
+                return;
+            }
+
+            int centerX = edit.Frames[index].Center.X;
+            int centerY = edit.Frames[index].Center.Y;
+
+            int x = _framePoint.X - (int)(centerX * _zoomFactor);
+            int y = _framePoint.Y - (int)(centerY * _zoomFactor) - (int)(frame.Height * _zoomFactor);
+            int w = (int)(frame.Width * _zoomFactor);
+            int h = (int)(frame.Height * _zoomFactor);
+
+            float a = _secondAnimOpacity / 100f;
+            ColorMatrix matrix;
+            if (_secondAnimColorMode == SecondAnimColorMode.Original)
+            {
+                matrix = new ColorMatrix(new float[][]
+                {
+                    new float[] { 1, 0, 0, 0, 0 },
+                    new float[] { 0, 1, 0, 0, 0 },
+                    new float[] { 0, 0, 1, 0, 0 },
+                    new float[] { 0, 0, 0, a, 0 },
+                    new float[] { 0, 0, 0, 0, 1 }
+                });
+            }
+            else
+            {
+                // Colorize/hue: convert each source pixel to its luminance, then multiply by
+                // the tint colour. This keeps the original animation's shading and edges
+                // (light/dark detail is preserved) while shifting the hue, instead of flooding
+                // every pixel with one flat colour. Source alpha is kept and scaled by opacity.
+                Color tint = GetSecondAnimTintColor();
+                float tr = tint.R / 255f;
+                float tg = tint.G / 255f;
+                float tb = tint.B / 255f;
+                matrix = new ColorMatrix(new float[][]
+                {
+                    new float[] { 0.30f * tr, 0.30f * tg, 0.30f * tb, 0, 0 },
+                    new float[] { 0.59f * tr, 0.59f * tg, 0.59f * tb, 0, 0 },
+                    new float[] { 0.11f * tr, 0.11f * tg, 0.11f * tb, 0, 0 },
+                    new float[] { 0, 0, 0, a, 0 },
+                    new float[] { 0, 0, 0, 0, 1 }
+                });
+            }
+
+            using (var attr = new ImageAttributes())
+            {
+                attr.SetColorMatrix(matrix);
+                graphics.DrawImage(frame, new Rectangle(x, y, w, h),
+                    0, 0, frame.Width, frame.Height, GraphicsUnit.Pixel, attr);
+            }
+
+            if (_drawSecondAnimBox)
+            {
+                using (var cyanPen = new Pen(Color.Cyan, 1))
+                {
+                    graphics.DrawRectangle(cyanPen, x, y, w, h);
+                }
+            }
+        }
+
+        private void UpdateSecondAnimWarning()
+        {
+            if (!_secondAnimActivated || _secondAnimFileIndex < 1 || _secondAnimFileIndex > 5)
+            {
+                SecondAnimWarningLabel.Visible = false;
+                return;
+            }
+
+            int primaryCount = FramesTrackBar.Maximum + 1;
+
+            int overlayCount = 0;
+            AnimIdx overlay = AnimationEdit.GetAnimation(_secondAnimFileIndex, _secondAnimId, _currentAction, _currentDir);
+            Bitmap[] frames = overlay?.GetFrames();
+            if (frames != null)
+            {
+                overlayCount = frames.Length;
+            }
+
+            if (overlayCount > 0 && overlayCount != primaryCount)
+            {
+                SecondAnimWarningLabel.Text = $"Frame counts differ (primary {primaryCount} / overlay {overlayCount})";
+                SecondAnimWarningLabel.Visible = true;
+            }
+            else
+            {
+                SecondAnimWarningLabel.Visible = false;
+            }
+        }
+
+        private void SecondAnimCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            _secondAnimActivated = SecondAnimCheckBox.Checked;
+            UpdateSecondAnimWarning();
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimFileComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string sel = SecondAnimFileComboBox.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(sel))
+            {
+                return;
+            }
+
+            if (sel.Equals("anim", StringComparison.OrdinalIgnoreCase))
+            {
+                _secondAnimFileIndex = 1;
+            }
+            else if (sel.StartsWith("anim", StringComparison.OrdinalIgnoreCase)
+                     && int.TryParse(sel.Substring(4), out int idx))
+            {
+                _secondAnimFileIndex = idx;
+            }
+
+            UpdateSecondAnimWarning();
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimIdNumericUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            _secondAnimId = (int)SecondAnimIdNumericUpDown.Value;
+            UpdateSecondAnimWarning();
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimColorComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (SecondAnimColorComboBox.SelectedIndex)
+            {
+                case 1: _secondAnimColorMode = SecondAnimColorMode.Green; break;
+                case 2: _secondAnimColorMode = SecondAnimColorMode.Magenta; break;
+                case 3: _secondAnimColorMode = SecondAnimColorMode.Cyan; break;
+                case 4: _secondAnimColorMode = SecondAnimColorMode.Red; break;
+                case 5:
+                    _secondAnimColorMode = SecondAnimColorMode.Custom;
+                    using (var dialog = new ColorDialog { Color = _secondAnimCustomColor })
+                    {
+                        if (dialog.ShowDialog() == DialogResult.OK)
+                        {
+                            _secondAnimCustomColor = dialog.Color;
+                        }
+                    }
+                    break;
+                default: _secondAnimColorMode = SecondAnimColorMode.Original; break;
+            }
+
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimOpacityTrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            _secondAnimOpacity = SecondAnimOpacityTrackBar.Value;
+            SecondAnimOpacityValueLabel.Text = _secondAnimOpacity + "%";
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimInFrontCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            _isSecondAnimInFront = SecondAnimInFrontCheckBox.Checked;
+            AnimationPictureBox.Invalidate();
+        }
+
+        private void SecondAnimBoxCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            _drawSecondAnimBox = SecondAnimBoxCheckBox.Checked;
+            AnimationPictureBox.Invalidate();
+        }
 
         //Soulblighter Modification
         private void OnFrameCountBarChanged(object sender, EventArgs e)
@@ -661,8 +1220,7 @@ namespace UoFiddler.Controls.Forms
                 }
             }
 
-            MessageBox.Show($"Frames saved to {path}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), path, "Frames saved successfully.");
         }
 
         private void OnClickRemoveAction(object sender, EventArgs e)
@@ -681,10 +1239,10 @@ namespace UoFiddler.Controls.Forms
                     return;
                 }
 
-                AnimationListTreeView.SelectedNode.ForeColor = Color.Red;
+                AnimationListTreeView.SelectedNode.ForeColor = _invalidColor;
                 for (int i = 0; i < AnimationListTreeView.SelectedNode.Nodes.Count; ++i)
                 {
-                    AnimationListTreeView.SelectedNode.Nodes[i].ForeColor = Color.Red;
+                    AnimationListTreeView.SelectedNode.Nodes[i].ForeColor = _invalidColor;
                     for (int d = 0; d < 5; ++d)
                     {
                         AnimIdx edit = AnimationEdit.GetAnimation(_fileType, _currentBody, i, d);
@@ -715,11 +1273,11 @@ namespace UoFiddler.Controls.Forms
                     edit?.ClearFrames();
                 }
 
-                AnimationListTreeView.SelectedNode.Parent.Nodes[_currentAction].ForeColor = Color.Red;
+                AnimationListTreeView.SelectedNode.Parent.Nodes[_currentAction].ForeColor = _invalidColor;
                 bool valid = false;
                 foreach (TreeNode node in AnimationListTreeView.SelectedNode.Parent.Nodes)
                 {
-                    if (node.ForeColor == Color.Red)
+                    if (node.ForeColor == _invalidColor)
                     {
                         continue;
                     }
@@ -736,7 +1294,7 @@ namespace UoFiddler.Controls.Forms
                     }
                     else
                     {
-                        AnimationListTreeView.SelectedNode.Parent.ForeColor = Color.Red;
+                        AnimationListTreeView.SelectedNode.Parent.ForeColor = _invalidColor;
                     }
                 }
 
@@ -806,7 +1364,7 @@ namespace UoFiddler.Controls.Forms
                 dialog.Multiselect = false;
                 dialog.Title = $"Choose image file to replace at {frameIndex}";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
@@ -847,9 +1405,11 @@ namespace UoFiddler.Controls.Forms
                     dialog.Title = "Choose image file to add";
                     dialog.CheckFileExists = true;
                     dialog.Filter = "Gif files (*.gif;)|*.gif; |Bitmap files (*.bmp;)|*.bmp; |Tiff files (*.tif;*.tiff)|*.tif;*.tiff; |Png files (*.png;)|*.png; |Jpeg files (*.jpeg;*.jpg;)|*.jpeg;*.jpg;";
+                    dialog.FilterIndex = _lastAddFilterIndex;
 
                     if (dialog.ShowDialog() == DialogResult.OK)
                     {
+                        _lastAddFilterIndex = dialog.FilterIndex;
                         FramesListView.BeginUpdate();
                         try
                         {
@@ -910,8 +1470,8 @@ namespace UoFiddler.Controls.Forms
                                         TreeNode node = GetNode(_currentBody);
                                         if (node != null)
                                         {
-                                            node.ForeColor = Color.Black;
-                                            node.Nodes[_currentAction].ForeColor = Color.Black;
+                                            node.ForeColor = Color.Empty;
+                                            node.Nodes[_currentAction].ForeColor = Color.Empty;
                                         }
 
                                         int i = edit.Frames.Count - 1;
@@ -973,8 +1533,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -1062,32 +1622,42 @@ namespace UoFiddler.Controls.Forms
 
                 using (StreamReader sr = new StreamReader(dialog.FileName))
                 {
-                    string line;
-                    ushort[] palette = new ushort[0x100];
+                    ushort[] palette = new ushort[Animations.PaletteCapacity];
+
                     int i = 0;
-                    while ((line = sr.ReadLine()) != null)
+                    while (sr.ReadLine() is { } line)
                     {
                         if ((line = line.Trim()).Length == 0 || line.StartsWith('#'))
                         {
                             continue;
                         }
 
-                        palette[i++] = ushort.Parse(line);
-                        //My Soulblighter Modification
-                        if (palette[i++] == 32768)
-                        {
-                            palette[i++] = 32769;
-                        }
-                        //End of Soulblighter Modification
-                        if (i >= 0x100)
+                        i++;
+
+                        if (i >= Animations.PaletteCapacity)
                         {
                             break;
                         }
+
+                        palette[i] = ushort.Parse(line);
+
+                        // My Soulblighter Modification
+                        // Convert color 0,0,0 to 0,0,8
+                        // TODO: find out why do we need this replacement
+                        if (palette[i] == 32768)
+                        {
+                            palette[i] = 32769;
+                        }
+                        // End of Soulblighter Modification
                     }
+
                     edit.ReplacePalette(palette);
                 }
+
                 SetPaletteBox();
+
                 FramesListView.Invalidate();
+
                 Options.ChangedUltimaClass["Animations"] = true;
             }
         }
@@ -1111,14 +1681,18 @@ namespace UoFiddler.Controls.Forms
                 }
 
                 int animLength = Animations.GetAnimLength(_currentBody, _fileType);
+                // .vd file format: animType 0 = 22-action (monster), 1 = 13-action (animal),
+                // 2 = 35-action (human). Other lengths can't be represented; reject.
                 int currentType;
-                if (animLength == 22)
+                switch (animLength)
                 {
-                    currentType = 0;
-                }
-                else
-                {
-                    currentType = animLength == 13 ? 1 : 2;
+                    case 22: currentType = 0; break;
+                    case 13: currentType = 1; break;
+                    case 35: currentType = 2; break;
+                    default:
+                        MessageBox.Show($"Body action length {animLength} cannot be imported as .vd palette.",
+                            "Import", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+                        return;
                 }
 
                 using (FileStream fs = new FileStream(dialog.FileName, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -1152,15 +1726,15 @@ namespace UoFiddler.Controls.Forms
                     {
                         if (AnimationEdit.IsActionDefined(_fileType, _currentBody, j))
                         {
-                            node.Nodes[j].ForeColor = Color.Black;
+                            node.Nodes[j].ForeColor = Color.Empty;
                             valid = true;
                         }
                         else
                         {
-                            node.Nodes[j].ForeColor = Color.Red;
+                            node.Nodes[j].ForeColor = _invalidColor;
                         }
                     }
-                    node.ForeColor = valid ? Color.Black : Color.Red;
+                    node.ForeColor = valid ? Color.Empty : _invalidColor;
                 }
 
                 Options.ChangedUltimaClass["Animations"] = true;
@@ -1179,11 +1753,10 @@ namespace UoFiddler.Controls.Forms
             }
 
             string path = Options.OutputPath;
-            string fileName = Path.Combine(path, $"anim{_fileType}_0x{_currentBody:X}.vd");
+            string fileName = Path.Combine(path, $"anim{_fileType}_{Utils.FormatExportId(_currentBody)}.vd");
             AnimationEdit.ExportToVD(_fileType, _currentBody, fileName);
 
-            MessageBox.Show($"Animation saved to {Options.OutputPath}", "Export", MessageBoxButtons.OK,
-                MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, "Animation saved successfully.");
         }
 
         private void OnClickShowOnlyValid(object sender, EventArgs e)
@@ -1197,7 +1770,7 @@ namespace UoFiddler.Controls.Forms
                 {
                     for (int i = AnimationListTreeView.Nodes.Count - 1; i >= 0; --i)
                     {
-                        if (AnimationListTreeView.Nodes[i].ForeColor == Color.Red)
+                        if (AnimationListTreeView.Nodes[i].ForeColor == _invalidColor)
                         {
                             AnimationListTreeView.Nodes[i].Remove();
                         }
@@ -2045,8 +2618,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -2224,12 +2797,12 @@ namespace UoFiddler.Controls.Forms
                 {
                     int index = (int)AnimationListTreeView.Nodes[i].Tag;
                     if (index < 0 || AnimationListTreeView.Nodes[i].Parent != null ||
-                        AnimationListTreeView.Nodes[i].ForeColor == Color.Red)
+                        AnimationListTreeView.Nodes[i].ForeColor == _invalidColor)
                     {
                         continue;
                     }
 
-                    string fileName = Path.Combine(dialog.SelectedPath, $"anim{_fileType}_0x{index:X}.vd");
+                    string fileName = Path.Combine(dialog.SelectedPath, $"anim{_fileType}_{Utils.FormatExportId(index)}.vd");
                     AnimationEdit.ExportToVD(_fileType, index, fileName);
                 }
 
@@ -2353,8 +2926,10 @@ namespace UoFiddler.Controls.Forms
                                 if (dialog.FileName.Contains(".gif"))
                                 {
                                     using (Bitmap bmpTemp = new Bitmap(dialog.FileName))
+                                    using (MemoryStream ms = new MemoryStream())
                                     {
-                                        Bitmap bitmap = new Bitmap(bmpTemp);
+                                        bmpTemp.Save(ms, ImageFormat.Gif);
+                                        Bitmap bitmap = new Bitmap(ms);
 
                                         FrameDimension dimension = new FrameDimension(bitmap.FrameDimensionsList[0]);
 
@@ -2423,8 +2998,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -2473,8 +3048,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -2523,8 +3098,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -2573,8 +3148,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -2623,8 +3198,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3075,10 +3650,10 @@ namespace UoFiddler.Controls.Forms
                         if (dialog.ShowDialog() == DialogResult.OK)
                         {
                             Color customConvert = Color.FromArgb(255, (int)numericUpDownRed.Value, (int)numericUpDownGreen.Value, (int)numericUpDownBlue.Value);
-                            
+
                             DirectionTrackBar.Enabled = false;
                             DirectionTrackBar.Value = 0;
-                            
+
                             AnimIdx edit = AnimationEdit.GetAnimation(_fileType, _currentBody, _currentAction, _currentDir);
 
                             if (edit != null)
@@ -3087,8 +3662,10 @@ namespace UoFiddler.Controls.Forms
                                 if (dialog.FileName.Contains(".gif"))
                                 {
                                     using (Bitmap bmpTemp = new Bitmap(dialog.FileName))
+                                    using (MemoryStream ms = new MemoryStream())
                                     {
-                                        Bitmap bitmap = new Bitmap(bmpTemp);
+                                        bmpTemp.Save(ms, ImageFormat.Gif);
+                                        Bitmap bitmap = new Bitmap(ms);
 
                                         FrameDimension dimension = new FrameDimension(bitmap.FrameDimensionsList[0]);
 
@@ -3157,8 +3734,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3207,8 +3784,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3257,8 +3834,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3307,8 +3884,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3357,8 +3934,8 @@ namespace UoFiddler.Controls.Forms
                 TreeNode node = GetNode(_currentBody);
                 if (node != null)
                 {
-                    node.ForeColor = Color.Black;
-                    node.Nodes[_currentAction].ForeColor = Color.Black;
+                    node.ForeColor = Color.Empty;
+                    node.Nodes[_currentAction].ForeColor = Color.Empty;
                 }
 
                 int i = edit.Frames.Count - 1;
@@ -3925,7 +4502,7 @@ namespace UoFiddler.Controls.Forms
                 GifBitmapDecoder decoder = new GifBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
                 BitmapPalette pal = decoder.Palette;
                 int i;
-                for (i = 0; i < 0x100; i++)
+                for (i = 0; i < Animations.PaletteCapacity; i++)
                 {
                     animIdx.Palette[i] = 0;
                 }
@@ -3933,7 +4510,7 @@ namespace UoFiddler.Controls.Forms
                 try
                 {
                     i = 0;
-                    while (i < 0x100) //&& i < pal.Colors.Count)
+                    while (i < Animations.PaletteCapacity) //&& i < pal.Colors.Count)
                     {
                         int red = pal.Colors[i].R / 8;
                         int green = pal.Colors[i].G / 8;
@@ -3958,7 +4535,7 @@ namespace UoFiddler.Controls.Forms
                     // TODO: ignored?
                 }
 
-                for (i = 0; i < 0x100; i++)
+                for (i = 0; i < Animations.PaletteCapacity; i++)
                 {
                     if (animIdx.Palette[i] < 0x8000)
                     {
@@ -3978,7 +4555,7 @@ namespace UoFiddler.Controls.Forms
             int delta = bd.Stride >> 1;
 
             int i = 0;
-            while (i < 0x100)
+            while (i < Animations.PaletteCapacity)
             {
                 animIdx.Palette[i] = 0;
                 i++;
@@ -4015,13 +4592,13 @@ namespace UoFiddler.Controls.Forms
                         animIdx.Palette[count++] = c;
                     }
 
-                    if (count >= 0x100)
+                    if (count >= Animations.PaletteCapacity)
                     {
                         break;
                     }
                 }
 
-                for (i = 0; i < 0x100; i++)
+                for (i = 0; i < Animations.PaletteCapacity; i++)
                 {
                     if (animIdx.Palette[i] < 0x8000)
                     {
@@ -4029,7 +4606,7 @@ namespace UoFiddler.Controls.Forms
                     }
                 }
 
-                if (count >= 0x100)
+                if (count >= Animations.PaletteCapacity)
                 {
                     break;
                 }
@@ -4042,7 +4619,7 @@ namespace UoFiddler.Controls.Forms
         public void PaletteConverter(int selector, AnimIdx animIdx)
         {
             int i;
-            for (i = 0; i < 0x100; i++)
+            for (i = 0; i < Animations.PaletteCapacity; i++)
             {
                 int blueTemp = (animIdx.Palette[i] - 0x8000) / 0x20;
                 blueTemp *= 0x20;
@@ -4086,7 +4663,7 @@ namespace UoFiddler.Controls.Forms
                 animIdx.Palette[i] = (ushort)contaFinal;
             }
 
-            for (i = 0; i < 0x100; i++)
+            for (i = 0; i < Animations.PaletteCapacity; i++)
             {
                 if (animIdx.Palette[i] < 0x8000)
                 {
@@ -4101,7 +4678,7 @@ namespace UoFiddler.Controls.Forms
             redP /= 8;
             greenP /= 8;
             blueP /= 8;
-            for (i = 0; i < 0x100; i++)
+            for (i = 0; i < Animations.PaletteCapacity; i++)
             {
                 int blueTemp = (animIdx.Palette[i] - 0x8000) / 0x20;
                 blueTemp *= 0x20;
@@ -4156,7 +4733,7 @@ namespace UoFiddler.Controls.Forms
                 animIdx.Palette[i] = (ushort)contaFinal;
             }
 
-            for (i = 0; i < 0x100; i++)
+            for (i = 0; i < Animations.PaletteCapacity; i++)
             {
                 if (animIdx.Palette[i] < 0x8000)
                 {

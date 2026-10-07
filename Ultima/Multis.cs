@@ -8,10 +8,45 @@ namespace Ultima
 {
     public sealed class Multis
     {
-        public const int MaximumMultiIndex = 0x2200;
+        /// <summary>
+        /// Upper bound for multi ids, in memory only - neither multi.idx nor MultiCollection.uop caps
+        /// the id space (multi.idx is a flat array sized by the file, and the client addresses a multi
+        /// as an ushort item graphic minus 0x4000).
+        /// </summary>
+        /// <remarks>
+        /// Raised from 0x2200 (8704) because the shipped MultiCollection.uop contains ids up to 9000,
+        /// which the old bound silently dropped both when loading the UOP and when reading a multi.idx
+        /// extracted from it. Matches the bound the UOP packer uses. Surplus slots cost 8 bytes each and
+        /// entries missing from a shorter multi.idx are marked invalid by <see cref="MulFileAccessor"/>,
+        /// so over-sizing this is safe.
+        /// </remarks>
+        public const int MaximumMultiIndex = 0x2710;
 
         private static MultiComponentList[] _components = new MultiComponentList[MaximumMultiIndex];
         private static FileIndex _fileIndex = new FileIndex("Multi.idx", "Multi.mul", MaximumMultiIndex, 14);
+
+        private static MultiComponentList[] _uopComponents = new MultiComponentList[MaximumMultiIndex];
+        private static bool _uopLoaded;
+
+        /*
+         * Visibility bits of a MultiCollection.uop tile record and where they land in a High Seas
+         * (16 byte row) multi.mul. Derived from the 53261 tiles that can be matched by id/x/y/z between
+         * the shipped MultiCollection.uop and the shipped multi.mul, with no exception:
+         *
+         *     multi.mul flags (int32 @+8)  = (uopFlags & 0x0001) != 0 ? 0 : 1     // note the inversion
+         *     multi.mul extra (int32 @+12) = (uopFlags & 0x0100) != 0 ? 1 : 0     // MultiTileEntry.Unk1
+         *
+         * 8207 of the 186695 shipped tiles carry bit 0x0100, so collapsing the field to a single
+         * boolean loses it. Kept in sync with LegacyMulFileConverter, which converts the same fields.
+         */
+        private const ushort _uopTileFlagLow = 0x0001;
+        private const ushort _uopTileFlagHigh = 0x0100;
+
+        /// <summary>
+        /// HashLittle2 of "build/multicollection/housing.bin" (0x126D1E99DDEDEE0A) - the one entry in
+        /// MultiCollection.uop that is not a multi.
+        /// </summary>
+        private static readonly ulong _housingBinIdentifier = UopUtils.HashFileName("build/multicollection/housing.bin");
 
         public enum ImportType
         {
@@ -33,6 +68,7 @@ namespace Ultima
         {
             _fileIndex = new FileIndex("Multi.idx", "Multi.mul", MaximumMultiIndex, 14);
             _components = new MultiComponentList[MaximumMultiIndex];
+            ReloadUop();
         }
 
         /// <summary>
@@ -72,13 +108,15 @@ namespace Ultima
                     return MultiComponentList.Empty;
                 }
 
+                // leaveOpen: stream is owned by the shared FileIndex; the
+                // BinaryReader is throwaway and must not close it.
                 if (Art.IsUOAHS())
                 {
-                    return new MultiComponentList(new BinaryReader(stream), length / 16, true);
+                    return new MultiComponentList(new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true), length / 16, true);
                 }
                 else
                 {
-                    return new MultiComponentList(new BinaryReader(stream), length / 12, false);
+                    return new MultiComponentList(new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true), length / 12, false);
                 }
             }
             catch
@@ -236,106 +274,222 @@ namespace Ultima
             }
         }
 
-        private static List<MultiComponentList.MultiTileEntry> RebuildTiles(MultiComponentList.MultiTileEntry[] tiles)
-        {
-            var newTiles = new List<MultiComponentList.MultiTileEntry>();
-            newTiles.AddRange(tiles);
+        public static bool HasUopFile => !string.IsNullOrEmpty(Files.GetFilePath("multicollection.uop"));
 
-            if (newTiles[0].OffsetX == 0 && newTiles[0].OffsetY == 0 && newTiles[0].OffsetZ == 0) // found a center item
+        public static void ReloadUop()
+        {
+            _uopComponents = new MultiComponentList[MaximumMultiIndex];
+            _uopLoaded = false;
+        }
+
+        public static MultiComponentList GetUopComponents(int index)
+        {
+            if (!_uopLoaded)
             {
-                if (newTiles[0].ItemId != 0x1) // its a "good" one
+                LoadUop();
+            }
+
+            if (index >= 0 && index < _uopComponents.Length)
+            {
+                return _uopComponents[index] ?? MultiComponentList.Empty;
+            }
+
+            return MultiComponentList.Empty;
+        }
+
+        private static void LoadUop()
+        {
+            _uopLoaded = true;
+
+            string path = Files.GetFilePath("multicollection.uop");
+            if (path == null)
+            {
+                return;
+            }
+
+            try
+            {
+                using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var reader = new BinaryReader(fileStream);
+
+                uint magic = reader.ReadUInt32();
+                if (magic != 0x0050594D)
                 {
-                    for (int j = newTiles.Count - 1; j >= 0; --j) // remove all invis items
-                    {
-                        if (newTiles[j].ItemId == 0x1)
-                        {
-                            newTiles.RemoveAt(j);
-                        }
-                    }
-                    return newTiles;
+                    return;
                 }
-                else // a bad one
+
+                uint version = reader.ReadUInt32();
+                if (version > 5)
                 {
-                    for (int i = 1; i < newTiles.Count; ++i) // do we have a better one?
+                    return;
+                }
+
+                reader.ReadUInt32(); // signature
+                ulong nextTableOffset = reader.ReadUInt64();
+                reader.ReadUInt32(); // block capacity
+                reader.ReadUInt32(); // file count
+                reader.ReadUInt32(); // reserved
+                reader.ReadUInt32(); // reserved
+                reader.ReadUInt32(); // reserved
+
+                var entries = new List<(long dataOffset, uint compressedSize, uint decompressedSize)>();
+
+                ulong next = nextTableOffset;
+                while (next != 0)
+                {
+                    fileStream.Seek((long)next, SeekOrigin.Begin);
+                    int count = reader.ReadInt32();
+                    next = reader.ReadUInt64();
+
+                    for (int i = 0; i < count; i++)
                     {
-                        if (newTiles[i].OffsetX != 0 || newTiles[i].OffsetY != 0 || newTiles[i].ItemId == 0x1 ||
-                            newTiles[i].OffsetZ != 0)
+                        ulong dataOffset = reader.ReadUInt64();
+                        uint headerSize = reader.ReadUInt32();
+                        uint compressedSize = reader.ReadUInt32();
+                        uint decompressedSize = reader.ReadUInt32();
+                        ulong identifier = reader.ReadUInt64(); // filename hash
+                        reader.ReadUInt32(); // data hash
+                        ushort flag = reader.ReadUInt16();
+
+                        if (dataOffset == 0 || decompressedSize == 0)
                         {
                             continue;
                         }
 
-                        MultiComponentList.MultiTileEntry centerItem = newTiles[i];
-                        newTiles.RemoveAt(i); // jep so save it
-
-                        for (int j = newTiles.Count-1; j >= 0; --j) // and remove all invis
+                        if (identifier == _housingBinIdentifier)
                         {
-                            if (newTiles[j].ItemId == 0x1)
-                            {
-                                newTiles.RemoveAt(j);
-                            }
+                            // "build/multicollection/housing.bin" is the custom housing piece catalog, not a
+                            // multi. Its first two DWORDs happen to look like a valid (multiId, tileCount)
+                            // header - 7 and 1 - so parsing it would replace multi 7 with a one tile stub.
+                            continue;
                         }
 
-                        newTiles.Insert(0, centerItem);
+                        if (flag == 0)
+                        {
+                            compressedSize = 0;
+                        }
 
-                        return newTiles;
+                        entries.Add(((long)(dataOffset + headerSize), compressedSize, decompressedSize));
                     }
+                }
 
-                    for (int j = newTiles.Count-1; j >= 1; --j) // nothing found so remove all invis except the first
+                foreach (var (dataOffset, compressedSize, decompressedSize) in entries)
+                {
+                    fileStream.Seek(dataOffset, SeekOrigin.Begin);
+
+                    byte[] raw;
+                    if (compressedSize > 0)
                     {
-                        if (newTiles[j].ItemId == 0x1)
+                        byte[] compressed = reader.ReadBytes((int)compressedSize);
+                        (bool ok, byte[] decompressed) = UopUtils.Decompress(compressed);
+                        if (!ok)
                         {
-                            newTiles.RemoveAt(j);
+                            continue;
                         }
+
+                        raw = decompressed;
+                    }
+                    else
+                    {
+                        raw = reader.ReadBytes((int)decompressedSize);
                     }
 
-                    return newTiles;
+                    using var memoryStream = new MemoryStream(raw);
+                    using var binaryReader = new BinaryReader(memoryStream);
+
+                    uint multiId = binaryReader.ReadUInt32();
+                    int componentCount = binaryReader.ReadInt32();
+
+                    if (multiId >= MaximumMultiIndex || componentCount <= 0)
+                    {
+                        continue;
+                    }
+
+                    var tiles = new List<MultiComponentList.MultiTileEntry>(componentCount);
+                    for (int j = 0; j < componentCount; j++)
+                    {
+                        ushort graphic = binaryReader.ReadUInt16();
+                        ushort ux = binaryReader.ReadUInt16();
+                        ushort uy = binaryReader.ReadUInt16();
+                        ushort uz = binaryReader.ReadUInt16();
+                        ushort uflags = binaryReader.ReadUInt16();
+                        int clilocsCount = binaryReader.ReadInt32();
+
+                        if (clilocsCount > 0)
+                        {
+                            binaryReader.BaseStream.Seek(clilocsCount * 4L, SeekOrigin.Current);
+                        }
+
+                        tiles.Add(new MultiComponentList.MultiTileEntry
+                        {
+                            ItemId = graphic,
+                            OffsetX = (short)ux,
+                            OffsetY = (short)uy,
+                            OffsetZ = (short)uz,
+                            Flags = (uflags & _uopTileFlagLow) != 0 ? 0 : 1,
+                            Unk1 = (uflags & _uopTileFlagHigh) != 0 ? 1 : 0
+                        });
+                    }
+
+                    if (tiles.Count > 0)
+                    {
+                        _uopComponents[multiId] = new MultiComponentList(tiles);
+                    }
                 }
             }
-
-            for (int i = 0; i < newTiles.Count; ++i) // is there a good one
+            catch
             {
-                if (newTiles[i].OffsetX != 0 || newTiles[i].OffsetY != 0 || newTiles[i].ItemId == 0x1 ||
-                    newTiles[i].OffsetZ != 0)
-                {
-                    continue;
-                }
+                // leave array in its current partially-populated state
+            }
+        }
 
-                MultiComponentList.MultiTileEntry centerItem = newTiles[i];
-                newTiles.RemoveAt(i); // store it
-                for (int j = newTiles.Count-1; j >= 0; --j) // remove all invis
-                {
-                    if (newTiles[j].ItemId == 0x1)
-                    {
-                        newTiles.RemoveAt(j);
-                    }
-                }
+        private static bool IsAnchorTile(MultiComponentList.MultiTileEntry tile)
+        {
+            return tile.OffsetX == 0 && tile.OffsetY == 0 && tile.OffsetZ == 0;
+        }
 
-                newTiles.Insert(0, centerItem);
+        /// <summary>
+        /// Guarantees the first tile sits on the multi's anchor (0,0,0), where legacy tools expect the
+        /// reference tile. Everything else is left exactly as it is.
+        /// </summary>
+        /// <remarks>
+        /// This used to also delete every invisible (ItemId 0x1) tile and hoist a "real" tile to the front.
+        /// Both were destructive: the shipped MultiCollection.uop contains 314 invisible tiles, 293 of them
+        /// sitting on the anchor as the multi's own reference tile, and the client paints a multi in file
+        /// order - so reordering changes which tile wins where two overlap. On the shipped data the old rule
+        /// dropped 122 tiles and reshuffled 119 multis; this one leaves 860 of 871 untouched.
+        /// </remarks>
+        private static List<MultiComponentList.MultiTileEntry> RebuildTiles(MultiComponentList.MultiTileEntry[] tiles)
+        {
+            var newTiles = new List<MultiComponentList.MultiTileEntry>(tiles.Length + 1);
+            newTiles.AddRange(tiles);
+
+            if (newTiles.Count > 0 && IsAnchorTile(newTiles[0]))
+            {
+                return newTiles;
+            }
+
+            int anchorIndex = newTiles.FindIndex(IsAnchorTile);
+            if (anchorIndex > 0)
+            {
+                MultiComponentList.MultiTileEntry anchor = newTiles[anchorIndex];
+                newTiles.RemoveAt(anchorIndex);
+                newTiles.Insert(0, anchor);
 
                 return newTiles;
             }
 
-            for (int j = newTiles.Count-1; j >= 0; --j) // nothing found so remove all invis
+            // Nothing on the anchor, so add a marker. ItemId 0x1 has no art and therefore paints nothing,
+            // which is how the shipped files mark an anchor that carries no graphic of its own.
+            newTiles.Insert(0, new MultiComponentList.MultiTileEntry
             {
-                if (newTiles[j].ItemId == 0x1)
-                {
-                    newTiles.RemoveAt(j);
-                }
-            }
-
-            // and create a new invis
-            var invisItem =
-                new MultiComponentList.MultiTileEntry
-                {
-                    ItemId = 0x1,
-                    OffsetX = 0,
-                    OffsetY = 0,
-                    OffsetZ = 0,
-                    Flags = 0,
-                    Unk1 = 0
-                };
-
-            newTiles.Insert(0, invisItem);
+                ItemId = 0x1,
+                OffsetX = 0,
+                OffsetY = 0,
+                OffsetZ = 0,
+                Flags = 0,
+                Unk1 = 0
+            });
 
             return newTiles;
         }
@@ -347,12 +501,25 @@ namespace Ultima
             string idx = Path.Combine(path, "multi.idx");
             string mul = Path.Combine(path, "multi.mul");
 
+            // Write index rows only up to the highest populated multi. MaximumMultiIndex is an in-memory
+            // bound with room for ids the client does not use yet; padding out to it would append tens of
+            // thousands of sentinel rows that carry no information.
+            int lastUsedIndex = -1;
+            for (int index = MaximumMultiIndex - 1; index >= 0; --index)
+            {
+                if (GetComponents(index) != MultiComponentList.Empty)
+                {
+                    lastUsedIndex = index;
+                    break;
+                }
+            }
+
             using (var fsidx = new FileStream(idx, FileMode.Create, FileAccess.Write, FileShare.Write))
             using (var fsmul = new FileStream(mul, FileMode.Create, FileAccess.Write, FileShare.Write))
             using (var binidx = new BinaryWriter(fsidx))
             using (var binmul = new BinaryWriter(fsmul))
             {
-                for (int index = 0; index < MaximumMultiIndex; ++index)
+                for (int index = 0; index <= lastUsedIndex; ++index)
                 {
                     MultiComponentList comp = GetComponents(index);
 
@@ -375,7 +542,7 @@ namespace Ultima
                             binidx.Write(tiles.Count * 12); // length
                         }
 
-                        binidx.Write(-1); // extra
+                        binidx.Write(0); // extra - unused for multis; both the client files and the UOP packer write 0
                         for (int i = 0; i < tiles.Count; ++i)
                         {
                             binmul.Write(tiles[i].ItemId);

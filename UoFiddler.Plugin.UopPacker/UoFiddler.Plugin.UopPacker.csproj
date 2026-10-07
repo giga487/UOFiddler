@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<AssemblyName>UOPPacker</AssemblyName>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net10.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AssemblyTitle>UOP Packer</AssemblyTitle>
 		<Product>LegacyMUL Converter</Product>
-		<Copyright>Copyright © 2024</Copyright>
+		<Copyright>Copyright © 2026</Copyright>
 		<AssemblyVersion>1.1.1</AssemblyVersion>
 		<FileVersion>1.1.1</FileVersion>
 	</PropertyGroup>
@@ -23,7 +23,7 @@
 		<GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
 	</PropertyGroup>
 	<ItemGroup>
-	  <PackageReference Include="System.Drawing.Common" Version="8.0.8" />
+	  <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Ultima\Ultima.csproj">

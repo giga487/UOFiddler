@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using Ultima;
@@ -13,10 +14,45 @@ namespace UoFiddler.Plugin.Compare.Classes
         private static byte[] _streamBuffer;
         private static byte[] _validBuffer;
 
+        internal static event Action FileIndexChanged;
+
         public static void SetFileIndex(string idxPath, string mulPath)
         {
-            _fileIndex = new SecondFileIndex(idxPath, mulPath, 0x14000);
+            SetFileIndex(idxPath, mulPath, null);
+        }
+
+        public static void SetFileIndex(string idxPath, string mulPath, string uopPath)
+        {
+            // Build first: a bad UOP throws out of the ctor and leaves the previous index usable.
+            var newIndex = new SecondFileIndex(idxPath, mulPath, uopPath, 0x14000, ".tga", 0x13FDC, false);
+
+            SecondFileIndex oldIndex = _fileIndex;
+            Bitmap[] oldCache = _cache;
+
+            _fileIndex = newIndex;
             _cache = new Bitmap[0x14000];
+            _streamBuffer = null;
+
+            // Order matters: the cache hands out its own Bitmap instances, and three tabs park them in
+            // PictureBox.BackgroundImage. Let the subscribers drop those references before we dispose.
+            FileIndexChanged?.Invoke();
+
+            oldIndex?.Dispose();
+            DisposeCache(oldCache);
+        }
+
+        private static void DisposeCache(Bitmap[] cache)
+        {
+            if (cache == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < cache.Length; ++i)
+            {
+                cache[i]?.Dispose();
+                cache[i] = null;
+            }
         }
 
         public static int GetMaxItemId()
@@ -55,11 +91,22 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         private static int GetIdxLength()
         {
-            return (int)(_fileIndex.IdxLength / 12);
+            // Reached through the public GetMaxItemId/IsUOAHS, which callers may hit before a load.
+            return _fileIndex == null ? 0 : (int)(_fileIndex.IdxLength / 12);
+        }
+
+        public static bool IsUOAHS()
+        {
+            return GetIdxLength() >= 0x13FDC;
         }
 
         public static bool IsValidStatic(int index)
         {
+            if (_fileIndex == null || _cache == null)
+            {
+                return false;
+            }
+
             index = GetLegalItemId(index);
             index += 0x4000;
 
@@ -81,7 +128,7 @@ namespace UoFiddler.Plugin.Compare.Classes
             }
 
             stream.Seek(4, SeekOrigin.Current);
-            stream.Read(_validBuffer, 0, 4);
+            stream.ReadExactly(_validBuffer, 0, 4);
 
             short width = (short)(_validBuffer[0] | (_validBuffer[1] << 8));
             short height = (short)(_validBuffer[2] | (_validBuffer[3] << 8));
@@ -91,6 +138,11 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         public static Bitmap GetStatic(int index)
         {
+            if (_fileIndex == null || _cache == null)
+            {
+                return null;
+            }
+
             index = GetLegalItemId(index);
             index += 0x4000;
 
@@ -140,8 +192,9 @@ namespace UoFiddler.Plugin.Compare.Classes
                 _streamBuffer = new byte[length];
             }
 
-            stream.Read(_streamBuffer, 0, length);
-            stream.Close();
+            // Do not close the stream: it is the index's cached handle, shared by every entry, and
+            // SecondFileIndex.EnsureOpen would have to re-open the file for the next tile.
+            stream.ReadExactly(_streamBuffer, 0, length);
 
             fixed (byte* data = _streamBuffer)
             {
@@ -206,12 +259,22 @@ namespace UoFiddler.Plugin.Compare.Classes
 
         public static bool IsValidLand(int index)
         {
+            if (_fileIndex == null || _cache == null)
+            {
+                return false;
+            }
+
             index &= 0x3FFF;
             return _cache[index] != null || _fileIndex.Valid(index, out _, out _);
         }
 
         public static Bitmap GetLand(int index)
         {
+            if (_fileIndex == null || _cache == null)
+            {
+                return null;
+            }
+
             index &= 0x3FFF;
 
             if (_cache[index] != null)
@@ -255,8 +318,8 @@ namespace UoFiddler.Plugin.Compare.Classes
                 _streamBuffer = new byte[length];
             }
 
-            stream.Read(_streamBuffer, 0, length);
-            stream.Close();
+            // See LoadStatic: the stream belongs to the index and stays open.
+            stream.ReadExactly(_streamBuffer, 0, length);
             fixed (byte* binData = _streamBuffer)
             {
                 ushort* bdata = (ushort*)binData;

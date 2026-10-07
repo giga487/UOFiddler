@@ -30,7 +30,14 @@ namespace UoFiddler.Controls.UserControls
             }
             if (disposing)
             {
-                
+                _zoomBufferGraphics?.Dispose();
+                _zoomBuffer?.Dispose();
+                _renderBuffer?.Dispose();
+                _dragTrailTimer?.Dispose();
+                _zoomBufferGraphics = null;
+                _zoomBuffer = null;
+                _renderBuffer = null;
+                _dragTrailTimer = null;
             }
             base.Dispose(disposing);
         }
@@ -48,6 +55,7 @@ namespace UoFiddler.Controls.UserControls
             this.CoordsLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.ClientLocLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.ZoomLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.MessageLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.zoomToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -87,6 +95,10 @@ namespace UoFiddler.Controls.UserControls
             this.showCenterCrossToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.showMarkersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showClientCrossToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator8 = new System.Windows.Forms.ToolStripSeparator();
+            this.altitudeModeNormalToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.altitudeModeAltitudeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripDropDownButton2 = new System.Windows.Forms.ToolStripDropDownButton();
             this.showClientLocToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
@@ -96,7 +108,6 @@ namespace UoFiddler.Controls.UserControls
             this.PreloadMap = new System.Windows.Forms.ToolStripButton();
             this.toolStripDropDownButton3 = new System.Windows.Forms.ToolStripDropDownButton();
             this.defragStaticsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.defragAndRemoveDuplicatesStToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importStaticsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.meltStaticsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.clearStaticsinMemoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -125,7 +136,8 @@ namespace UoFiddler.Controls.UserControls
             this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.CoordsLabel,
             this.ClientLocLabel,
-            this.ZoomLabel});
+            this.ZoomLabel,
+            this.MessageLabel});
             this.statusStrip.Location = new System.Drawing.Point(0, 356);
             this.statusStrip.Name = "statusStrip";
             this.statusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 16, 0);
@@ -153,9 +165,18 @@ namespace UoFiddler.Controls.UserControls
             // 
             this.ZoomLabel.AutoSize = false;
             this.ZoomLabel.Name = "ZoomLabel";
-            this.ZoomLabel.Size = new System.Drawing.Size(100, 28);
+            this.ZoomLabel.Size = new System.Drawing.Size(200, 28);
             this.ZoomLabel.Text = "Zoom: ";
             this.ZoomLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // MessageLabel
+            // 
+            this.MessageLabel.AutoSize = false;
+            this.MessageLabel.Name = "MessageLabel";
+            this.MessageLabel.Size = new System.Drawing.Size(200, 28);
+            this.MessageLabel.Text = "";
+            this.MessageLabel.ForeColor = System.Drawing.Color.Red;
+            this.MessageLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // pictureBox
             // 
@@ -450,7 +471,11 @@ namespace UoFiddler.Controls.UserControls
             this.showStaticsToolStripMenuItem1,
             this.showCenterCrossToolStripMenuItem1,
             this.showMarkersToolStripMenuItem,
-            this.showClientCrossToolStripMenuItem});
+            this.showClientCrossToolStripMenuItem,
+            this.toolStripSeparator8,
+            this.altitudeModeNormalToolStripMenuItem,
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem,
+            this.altitudeModeAltitudeToolStripMenuItem});
             this.toolStripDropDownButton1.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripDropDownButton1.Name = "toolStripDropDownButton1";
             this.toolStripDropDownButton1.Size = new System.Drawing.Size(45, 25);
@@ -493,8 +518,36 @@ namespace UoFiddler.Controls.UserControls
             this.showClientCrossToolStripMenuItem.CheckOnClick = true;
             this.showClientCrossToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.showClientCrossToolStripMenuItem.Name = "showClientCrossToolStripMenuItem";
-            this.showClientCrossToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            this.showClientCrossToolStripMenuItem.Size = new System.Drawing.Size(220, 22);
             this.showClientCrossToolStripMenuItem.Text = "Show Client Cross";
+            // 
+            // toolStripSeparator8
+            // 
+            this.toolStripSeparator8.Name = "toolStripSeparator8";
+            this.toolStripSeparator8.Size = new System.Drawing.Size(217, 6);
+            // 
+            // altitudeModeNormalToolStripMenuItem
+            // 
+            this.altitudeModeNormalToolStripMenuItem.Checked = true;
+            this.altitudeModeNormalToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.altitudeModeNormalToolStripMenuItem.Name = "altitudeModeNormalToolStripMenuItem";
+            this.altitudeModeNormalToolStripMenuItem.Size = new System.Drawing.Size(220, 22);
+            this.altitudeModeNormalToolStripMenuItem.Text = "Normal";
+            this.altitudeModeNormalToolStripMenuItem.Click += new System.EventHandler(this.OnAltitudeModeNormal);
+            // 
+            // altitudeModeNormalWithAltitudeToolStripMenuItem
+            // 
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem.Name = "altitudeModeNormalWithAltitudeToolStripMenuItem";
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem.Size = new System.Drawing.Size(220, 22);
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem.Text = "Normal + Altitude";
+            this.altitudeModeNormalWithAltitudeToolStripMenuItem.Click += new System.EventHandler(this.OnAltitudeModeNormalWithAltitude);
+            // 
+            // altitudeModeAltitudeToolStripMenuItem
+            // 
+            this.altitudeModeAltitudeToolStripMenuItem.Name = "altitudeModeAltitudeToolStripMenuItem";
+            this.altitudeModeAltitudeToolStripMenuItem.Size = new System.Drawing.Size(220, 22);
+            this.altitudeModeAltitudeToolStripMenuItem.Text = "Altitude Map";
+            this.altitudeModeAltitudeToolStripMenuItem.Click += new System.EventHandler(this.OnAltitudeModeAltitude);
             // 
             // toolStripDropDownButton2
             // 
@@ -558,7 +611,6 @@ namespace UoFiddler.Controls.UserControls
             this.toolStripDropDownButton3.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.toolStripDropDownButton3.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.defragStaticsToolStripMenuItem,
-            this.defragAndRemoveDuplicatesStToolStripMenuItem,
             this.importStaticsToolStripMenuItem,
             this.meltStaticsToolStripMenuItem,
             this.clearStaticsinMemoryToolStripMenuItem,
@@ -581,15 +633,10 @@ namespace UoFiddler.Controls.UserControls
             // 
             this.defragStaticsToolStripMenuItem.Name = "defragStaticsToolStripMenuItem";
             this.defragStaticsToolStripMenuItem.Size = new System.Drawing.Size(308, 22);
-            this.defragStaticsToolStripMenuItem.Text = "Defrag Statics";
+            this.defragStaticsToolStripMenuItem.Text = "Defrag Statics...";
+            this.defragStaticsToolStripMenuItem.ToolTipText = "Rewrites staidx/statics for this map, compacting it and optionally filtering out " +
+    "statics the client cannot draw correctly. Reports what it removed.";
             this.defragStaticsToolStripMenuItem.Click += new System.EventHandler(this.OnClickDefragStatics);
-            // 
-            // defragAndRemoveDuplicatesStToolStripMenuItem
-            // 
-            this.defragAndRemoveDuplicatesStToolStripMenuItem.Name = "defragAndRemoveDuplicatesStToolStripMenuItem";
-            this.defragAndRemoveDuplicatesStToolStripMenuItem.Size = new System.Drawing.Size(308, 22);
-            this.defragAndRemoveDuplicatesStToolStripMenuItem.Text = "Defrag and Remove Duplicates Statics";
-            this.defragAndRemoveDuplicatesStToolStripMenuItem.Click += new System.EventHandler(this.OnClickDefragRemoveStatics);
             // 
             // importStaticsToolStripMenuItem
             // 
@@ -746,6 +793,9 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ToolStripMenuItem asJpgToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem asPngToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem asTiffToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem altitudeModeAltitudeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem altitudeModeNormalToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem altitudeModeNormalWithAltitudeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem clearStaticsinMemoryToolStripMenuItem;
         private System.Windows.Forms.ToolStripStatusLabel ClientLocLabel;
         private UoFiddler.Controls.UserControls.CollapsibleSplitter collapsibleSplitter1;
@@ -754,7 +804,6 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip2;
         private System.Windows.Forms.ToolStripStatusLabel CoordsLabel;
         private System.Windows.Forms.ToolStripMenuItem copyToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem defragAndRemoveDuplicatesStToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem defragStaticsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem extractMapToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem feluccaToolStripMenuItem;
@@ -769,6 +818,7 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ToolStripMenuItem insertMarkerToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem malasToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem meltStaticsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripStatusLabel MessageLabel;
         private System.Windows.Forms.TreeView OverlayObjectTree;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.PictureBox pictureBox;
@@ -804,6 +854,7 @@ namespace UoFiddler.Controls.UserControls
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator7;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.ToolStripMenuItem trammelToolStripMenuItem;
         private System.Windows.Forms.VScrollBar vScrollBar;

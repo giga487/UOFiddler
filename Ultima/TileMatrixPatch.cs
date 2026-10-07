@@ -14,9 +14,13 @@ namespace Ultima
         private readonly int _blockWidth;
         private readonly int _blockHeight;
 
-        private static byte[] _buffer;
         private static StaticTile[] _tileBuffer = new StaticTile[128];
 
+        /// <remarks>
+        /// The arrays are only allocated when the matching diff files are present, and a client can
+        /// ship one half of the set without the other - 7.0.114.4 has stadif but no mapdif - so the
+        /// accessors have to cope with a null array rather than assume the files were there.
+        /// </remarks>
         public bool IsLandBlockPatched(int x, int y)
         {
             if (x < 0 || y < 0 || x >= _blockWidth || y >= _blockHeight)
@@ -24,12 +28,7 @@ namespace Ultima
                 return false;
             }
 
-            if (LandBlocks[x] == null)
-            {
-                return false;
-            }
-
-            if (LandBlocks[x][y] == null)
+            if (LandBlocks?[x]?[y] == null)
             {
                 return false;
             }
@@ -44,12 +43,7 @@ namespace Ultima
                 return TileMatrix.InvalidLandBlock;
             }
 
-            if (LandBlocks[x]==null)
-            {
-                return TileMatrix.InvalidLandBlock;
-            }
-
-            return LandBlocks[x][y];
+            return LandBlocks?[x]?[y] ?? TileMatrix.InvalidLandBlock;
         }
 
         public Tile GetLandTile(int x, int y)
@@ -64,12 +58,7 @@ namespace Ultima
                 return false;
             }
 
-            if (StaticBlocks[x] == null)
-            {
-                return false;
-            }
-
-            if (StaticBlocks[x][y] == null)
+            if (StaticBlocks?[x]?[y] == null)
             {
                 return false;
             }
@@ -84,12 +73,7 @@ namespace Ultima
                 return TileMatrix.EmptyStaticBlock;
             }
 
-            if (StaticBlocks[x] == null)
-            {
-                return TileMatrix.EmptyStaticBlock;
-            }
-
-            return StaticBlocks[x][y];
+            return StaticBlocks?[x]?[y] ?? TileMatrix.EmptyStaticBlock;
         }
 
         public HuedTile[] GetStaticTiles(int x, int y)
@@ -100,7 +84,7 @@ namespace Ultima
         public TileMatrixPatch(TileMatrix matrix, int index, string path)
         {
             _blockWidth = matrix.BlockWidth;
-            _blockHeight = matrix.BlockWidth;
+            _blockHeight = matrix.BlockHeight;
 
             LandBlocksCount = StaticBlocksCount = 0;
             string mapDataPath, mapIndexPath;
@@ -185,22 +169,7 @@ namespace Ultima
 
                     var tiles = new Tile[64];
 
-                    GCHandle gc = GCHandle.Alloc(tiles, GCHandleType.Pinned);
-                    try
-                    {
-                        if (_buffer == null || _buffer.Length < 192)
-                        {
-                            _buffer = new byte[192];
-                        }
-
-                        fsData.Read(_buffer, 0, 192);
-
-                        Marshal.Copy(_buffer, 0, gc.AddrOfPinnedObject(), 192);
-                    }
-                    finally
-                    {
-                        gc.Free();
-                    }
+                    fsData.ReadExactly(MemoryMarshal.AsBytes(tiles.AsSpan()));
 
                     if (LandBlocks[x] == null)
                     {
@@ -269,47 +238,32 @@ namespace Ultima
 
                     StaticTile[] staTiles = _tileBuffer;
 
-                    GCHandle gc = GCHandle.Alloc(staTiles, GCHandleType.Pinned);
-                    try
+                    fsData.ReadExactly(MemoryMarshal.AsBytes(staTiles.AsSpan(0, tileCount)));
+
+                    for (int j = 0; j < tileCount; ++j)
                     {
-                        if (_buffer == null || _buffer.Length < length)
-                        {
-                            _buffer = new byte[length];
-                        }
-
-                        fsData.Read(_buffer, 0, length);
-
-                        Marshal.Copy(_buffer, 0, gc.AddrOfPinnedObject(), length);
-
-                        for (int j = 0; j < tileCount; ++j)
-                        {
-                            StaticTile cur = staTiles[j];
-                            lists[cur.X & 0x7][cur.Y & 0x7].Add(Art.GetLegalItemId(cur.Id), cur.Hue, cur.Z);
-                        }
-
-                        var tiles = new HuedTile[8][][];
-
-                        for (int x = 0; x < 8; ++x)
-                        {
-                            tiles[x] = new HuedTile[8][];
-
-                            for (int y = 0; y < 8; ++y)
-                            {
-                                tiles[x][y] = lists[x][y].ToArray();
-                            }
-                        }
-
-                        if (StaticBlocks[blockX] == null)
-                        {
-                            StaticBlocks[blockX] = new HuedTile[matrix.BlockHeight][][][];
-                        }
-
-                        StaticBlocks[blockX][blockY] = tiles;
+                        StaticTile cur = staTiles[j];
+                        lists[cur.X & 0x7][cur.Y & 0x7].Add(Art.GetLegalItemId(cur.Id), cur.Hue, cur.Z);
                     }
-                    finally
+
+                    var tiles = new HuedTile[8][][];
+
+                    for (int x = 0; x < 8; ++x)
                     {
-                        gc.Free();
+                        tiles[x] = new HuedTile[8][];
+
+                        for (int y = 0; y < 8; ++y)
+                        {
+                            tiles[x][y] = lists[x][y].ToArray();
+                        }
                     }
+
+                    if (StaticBlocks[blockX] == null)
+                    {
+                        StaticBlocks[blockX] = new HuedTile[matrix.BlockHeight][][][];
+                    }
+
+                    StaticBlocks[blockX][blockY] = tiles;
                 }
 
                 return count;

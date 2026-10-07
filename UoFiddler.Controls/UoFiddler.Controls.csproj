@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<AssemblyName>Controls</AssemblyName>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net10.0-windows</TargetFramework>
 		<UseWindowsForms>true</UseWindowsForms>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AssemblyTitle>Controls</AssemblyTitle>
 		<Product>Controls</Product>
-		<Copyright>Copyright © 2024</Copyright>
+		<Copyright>Copyright © 2026</Copyright>
 		<AssemblyVersion>4.4.0</AssemblyVersion>
 		<FileVersion>4.4.0</FileVersion>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -283,6 +283,10 @@
 		<Compile Update="UserControls\TileDataControl.Designer.cs">
 			<DependentUpon>TileDataControl.cs</DependentUpon>
 		</Compile>
+		<Compile Update="Forms\TileDataSyncPreviewForm.cs" />
+		<Compile Update="Forms\TileDataSyncPreviewForm.Designer.cs">
+			<DependentUpon>TileDataSyncPreviewForm.cs</DependentUpon>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Ultima\Ultima.csproj" />
@@ -418,6 +422,9 @@
 		<EmbeddedResource Update="UserControls\CollapsibleSplitter.resx">
 			<DependentUpon>CollapsibleSplitter.cs</DependentUpon>
 		</EmbeddedResource>
+		<EmbeddedResource Update="Forms\TileDataSyncPreviewForm.resx">
+			<DependentUpon>TileDataSyncPreviewForm.cs</DependentUpon>
+		</EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup>
 		<None Include="Resources\emptySquare.jpg" />
@@ -427,9 +434,7 @@
 		<None Include="Resources\staticPlayButton.png" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Serilog" Version="4.0.1" />
-		<PackageReference Include="System.Drawing.Common" Version="8.0.8" />
-		<PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
 		<PackageReference Include="AnimatedGif" Version="1.0.5" />
 	</ItemGroup>
 </Project>

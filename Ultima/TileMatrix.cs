@@ -3,11 +3,20 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using Ultima.Helpers;
+using Ultima.Uop;
 
 namespace Ultima
 {
     public sealed class TileMatrix
     {
+        /// <summary>On disk size of one land block: a 4-byte header plus 64 three-byte tiles.</summary>
+        public const int MapBlockSize = 196;
+
+        /// <summary>Size of the per-block header the renderer ignores.</summary>
+        public const int BlockHeaderSize = 4;
+
+        private const int MapStreamBufferSize = 1 << 20;
+
         private readonly HuedTile[][][][][] _staticTiles;
         private readonly Tile[][][] _landTiles;
         private bool[][] _removedStaticBlock;
@@ -17,7 +26,6 @@ namespace Ultima
         public static HuedTile[][][] EmptyStaticBlock { get; private set; }
 
         private FileStream _map;
-        private BinaryReader _uopReader;
         private FileStream _statics;
         private Entry3D[] _staticIndex;
 
@@ -40,8 +48,12 @@ namespace Ultima
         public void CloseStreams()
         {
             _map?.Close();
-            _uopReader?.Close();
             _statics?.Close();
+        }
+
+        public bool AllFilesExist()
+        {
+            return _mapPath != null && _indexPath != null && _staticsPath != null;
         }
 
         public TileMatrix(int fileIndex, int mapId, int width, int height, string path)
@@ -120,7 +132,10 @@ namespace Ultima
                 }
             }
 
-            InvalidLandBlock = new Tile[196];
+            // 64 tiles, not 196 - 196 is the on-disk byte size of a block (4-byte header plus
+            // 64 three-byte tiles), which is a different thing. A caller that enumerates the block
+            // rather than indexing 0..63 used to get 196 tiles back and write a malformed block.
+            InvalidLandBlock = new Tile[64];
 
             _landTiles = new Tile[BlockWidth][][];
             _staticTiles = new HuedTile[BlockWidth][][][][];
@@ -234,12 +249,12 @@ namespace Ultima
             {
                 _statics = new FileStream(_staticsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-                GCHandle gc = GCHandle.Alloc(_staticIndex, GCHandleType.Pinned);
-                var buffer = new byte[index.Length];
-                index.Read(buffer, 0, (int)index.Length);
-                Marshal.Copy(buffer, 0, gc.AddrOfPinnedObject(), (int)Math.Min(index.Length, BlockHeight * BlockWidth * 12));
-                gc.Free();
-                for (var i = (int)Math.Min(index.Length, BlockHeight * BlockWidth); i < BlockHeight * BlockWidth; ++i)
+                int readLen = (int)Math.Min(index.Length, (long)BlockHeight * BlockWidth * 12);
+                index.ReadExactly(MemoryMarshal.AsBytes(_staticIndex.AsSpan()).Slice(0, readLen));
+
+                // index.Length is bytes and the loop counts blocks, so the divisor matters: without it a short
+                // staidx leaves its tail blocks as zeroes instead of the -1 sentinel.
+                for (var i = (int)Math.Min(index.Length / 12, BlockHeight * BlockWidth); i < BlockHeight * BlockWidth; ++i)
                 {
                     _staticIndex[i].Lookup = -1;
                     _staticIndex[i].Length = -1;
@@ -289,153 +304,70 @@ namespace Ultima
                 _buffer = new byte[length];
             }
 
-            GCHandle gc = GCHandle.Alloc(_buffer, GCHandleType.Pinned);
-            try
+            _statics.ReadExactly(_buffer, 0, length);
+
+            if (_lists == null)
             {
-                _statics.Read(_buffer, 0, length);
-
-                if (_lists == null)
-                {
-                    _lists = new HuedTileList[8][];
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        _lists[i] = new HuedTileList[8];
-
-                        for (int j = 0; j < 8; ++j)
-                        {
-                            _lists[i][j] = new HuedTileList();
-                        }
-                    }
-                }
-
-                HuedTileList[][] lists = _lists;
-
-                for (int i = 0; i < count; ++i)
-                {
-                    var ptr = new IntPtr((long)gc.AddrOfPinnedObject() + (i * sizeof(StaticTile)));
-                    var cur = (StaticTile)Marshal.PtrToStructure(ptr, typeof(StaticTile));
-                    lists[cur.X & 0x7][cur.Y & 0x7].Add(Art.GetLegalItemId(cur.Id), cur.Hue, cur.Z);
-                }
-
-                var tiles = new HuedTile[8][][];
+                _lists = new HuedTileList[8][];
 
                 for (int i = 0; i < 8; ++i)
                 {
-                    tiles[i] = new HuedTile[8][];
+                    _lists[i] = new HuedTileList[8];
 
                     for (int j = 0; j < 8; ++j)
                     {
-                        tiles[i][j] = lists[i][j].ToArray();
+                        _lists[i][j] = new HuedTileList();
                     }
                 }
+            }
 
-                return tiles;
-            }
-            finally
+            HuedTileList[][] lists = _lists;
+
+            ReadOnlySpan<StaticTile> staticTiles = MemoryMarshal.Cast<byte, StaticTile>(
+                _buffer.AsSpan(0, count * sizeof(StaticTile)));
+
+            for (int i = 0; i < count; ++i)
             {
-                gc.Free();
+                StaticTile cur = staticTiles[i];
+                lists[cur.X & 0x7][cur.Y & 0x7].Add(Art.GetLegalItemId(cur.Id), cur.Hue, cur.Z);
             }
+
+            var tiles = new HuedTile[8][][];
+
+            for (int i = 0; i < 8; ++i)
+            {
+                tiles[i] = new HuedTile[8][];
+
+                for (int j = 0; j < 8; ++j)
+                {
+                    tiles[i][j] = lists[i][j].ToArray();
+                }
+            }
+
+            return tiles;
         }
 
         /*
          * UOP map files support code, written by Wyatt (c) www.ruosi.org
-         * It's not possible if some entry has unknown hash. Thrown exception
-         * means that EA changed maps UOPs again.
+         * The container walk now lives in Ultima.Uop.MapUopReader so the map writer and size
+         * detection can use it without building a TileMatrix.
          */
         public bool IsUOPFormat { get; set; }
         public bool IsUOPAlreadyRead { get; set; }
 
-        private readonly struct UopFile
-        {
-            public readonly long Offset;
-            public readonly int Length;
-
-            public UopFile(long offset, int length)
-            {
-                Offset = offset;
-                Length = length;
-            }
-        }
-
-        private UopFile[] UOPFiles { get; set; }
+        private MapUopEntry[] UOPFiles { get; set; }
         private long UOPLength { get { return _map.Length; } }
 
         private void ReadUOPFiles(string pattern)
         {
-            _uopReader = new BinaryReader(_map);
-
-            _uopReader.BaseStream.Seek(0, SeekOrigin.Begin);
-
-            if (_uopReader.ReadInt32() != 0x50594D)
-            {
-                throw new ArgumentException("Bad UOP file.");
-            }
-
-            _uopReader.ReadInt64(); // version + signature
-            long nextBlock = _uopReader.ReadInt64();
-            _uopReader.ReadInt32(); // block capacity
-            int count = _uopReader.ReadInt32();
-
-            UOPFiles = new UopFile[count];
-
-            var hashes = new Dictionary<ulong, int>();
-
-            for (int i = 0; i < count; i++)
-            {
-                string file = $"build/{pattern}/{i:D8}.dat";
-                ulong hash = UopUtils.HashFileName(file);
-
-                hashes.TryAdd(hash, i);
-            }
-
-            _uopReader.BaseStream.Seek(nextBlock, SeekOrigin.Begin);
-
-            do
-            {
-                int filesCount = _uopReader.ReadInt32();
-                nextBlock = _uopReader.ReadInt64();
-
-                for (int i = 0; i < filesCount; i++)
-                {
-                    long offset = _uopReader.ReadInt64();
-                    int headerLength = _uopReader.ReadInt32();
-                    int compressedLength = _uopReader.ReadInt32();
-                    int decompressedLength = _uopReader.ReadInt32();
-                    ulong hash = _uopReader.ReadUInt64();
-                    _uopReader.ReadUInt32(); // Adler32
-                    short flag = _uopReader.ReadInt16();
-
-                    int length = flag == 1 ? compressedLength : decompressedLength;
-
-                    if (offset == 0)
-                    {
-                        continue;
-                    }
-
-                    if (hashes.TryGetValue(hash, out int idx))
-                    {
-                        if (idx < 0 || idx > UOPFiles.Length)
-                        {
-                            throw new IndexOutOfRangeException("hashes dictionary and files collection have different count of entries!");
-                        }
-
-                        UOPFiles[idx] = new UopFile(offset + headerLength, length);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"File with hash 0x{hash:X8} was not found in hashes dictionary! EA Mythic changed UOP format!");
-                    }
-                }
-            }
-            while (_uopReader.BaseStream.Seek(nextBlock, SeekOrigin.Begin) != 0);
+            UOPFiles = MapUopReader.ReadEntryTable(_map, pattern);
         }
 
         private long CalculateOffsetFromUOP(long offset)
         {
             long pos = 0;
 
-            foreach (UopFile t in UOPFiles)
+            foreach (MapUopEntry t in UOPFiles)
             {
                 long currentPosition = pos + t.Length;
 
@@ -450,23 +382,75 @@ namespace Ultima
             return UOPLength;
         }
 
+        /// <summary>
+        /// Reads one land block as it sits on disk: the 4-byte block header followed by 64
+        /// three-byte tiles. Copying through this rather than through <see cref="GetLandBlock"/>
+        /// keeps the header, which the renderer ignores but which real files do carry - a shard map
+        /// may hold the same constant in every block, a shipped one the block index.
+        /// </summary>
+        public void ReadLandBlockBytes(int x, int y, Span<byte> destination)
+        {
+            if (destination.Length != MapBlockSize)
+            {
+                throw new ArgumentException($"A land block is {MapBlockSize} bytes.", nameof(destination));
+            }
+
+            destination.Clear();
+
+            if (x < 0 || y < 0 || x >= BlockWidth || y >= BlockHeight)
+            {
+                return;
+            }
+
+            EnsureMapStream();
+
+            if (_map == null)
+            {
+                return;
+            }
+
+            long offset = ((x * BlockHeight) + y) * (long)MapBlockSize;
+
+            if (IsUOPFormat)
+            {
+                offset = CalculateOffsetFromUOP(offset);
+            }
+
+            if (offset < 0 || offset + destination.Length > _map.Length)
+            {
+                return;
+            }
+
+            _map.Seek(offset, SeekOrigin.Begin);
+            _map.ReadExactly(destination);
+        }
+
+        private void EnsureMapStream()
+        {
+            if (_map?.CanRead == true && _map.CanSeek)
+            {
+                return;
+            }
+
+            // Land blocks are 196 bytes and are normally walked in index order, so the default
+            // 4 KB buffer means one physical read per twenty blocks. A megabyte turns a full-facet
+            // pass from hundreds of thousands of reads into a few hundred.
+            _map = _mapPath == null
+                ? null
+                : new FileStream(_mapPath, FileMode.Open, FileAccess.Read, FileShare.Read, MapStreamBufferSize);
+
+            if (!IsUOPFormat || _mapPath == null || IsUOPAlreadyRead)
+            {
+                return;
+            }
+
+            ReadUOPFiles(MapUopReader.PatternFromPath(_mapPath));
+            IsUOPAlreadyRead = true;
+        }
+
         private Tile[] ReadLandBlock(int x, int y)
         {
-            if (_map?.CanRead != true || !_map.CanSeek)
-            {
-                _map = _mapPath == null
-                    ? null
-                    : new FileStream(_mapPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                if (IsUOPFormat && _mapPath != null && !IsUOPAlreadyRead)
-                {
-                    var fi = new FileInfo(_mapPath);
-                    string uopPattern = fi.Name.Replace(fi.Extension, "").ToLowerInvariant();
-
-                    ReadUOPFiles(uopPattern);
-                    IsUOPAlreadyRead = true;
-                }
-            }
+            EnsureMapStream();
 
             var tiles = new Tile[64];
             if (_map == null)
@@ -474,31 +458,27 @@ namespace Ultima
                 return tiles;
             }
 
-            long offset = (((x * BlockHeight) + y) * 196) + 4;
+            long offset = (((x * BlockHeight) + y) * (long)MapBlockSize) + BlockHeaderSize;
 
             if (IsUOPFormat)
             {
                 offset = CalculateOffsetFromUOP(offset);
             }
 
+            Span<byte> destination = MemoryMarshal.AsBytes(tiles.AsSpan());
+
+            // The configured map size can cover more blocks than the file actually holds - a client
+            // whose map0 is the pre-T2A 6144 wide one read as the modern 7168 grid, say - and the
+            // tail blocks are then simply absent. Reading them as empty is what the statics index
+            // already does with a short staidx, and it beats throwing at whoever asked to draw them.
+            if (offset < 0 || offset + destination.Length > _map.Length)
+            {
+                return tiles;
+            }
+
             _map.Seek(offset, SeekOrigin.Begin);
 
-            GCHandle gc = GCHandle.Alloc(tiles, GCHandleType.Pinned);
-            try
-            {
-                if (_buffer == null || _buffer.Length < 192)
-                {
-                    _buffer = new byte[192];
-                }
-
-                _map.Read(_buffer, 0, 192);
-
-                Marshal.Copy(_buffer, 0, gc.AddrOfPinnedObject(), 192);
-            }
-            finally
-            {
-                gc.Free();
-            }
+            _map.ReadExactly(destination);
 
             return tiles;
         }

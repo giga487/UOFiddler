@@ -89,6 +89,8 @@ namespace UoFiddler.Plugin.ExamplePlugin.UserControls
             }
         }
 
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public int LastAscii { get; set; } = 0;
 
         public void LoadFont()

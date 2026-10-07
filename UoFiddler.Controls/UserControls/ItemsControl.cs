@@ -15,9 +15,12 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Ultima;
+using Ultima.Uop;
 using UoFiddler.Controls.Classes;
 using UoFiddler.Controls.Forms;
 using UoFiddler.Controls.Helpers;
@@ -37,11 +40,14 @@ namespace UoFiddler.Controls.UserControls
             DetailTextBox.AddBasicContextMenu();
         }
 
+        private static readonly Regex _hexIndexRegex = new(@"0[xX][0-9a-fA-F]+", RegexOptions.Compiled);
+
         private List<int> _itemList = new List<int>();
         private bool _showFreeSlots;
 
         private int _selectedGraphicId = -1;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int SelectedGraphicId
         {
             get => _selectedGraphicId;
@@ -71,15 +77,13 @@ namespace UoFiddler.Controls.UserControls
                 ? Color.Transparent
                 : Color.Gray;
 
-            if (Options.OverrideBackgroundColorFromTile)
-            {
-                ItemsTileView.BackColor = _backgroundColorItem;
-            }
+            var sameBackColor = ItemsTileView.BackColor == Options.PreviewBackgroundColor;
+            ItemsTileView.BackColor = Options.PreviewBackgroundColor;
 
             var sameTileSize = ItemsTileView.TileSize == newSize;
             var sameFocusColor = ItemsTileView.TileFocusColor == Options.TileFocusColor;
             var sameSelectionColor = ItemsTileView.TileHighlightColor == Options.TileSelectionColor;
-            if (sameTileSize && sameFocusColor && sameSelectionColor)
+            if (sameTileSize && sameFocusColor && sameSelectionColor && sameBackColor)
             {
                 return;
             }
@@ -103,6 +107,11 @@ namespace UoFiddler.Controls.UserControls
         /// <returns></returns>
         public static bool SearchGraphic(int graphic)
         {
+            if (RefMarker == null)
+            {
+                return false;
+            }
+
             if (!RefMarker.IsLoaded)
             {
                 RefMarker.OnLoad(RefMarker, EventArgs.Empty);
@@ -113,9 +122,22 @@ namespace UoFiddler.Controls.UserControls
                 return false;
             }
 
-            // we have to invalidate focus so it will scroll to item
-            RefMarker.ItemsTileView.FocusIndex = -1;
-            RefMarker.SelectedGraphicId = graphic;
+            TabPageNavigator.ActivateOwningTabPage(RefMarker);
+
+            if (RefMarker.IsHandleCreated)
+            {
+                RefMarker.BeginInvoke(new Action(() =>
+                {
+                    // we have to invalidate focus so it will scroll to item
+                    RefMarker.ItemsTileView.FocusIndex = -1;
+                    RefMarker.SelectedGraphicId = graphic;
+                }));
+            }
+            else
+            {
+                RefMarker.ItemsTileView.FocusIndex = -1;
+                RefMarker.SelectedGraphicId = graphic;
+            }
 
             return true;
         }
@@ -179,50 +201,52 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            Options.LoadedUltimaClass["TileData"] = true;
-            Options.LoadedUltimaClass["Art"] = true;
-            Options.LoadedUltimaClass["Animdata"] = true;
-            Options.LoadedUltimaClass["Hues"] = true;
-
-            if (!IsLoaded) // only once
+            using (new WaitCursorScope(this))
             {
-                Plugin.PluginEvents.FireModifyItemShowContextMenuEvent(TileViewContextMenuStrip);
-            }
+                Options.LoadedUltimaClass["TileData"] = true;
+                Options.LoadedUltimaClass["Art"] = true;
+                Options.LoadedUltimaClass["Animdata"] = true;
+                Options.LoadedUltimaClass["Hues"] = true;
 
-            UpdateTileView();
-
-            _showFreeSlots = false;
-            showFreeSlotsToolStripMenuItem.Checked = false;
-
-            var prevSelected = SelectedGraphicId;
-
-            int staticLength = Art.GetMaxItemId();
-            _itemList = new List<int>(staticLength);
-            for (int i = 0; i <= staticLength; ++i)
-            {
-                if (Art.IsValidStatic(i))
+                if (!IsLoaded) // only once
                 {
-                    _itemList.Add(i);
+                    Plugin.PluginEvents.FireModifyItemShowContextMenuEvent(TileViewContextMenuStrip);
                 }
+
+                UpdateTileView();
+
+                _showFreeSlots = false;
+                showFreeSlotsToolStripMenuItem.Checked = false;
+
+                var prevSelected = SelectedGraphicId;
+
+                int staticLength = Art.GetMaxItemId();
+                _itemList = new List<int>(staticLength);
+                for (int i = 0; i <= staticLength; ++i)
+                {
+                    if (Art.IsValidStatic(i))
+                    {
+                        _itemList.Add(i);
+                    }
+                }
+
+                ItemsTileView.VirtualListSize = _itemList.Count;
+
+                if (prevSelected >= 0)
+                {
+                    SelectedGraphicId = _itemList.Contains(prevSelected) ? prevSelected : 0;
+                }
+
+                if (!IsLoaded)
+                {
+                    ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
+                    ControlEvents.ItemChangeEvent += OnItemChangeEvent;
+                    ControlEvents.TileDataChangeEvent += OnTileDataChangeEvent;
+                    ControlEvents.PreviewBackgroundColorChangeEvent += OnPreviewBackgroundColorChanged;
+                }
+
+                IsLoaded = true;
             }
-
-            ItemsTileView.VirtualListSize = _itemList.Count;
-
-            if (prevSelected >= 0)
-            {
-                SelectedGraphicId = _itemList.Contains(prevSelected) ? prevSelected : 0;
-            }
-
-            if (!IsLoaded)
-            {
-                ControlEvents.FilePathChangeEvent += OnFilePathChangeEvent;
-                ControlEvents.ItemChangeEvent += OnItemChangeEvent;
-                ControlEvents.TileDataChangeEvent += OnTileDataChangeEvent;
-            }
-
-            IsLoaded = true;
-            Cursor.Current = Cursors.Default;
         }
 
         /// <summary>
@@ -239,6 +263,16 @@ namespace UoFiddler.Controls.UserControls
         private void OnFilePathChangeEvent()
         {
             Reload();
+        }
+
+        private void OnPreviewBackgroundColorChanged()
+        {
+            ItemsTileView.BackColor = Options.PreviewBackgroundColor;
+            ItemsTileView.Invalidate();
+            if (_selectedGraphicId != -1)
+            {
+                UpdateDetail(_selectedGraphicId);
+            }
         }
 
         private void OnTileDataChangeEvent(object sender, int id)
@@ -321,8 +355,6 @@ namespace UoFiddler.Controls.UserControls
             ItemsTileView.Invalidate();
         }
 
-        private Color _backgroundColorItem = Color.White;
-
         private void ChangeBackgroundColorToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (colorDialog.ShowDialog() != DialogResult.OK)
@@ -330,17 +362,9 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            _backgroundColorItem = colorDialog.Color;
-
-            if (Options.OverrideBackgroundColorFromTile)
-            {
-                ItemsTileView.BackColor = _backgroundColorItem;
-            }
-
-            ItemsTileView.Invalidate();
+            Options.PreviewBackgroundColor = colorDialog.Color;
+            ControlEvents.FirePreviewBackgroundColorChangeEvent();
         }
-
-        private Color _backgroundDetailColor = Color.White;
 
         private void UpdateDetail(int graphic)
         {
@@ -374,7 +398,7 @@ namespace UoFiddler.Controls.UserControls
                 Bitmap newBit = new Bitmap(DetailPictureBox.Size.Width, DetailPictureBox.Size.Height);
                 using (Graphics newGraph = Graphics.FromImage(newBit))
                 {
-                    newGraph.Clear(_backgroundDetailColor);
+                    newGraph.Clear(Options.PreviewBackgroundColor);
                 }
 
                 DetailPictureBox.Image?.Dispose();
@@ -388,7 +412,7 @@ namespace UoFiddler.Controls.UserControls
                 Bitmap newBit = new Bitmap(DetailPictureBox.Size.Width, DetailPictureBox.Size.Height);
                 using (Graphics newGraph = Graphics.FromImage(newBit))
                 {
-                    newGraph.Clear(_backgroundDetailColor);
+                    newGraph.Clear(Options.PreviewBackgroundColor);
                     newGraph.DrawImage(bit, (DetailPictureBox.Size.Width - bit.Width) / 2, 5);
                 }
 
@@ -432,11 +456,8 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            _backgroundDetailColor = colorDialog.Color;
-            if (_selectedGraphicId != -1)
-            {
-                UpdateDetail(_selectedGraphicId);
-            }
+            Options.PreviewBackgroundColor = colorDialog.Color;
+            ControlEvents.FirePreviewBackgroundColorChangeEvent();
         }
 
         private bool _scrolling;
@@ -487,8 +508,101 @@ namespace UoFiddler.Controls.UserControls
             }
         }
 
+        private void OnClickCopyImage(object sender, EventArgs e)
+        {
+            // The clipboard holds one image, so a multi selection copies the focused tile.
+            int id = SelectedGraphicId;
+            if (id < 0 || !Art.IsValidStatic(id))
+            {
+                return;
+            }
+
+            if (!ImageClipboard.TryCopy(Art.GetStatic(id), out string error))
+            {
+                MessageBox.Show(error, "Copy Image", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void OnClickPasteImage(object sender, EventArgs e)
+        {
+            var ids = GetSelectedGraphicIds();
+            if (ids.Count == 0)
+            {
+                if (SelectedGraphicId < 0)
+                {
+                    return;
+                }
+
+                ids.Add(SelectedGraphicId);
+            }
+
+            using Bitmap pasted = ImageClipboard.TryPaste(out string error);
+            if (pasted == null)
+            {
+                MessageBox.Show(error, "Paste Image", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (ids.Count > 1)
+            {
+                DialogResult confirm = MessageBox.Show(
+                    $"Paste this {pasted.Width}x{pasted.Height} image into {ids.Count} selected items?",
+                    "Paste Image", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button2);
+
+                if (confirm != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            Bitmap converted = Utils.ToUoBitmap(pasted);
+
+            if (!Art.ValidateStaticSize(converted, out int estimatedSize))
+            {
+                converted.Dispose();
+
+                MessageBox.Show(
+                    $"Image is too large for MUL format!\n\n" +
+                    $"Image dimensions: {pasted.Width}x{pasted.Height}\n" +
+                    $"Encoded size: {estimatedSize:N0} ushorts\n" +
+                    $"Maximum allowed: 65,535 ushorts\n\n" +
+                    "Try a smaller image or one with more transparent pixels.",
+                    "Image Too Large", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            foreach (int id in ids)
+            {
+                // Each slot needs its own bitmap: the SDK keeps the instance it is handed.
+                Art.ReplaceStatic(id, ids.Count == 1 ? converted : (Bitmap)converted.Clone());
+                ControlEvents.FireItemChangeEvent(this, id);
+            }
+
+            if (ids.Count > 1)
+            {
+                converted.Dispose();
+            }
+
+            ItemsTileView.Invalidate();
+
+            if (SelectedGraphicId >= 0)
+            {
+                UpdateToolStripLabels(SelectedGraphicId);
+                UpdateDetail(SelectedGraphicId);
+            }
+
+            Options.ChangedUltimaClass["Art"] = true;
+        }
+
         private void OnClickReplace(object sender, EventArgs e)
         {
+            if (ItemsTileView.SelectedIndices.Count > 1)
+            {
+                ReplaceMultipleSelected();
+                return;
+            }
+
             if (_selectedGraphicId < 0)
             {
                 return;
@@ -499,7 +613,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = "Choose image file to replace";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
                     return;
@@ -512,6 +626,23 @@ namespace UoFiddler.Controls.UserControls
                     if (dialog.FileName.Contains(".bmp"))
                     {
                         bitmap = Utils.ConvertBmp(bitmap);
+                    }
+
+                    // Validate image size before replacing
+                    if (!Art.ValidateStaticSize(bitmap, out int estimatedSize))
+                    {
+                        MessageBox.Show(
+                            $"Image is too large for MUL format!\n\n" +
+                            $"Image dimensions: {bitmap.Width}x{bitmap.Height}\n" +
+                            $"Encoded size: {estimatedSize:N0} ushorts\n" +
+                            $"Maximum allowed: 65,535 ushorts\n\n" +
+                            $"The static art format encodes opaque pixel runs only; cost per row is\n" +
+                            $"2 ushorts per run + 1 ushort per opaque pixel + 2 end markers.\n" +
+                            $"Reduce the image size or the amount of opaque content.",
+                            "Image Too Large",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
                     }
 
                     Art.ReplaceStatic(_selectedGraphicId, bitmap);
@@ -527,29 +658,132 @@ namespace UoFiddler.Controls.UserControls
             }
         }
 
-        private void OnClickRemove(object sender, EventArgs e)
+        private void ReplaceMultipleSelected()
         {
-            if (!Art.IsValidStatic(_selectedGraphicId))
+            var ids = GetSelectedGraphicIds();
+            if (ids.Count == 0)
             {
                 return;
             }
 
-            DialogResult result = MessageBox.Show($"Are you sure to remove 0x{_selectedGraphicId:X}", "Save",
+            using (OpenFileDialog dialog = new OpenFileDialog())
+            {
+                dialog.Multiselect = true;
+                dialog.Title = $"Choose {ids.Count} image files to replace selected items";
+                dialog.CheckFileExists = true;
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
+
+                if (dialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                var files = dialog.FileNames.OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase).ToArray();
+
+                if (files.Length != ids.Count)
+                {
+                    MessageBox.Show(
+                        $"Selected {ids.Count} items but chose {files.Length} images.\n\nNo changes made.",
+                        "Selection Mismatch",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Load and validate all images first; abort the whole batch on any failure so no partial writes happen.
+                var bitmaps = new List<Bitmap>(ids.Count);
+                try
+                {
+                    for (int i = 0; i < ids.Count; ++i)
+                    {
+                        using (var bmpTemp = new Bitmap(files[i]))
+                        {
+                            Bitmap bitmap = new Bitmap(bmpTemp);
+
+                            if (files[i].Contains(".bmp"))
+                            {
+                                bitmap = Utils.ConvertBmp(bitmap);
+                            }
+
+                            if (!Art.ValidateStaticSize(bitmap, out int estimatedSize))
+                            {
+                                bitmap.Dispose();
+                                MessageBox.Show(
+                                    $"Image is too large for MUL format!\n\n" +
+                                    $"File: {Path.GetFileName(files[i])}\n" +
+                                    $"Encoded size: {estimatedSize:N0} ushorts\n" +
+                                    $"Maximum allowed: 65,535 ushorts\n\n" +
+                                    $"No changes made.",
+                                    "Image Too Large",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            bitmaps.Add(bitmap);
+                        }
+                    }
+                }
+                catch
+                {
+                    foreach (var bmp in bitmaps)
+                    {
+                        bmp.Dispose();
+                    }
+                    throw;
+                }
+
+                for (int i = 0; i < ids.Count; ++i)
+                {
+                    Art.ReplaceStatic(ids[i], bitmaps[i]);
+                    ControlEvents.FireItemChangeEvent(this, ids[i]);
+                }
+
+                ItemsTileView.Invalidate();
+                UpdateToolStripLabels(_selectedGraphicId);
+                UpdateDetail(_selectedGraphicId);
+
+                Options.ChangedUltimaClass["Art"] = true;
+            }
+        }
+
+        private void OnClickRemove(object sender, EventArgs e)
+        {
+            var ids = GetSelectedGraphicIds().Where(Art.IsValidStatic).ToList();
+            if (ids.Count == 0)
+            {
+                return;
+            }
+
+            string prompt = ids.Count == 1
+                ? $"Are you sure to remove 0x{ids[0]:X}"
+                : $"Are you sure to remove {ids.Count} items?";
+
+            DialogResult result = MessageBox.Show(prompt, "Save",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (result != DialogResult.Yes)
             {
                 return;
             }
 
-            Art.RemoveStatic(_selectedGraphicId);
-            ControlEvents.FireItemChangeEvent(this, _selectedGraphicId);
+            foreach (int id in ids)
+            {
+                Art.RemoveStatic(id);
+                ControlEvents.FireItemChangeEvent(this, id);
+
+                if (!_showFreeSlots)
+                {
+                    _itemList.Remove(id);
+                }
+            }
+
+            ItemsTileView.SelectedIndices.Clear();
 
             if (!_showFreeSlots)
             {
-                _itemList.Remove(_selectedGraphicId);
                 ItemsTileView.VirtualListSize = _itemList.Count;
-                var moveToIndex = --_selectedGraphicId;
-                SelectedGraphicId = moveToIndex <= 0 ? 0 : _selectedGraphicId; // TODO: get last index visible instead just curr -1
+                int moveToId = ids[0] - 1;
+                SelectedGraphicId = moveToId <= 0 ? 0 : moveToId; // TODO: get last index visible instead just curr -1
             }
             ItemsTileView.Invalidate();
 
@@ -558,13 +792,14 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnTextChangedInsert(object sender, EventArgs e)
         {
+            Color invalidColor = Options.DarkMode ? Color.OrangeRed : Color.Red;
             if (Utils.ConvertStringToInt(InsertText.Text, out int index, 0, Art.GetMaxItemId()))
             {
-                InsertText.ForeColor = Art.IsValidStatic(index) ? Color.Red : Color.Black;
+                InsertText.ForeColor = Art.IsValidStatic(index) ? invalidColor : SystemColors.ControlText;
             }
             else
             {
-                InsertText.ForeColor = Color.Red;
+                InsertText.ForeColor = invalidColor;
             }
         }
 
@@ -592,7 +827,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = false;
                 dialog.Title = $"Choose images to replace starting at 0x{index:X}";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
@@ -634,14 +869,8 @@ namespace UoFiddler.Controls.UserControls
                 return;
             }
 
-            Cursor.Current = Cursors.WaitCursor;
-            ProgressBarDialog barDialog = new ProgressBarDialog(Art.GetIdxLength(), "Save");
-            Art.Save(Options.OutputPath);
-            barDialog.Dispose();
-            Cursor.Current = Cursors.Default;
-            Options.ChangedUltimaClass["Art"] = false;
-            MessageBox.Show($"Saved to {Options.OutputPath}", "Save", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
+            ClientFileSaveCommand.Run(this, FileType.ArtLegacyMul, Art.Save, "Art",
+                createProgress: () => new ProgressBarDialog(Art.GetIdxLength(), "Save"));
         }
 
         private void OnClickShowFreeSlots(object sender, EventArgs e)
@@ -683,42 +912,61 @@ namespace UoFiddler.Controls.UserControls
 
         private void Extract_Image_ClickBmp(object sender, EventArgs e)
         {
-            if (_selectedGraphicId == -1)
-            {
-                return;
-            }
-
-            ExportItemImage(_selectedGraphicId, ImageFormat.Bmp);
+            ExportSelected(ImageFormat.Bmp);
         }
 
         private void Extract_Image_ClickTiff(object sender, EventArgs e)
         {
-            if (_selectedGraphicId == -1)
-            {
-                return;
-            }
-
-            ExportItemImage(_selectedGraphicId, ImageFormat.Tiff);
+            ExportSelected(ImageFormat.Tiff);
         }
 
         private void Extract_Image_ClickJpg(object sender, EventArgs e)
         {
-            if (_selectedGraphicId == -1)
-            {
-                return;
-            }
-
-            ExportItemImage(_selectedGraphicId, ImageFormat.Jpeg);
+            ExportSelected(ImageFormat.Jpeg);
         }
 
         private void Extract_Image_ClickPng(object sender, EventArgs e)
         {
-            if (_selectedGraphicId == -1)
+            ExportSelected(ImageFormat.Png);
+        }
+
+        private void ExportSelected(ImageFormat imageFormat)
+        {
+            var ids = GetSelectedGraphicIds().Where(Art.IsValidStatic).ToList();
+            if (ids.Count == 0)
             {
                 return;
             }
 
-            ExportItemImage(_selectedGraphicId, ImageFormat.Png);
+            if (ids.Count == 1)
+            {
+                ExportItemImage(ids[0], imageFormat);
+                return;
+            }
+
+            ExportMultipleItemImages(ids, imageFormat);
+        }
+
+        private void ExportMultipleItemImages(List<int> ids, ImageFormat imageFormat)
+        {
+            string fileExtension = Utils.GetFileExtensionFor(imageFormat);
+
+            foreach (int index in ids)
+            {
+                var artBitmap = Art.GetStatic(index);
+                if (artBitmap is null)
+                {
+                    continue;
+                }
+
+                string fileName = Path.Combine(Options.OutputPath, $"Item {Utils.FormatExportId(index)}.{fileExtension}");
+                using (Bitmap bit = new Bitmap(artBitmap))
+                {
+                    bit.Save(fileName, imageFormat);
+                }
+            }
+
+            FileSavedDialog.Show(FindForm(), Options.OutputPath, $"{ids.Count} items saved successfully.");
         }
 
         private static void ExportItemImage(int index, ImageFormat imageFormat)
@@ -729,7 +977,7 @@ namespace UoFiddler.Controls.UserControls
             }
 
             string fileExtension = Utils.GetFileExtensionFor(imageFormat);
-            string fileName = Path.Combine(Options.OutputPath, $"Item 0x{index:X4}.{fileExtension}");
+            string fileName = Path.Combine(Options.OutputPath, $"Item {Utils.FormatExportId(index)}.{fileExtension}");
 
             using (Bitmap bit = new Bitmap(Art.GetStatic(index)))
             {
@@ -742,7 +990,14 @@ namespace UoFiddler.Controls.UserControls
 
         private void OnClickSelectTiledata(object sender, EventArgs e)
         {
-            if (_selectedGraphicId >= 0)
+            // Carry the whole selection over, so a set of tiles picked here can be
+            // edited in one go on the TileData tab.
+            List<int> ids = GetSelectedGraphicIds();
+            if (ids.Count > 0)
+            {
+                TileDataControl.Select(ids, false);
+            }
+            else if (_selectedGraphicId >= 0)
             {
                 TileDataControl.Select(_selectedGraphicId, false);
             }
@@ -789,33 +1044,37 @@ namespace UoFiddler.Controls.UserControls
                     return;
                 }
 
-                Cursor.Current = Cursors.WaitCursor;
-
-                using (new ProgressBarDialog(_itemList.Count, $"Export to {fileExtension}", false))
+                using (new WaitCursorScope(this))
                 {
-                    foreach (var artItemIndex in _itemList)
+                    using (new ProgressBarDialog(_itemList.Count, $"Export to {fileExtension}", false))
                     {
-                        ControlEvents.FireProgressChangeEvent();
-                        Application.DoEvents();
-
-                        int index = artItemIndex;
-                        if (index < 0)
+                        foreach (var artItemIndex in _itemList)
                         {
-                            continue;
-                        }
+                            ControlEvents.FireProgressChangeEvent();
+                            Application.DoEvents();
 
-                        string fileName = Path.Combine(dialog.SelectedPath, $"Item 0x{index:X4}.{fileExtension}");
-                        using (Bitmap bit = new Bitmap(Art.GetStatic(index)))
-                        {
-                            bit.Save(fileName, imageFormat);
+                            int index = artItemIndex;
+                            if (index < 0)
+                            {
+                                continue;
+                            }
+
+                            string fileName = Path.Combine(dialog.SelectedPath, $"Item {Utils.FormatExportId(index)}.{fileExtension}");
+                            var artBitmap = Art.GetStatic(index);
+                            if (artBitmap is null)
+                            {
+                                continue;
+                            }
+
+                            using (Bitmap bit = new Bitmap(artBitmap))
+                            {
+                                bit.Save(fileName, imageFormat);
+                            }
                         }
                     }
                 }
 
-                Cursor.Current = Cursors.Default;
-
-                MessageBox.Show($"All items saved to {dialog.SelectedPath}", "Saved", MessageBoxButtons.OK,
-                    MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+                FileSavedDialog.Show(FindForm(), dialog.SelectedPath, "All items saved successfully.");
             }
         }
 
@@ -836,16 +1095,26 @@ namespace UoFiddler.Controls.UserControls
 
         private void PreLoaderDoWork(object sender, DoWorkEventArgs e)
         {
+            int total = _itemList.Count;
+            int reportEvery = Math.Max(1, total / 200);
+            int sinceReport = 0;
+            int done = 0;
             foreach (int item in _itemList)
             {
                 Art.GetStatic(item);
-                PreLoader.ReportProgress(1);
+                ++done;
+                if (++sinceReport >= reportEvery)
+                {
+                    sinceReport = 0;
+                    PreLoader.ReportProgress(done);
+                }
             }
+            PreLoader.ReportProgress(done);
         }
 
         private void PreLoaderProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            ProgressBar.PerformStep();
+            ProgressBar.Value = Math.Min(ProgressBar.Maximum, Math.Max(ProgressBar.Minimum, e.ProgressPercentage));
         }
 
         private void PreLoaderCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -864,21 +1133,20 @@ namespace UoFiddler.Controls.UserControls
 
             Rectangle rect = new Rectangle(itemPoint, ItemsTileView.TileSize);
 
-            var previousClip = e.Graphics.Clip;
+            using var previousClip = e.Graphics.Clip;
 
-            e.Graphics.Clip = new Region(rect);
+            using var clipRegion = new Region(rect);
+            e.Graphics.Clip = clipRegion;
 
             var selected = ItemsTileView.SelectedIndices.Contains(e.Index);
             if (!selected)
             {
-                e.Graphics.Clear(_backgroundColorItem);
+                e.Graphics.Clear(Options.PreviewBackgroundColor);
             }
 
             var bitmap = Art.GetStatic(_itemList[e.Index], out bool patched);
             if (bitmap == null)
             {
-                e.Graphics.Clip = new Region(rect);
-
                 rect.X += 5;
                 rect.Y += 5;
 
@@ -918,6 +1186,11 @@ namespace UoFiddler.Controls.UserControls
                     e.Graphics.DrawImage(bitmap, new Rectangle(itemPoint, new Size(width, height)));
                 }
 
+                if (Art.IsStaticModified(_itemList[e.Index]))
+                {
+                    ModifiedMarker.Draw(e.Graphics, rect);
+                }
+
                 e.Graphics.Clip = previousClip;
             }
         }
@@ -940,6 +1213,23 @@ namespace UoFiddler.Controls.UserControls
             }
 
             UpdateSelection(e.FocusedItemIndex);
+        }
+
+        /// <summary>
+        /// Resolves the current tile selection to a sorted list of graphic IDs.
+        /// </summary>
+        private List<int> GetSelectedGraphicIds()
+        {
+            var ids = new List<int>();
+            foreach (int idx in ItemsTileView.SelectedIndices)
+            {
+                if (idx >= 0 && idx < _itemList.Count)
+                {
+                    ids.Add(_itemList[idx]);
+                }
+            }
+            ids.Sort();
+            return ids;
         }
 
         private void UpdateSelection(int itemIndex)
@@ -1023,8 +1313,25 @@ namespace UoFiddler.Controls.UserControls
             SelectInGumpsTab(SelectedGraphicId, true);
         }
 
+        private void DetailPictureBoxContextMenuStrip_Opening(object sender, CancelEventArgs e)
+        {
+            copyImageToolStripMenuItemDetail.Enabled = SelectedGraphicId >= 0 && Art.IsValidStatic(SelectedGraphicId);
+            pasteImageToolStripMenuItemDetail.Enabled = SelectedGraphicId >= 0 && ImageClipboard.ContainsImage();
+        }
+
         private void TileViewContextMenuStrip_Opening(object sender, CancelEventArgs e)
         {
+            int selectedCount = ItemsTileView.SelectedIndices.Count;
+            copyImageToolStripMenuItem.Enabled = SelectedGraphicId >= 0 && Art.IsValidStatic(SelectedGraphicId);
+            pasteImageToolStripMenuItem.Enabled = selectedCount > 0 && ImageClipboard.ContainsImage();
+            pasteImageToolStripMenuItem.Text = selectedCount > 1 ? $"Paste Image into {selectedCount}" : "Paste Image";
+            removeToolStripMenuItem.Text = selectedCount > 1 ? $"Remove {selectedCount}" : "Remove";
+            extractToolStripMenuItem.Text = selectedCount > 1 ? $"Export {selectedCount} Images..." : "Export Image..";
+            replaceToolStripMenuItem.Text = selectedCount > 1 ? $"Replace {selectedCount}..." : "Replace...";
+            selectInTileDataTabToolStripMenuItem.Text = selectedCount > 1
+                ? $"Select {selectedCount} in TileData tab"
+                : "Select in TileData tab";
+
             if (SelectedGraphicId <= 0)
             {
                 selectInGumpsTabMaleToolStripMenuItem.Enabled = false;
@@ -1069,7 +1376,7 @@ namespace UoFiddler.Controls.UserControls
                 dialog.Multiselect = true;
                 dialog.Title = $"Choose image file replace starting at 0x{index:X}";
                 dialog.CheckFileExists = true;
-                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp)|*.tif;*.tiff;*.bmp";
+                dialog.Filter = "Image files (*.tif;*.tiff;*.bmp;*.png)|*.tif;*.tiff;*.bmp;*.png";
 
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
@@ -1168,6 +1475,94 @@ namespace UoFiddler.Controls.UserControls
             return index >= 0 && index <= Art.GetMaxItemId();
         }
 
+        private void OnClickReplaceFromFolder(object sender, EventArgs e)
+        {
+            using FolderBrowserDialog dialog = new FolderBrowserDialog();
+            dialog.Description = "Select folder containing images to replace";
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            string[] allFiles = Directory.GetFiles(dialog.SelectedPath);
+            var replacedLines = new List<string>();
+            var skippedLines = new List<string>();
+
+            foreach (string file in allFiles)
+            {
+                string ext = Path.GetExtension(file).ToLowerInvariant();
+                if (ext != ".bmp" && ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".tif" && ext != ".tiff")
+                {
+                    continue;
+                }
+
+                string name = Path.GetFileName(file);
+                Match match = _hexIndexRegex.Match(Path.GetFileNameWithoutExtension(file));
+                if (!match.Success)
+                {
+                    skippedLines.Add($"  {name}  (no hex ID in filename)");
+                    continue;
+                }
+
+                int index;
+                try
+                {
+                    index = Convert.ToInt32(match.Value, 16);
+                }
+                catch
+                {
+                    skippedLines.Add($"  {name}  (invalid hex value)");
+                    continue;
+                }
+
+                if (!IsIndexValid(index))
+                {
+                    skippedLines.Add($"  {name}  (index 0x{index:X} out of range)");
+                    continue;
+                }
+
+                try
+                {
+                    AddSingleItem(file, index);
+                    replacedLines.Add($"  0x{index:X4}  {name}");
+                }
+                catch
+                {
+                    skippedLines.Add($"  {name}  (failed to load image)");
+                }
+            }
+
+            ItemsTileView.VirtualListSize = _itemList.Count;
+            ItemsTileView.Invalidate();
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Replaced: {replacedLines.Count}    Skipped: {skippedLines.Count}");
+
+            if (replacedLines.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Replaced ({replacedLines.Count}):");
+                foreach (string line in replacedLines)
+                {
+                    sb.AppendLine(line);
+                }
+            }
+
+            if (skippedLines.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Skipped ({skippedLines.Count}):");
+                foreach (string line in skippedLines)
+                {
+                    sb.AppendLine(line);
+                }
+            }
+
+            using var resultForm = new ReplaceFromFolderResultForm(sb.ToString());
+            resultForm.ShowDialog(this);
+        }
+
         private void SearchByIdToolStripTextBox_KeyUp(object sender, KeyEventArgs e)
         {
             if (!Utils.ConvertStringToInt(searchByIdToolStripTextBox.Text, out int indexValue))
@@ -1192,8 +1587,97 @@ namespace UoFiddler.Controls.UserControls
             SelectedGraphicId = indexValue;
         }
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Copy/paste is handled here rather than as menu ShortcutKeys: a shortcut on a
+            // ContextMenuStrip is processed for the whole form, which would swallow Ctrl+C/Ctrl+V in
+            // every text box on every tab.
+            if (keyData == (Keys.Control | Keys.C) && ItemsTileView.Focused)
+            {
+                OnClickCopyImage(this, EventArgs.Empty);
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.V) && ItemsTileView.Focused)
+            {
+                OnClickPasteImage(this, EventArgs.Empty);
+                return true;
+            }
+
+            if (keyData == Keys.F3 || keyData == (Keys.F3 | Keys.Shift))
+            {
+                if (searchByNameToolStripTextBox.TextBox.Focused)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(searchByNameToolStripTextBox.Text))
+                {
+                    if (keyData == Keys.F3)
+                    {
+                        SearchName(searchByNameToolStripTextBox.Text, true);
+                    }
+                    else
+                    {
+                        SearchNamePrevious(searchByNameToolStripTextBox.Text);
+                    }
+                }
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        public static bool SearchNamePrevious(string name)
+        {
+            var searchMethod = SearchHelper.GetSearchMethod();
+
+            int index = RefMarker._itemList.Count - 1;
+            if (RefMarker._selectedGraphicId >= 0)
+            {
+                index = RefMarker._itemList.IndexOf(RefMarker._selectedGraphicId) - 1;
+                if (index < 0)
+                {
+                    index = RefMarker._itemList.Count - 1;
+                }
+            }
+
+            for (int i = index; i >= 0; --i)
+            {
+                var searchResult = searchMethod(name, TileData.ItemTable[RefMarker._itemList[i]].Name);
+                if (searchResult.HasErrors)
+                {
+                    break;
+                }
+
+                if (!searchResult.EntryFound)
+                {
+                    continue;
+                }
+
+                RefMarker.ItemsTileView.FocusIndex = -1;
+                RefMarker.SelectedGraphicId = RefMarker._itemList[i];
+                return true;
+            }
+
+            return false;
+        }
+
         private void SearchByNameToolStripTextBox_KeyUp(object sender, KeyEventArgs e)
         {
+            if (e.KeyCode == Keys.F3)
+            {
+                if (e.Shift)
+                {
+                    SearchNamePrevious(searchByNameToolStripTextBox.Text);
+                }
+                else
+                {
+                    SearchName(searchByNameToolStripTextBox.Text, true);
+                }
+                return;
+            }
+
             SearchName(searchByNameToolStripTextBox.Text, false);
         }
 

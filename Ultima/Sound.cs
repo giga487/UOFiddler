@@ -23,6 +23,13 @@ namespace Ultima
 
     public static class Sounds
     {
+        /// <summary>
+        /// Size of the ASCII name block that precedes the PCM samples in a sound.mul entry. The client
+        /// skips 0x28 bytes and plays from there (UOSound_loadEntry @ 00603520); bytes 12..39 hold
+        /// per-build uninitialised garbage, so a smaller value prefixes junk samples onto every sound.
+        /// </summary>
+        private const int _mulNameLength = 0x28;
+
         private static Dictionary<int, int> _translations;
         private static FileIndex _fileIndex;
         private static UoSound[] _cache;
@@ -108,7 +115,7 @@ namespace Ultima
 
             Stream stream = _fileIndex.Seek(soundId, out int length, out int _, out bool _);
 
-            if (_fileIndex.Index[soundId].Lookup < 0 || length <= 0)
+            if (_fileIndex[soundId].Lookup < 0 || length <= 0)
             {
                 if (!_translations.TryGetValue(soundId, out soundId))
                 {
@@ -124,15 +131,14 @@ namespace Ultima
                 return null;
             }
 
-            length -= 32;
+            length -= _mulNameLength;
             int[] waveHeader = WaveHeader(length);
 
-            var stringBuffer = new byte[32];
+            var stringBuffer = new byte[_mulNameLength];
             var buffer = new byte[length];
 
-            stream.Read(stringBuffer, 0, 32);
-            stream.Read(buffer, 0, length);
-            stream.Close();
+            stream.ReadExactly(stringBuffer, 0, _mulNameLength);
+            stream.ReadExactly(buffer, 0, length);
 
             var resultBuffer = new byte[buffer.Length + (waveHeader.Length << 2)];
 
@@ -215,7 +221,7 @@ namespace Ultima
 
             Stream stream = _fileIndex.Seek(soundId, out int length, out _, out _);
 
-            if (_fileIndex.Index[soundId].Lookup < 0 || length <= 0)
+            if (_fileIndex[soundId].Lookup < 0 || length <= 0)
             {
                 if (!_translations.TryGetValue(soundId, out soundId))
                 {
@@ -232,9 +238,8 @@ namespace Ultima
                 return false;
             }
 
-            var stringBuffer = new byte[32];
-            stream.Read(stringBuffer, 0, 32);
-            stream.Close();
+            var stringBuffer = new byte[_mulNameLength];
+            stream.ReadExactly(stringBuffer, 0, _mulNameLength);
             name = Encoding.ASCII.GetString(stringBuffer); // seems that the null terminator's not being properly recognized :/
             if (name.IndexOf('\0') > 0)
             {
@@ -271,7 +276,7 @@ namespace Ultima
             else
             {
                 Stream stream = _fileIndex.Seek(soundId, out int length, out int _, out bool _);
-                if (_fileIndex.Index[soundId].Lookup < 0 || length <= 0)
+                if (_fileIndex[soundId].Lookup < 0 || length <= 0)
                 {
                     if (!_translations.TryGetValue(soundId, out soundId))
                     {
@@ -286,8 +291,7 @@ namespace Ultima
                     return 0;
                 }
 
-                stream.Close();
-                length -= 32; // mulheaderlength
+                length -= _mulNameLength;
                 len = length;
             }
 
@@ -303,7 +307,7 @@ namespace Ultima
             {
                 byte[] resultBuffer = new byte[wav.Length];
                 wav.Seek(0, SeekOrigin.Begin);
-                wav.Read(resultBuffer, 0, (int)wav.Length);
+                wav.ReadExactly(resultBuffer, 0, (int)wav.Length);
 
                 resultBuffer = CheckAndFixWave(resultBuffer);
 
@@ -359,13 +363,13 @@ namespace Ultima
                         binidx.Write((int)fsmul.Position); // lookup
                         var length = (int)fsmul.Position;
 
-                        var b = new byte[32];
+                        var b = new byte[_mulNameLength];
                         if (sound.Name != null)
                         {
                             byte[] bb = Encoding.ASCII.GetBytes(sound.Name);
-                            if (bb.Length > 32)
+                            if (bb.Length > _mulNameLength)
                             {
-                                Array.Resize(ref bb, 32);
+                                Array.Resize(ref bb, _mulNameLength);
                             }
 
                             bb.CopyTo(b, 0);
@@ -376,7 +380,7 @@ namespace Ultima
                         {
                             m.Seek(headerLength, SeekOrigin.Begin);
                             var resultBuffer = new byte[m.Length - headerLength];
-                            m.Read(resultBuffer, 0, (int)m.Length - headerLength);
+                            m.ReadExactly(resultBuffer, 0, (int)m.Length - headerLength);
                             binmul.Write(resultBuffer);
                         }
 

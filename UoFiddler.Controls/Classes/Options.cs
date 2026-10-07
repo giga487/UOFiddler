@@ -12,22 +12,11 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using Serilog;
 
 namespace UoFiddler.Controls.Classes
 {
     public static class Options
     {
-        /// <summary>
-        /// Logger instance
-        /// </summary>
-        public static ILogger Logger { get; private set; }
-
-        public static void SetLogger(ILogger logger)
-        {
-            Logger = logger;
-        }
-
         /// <summary>
         /// Defines Element Width in ItemShow
         /// </summary>
@@ -44,9 +33,38 @@ namespace UoFiddler.Controls.Classes
         public static bool ArtItemClip { get; set; } = true;
 
         /// <summary>
+        /// Strategy used by the RadarColor control to derive a 16-bit color from a tile graphic.
+        /// Runtime-only (not persisted across sessions yet).
+        /// </summary>
+        public static RadarAveragingStrategy RadarColorStrategy { get; set; } = RadarAveragingStrategy.Mean5BankersRound;
+
+        /// <summary>
         /// Offsets the sound ids in Sound tab by 1 (POL specific setting)
         /// </summary>
         public static bool PolSoundIdOffset { get; set; }
+
+        /// <summary>
+        /// Which container a save writes for the file types the client ships as either a mul/idx pair
+        /// or a uop - art, gumpart, sound, multis and maps. Everything else has only one format.
+        /// </summary>
+        public static ClientFileSaveFormat SaveFormat { get; set; } = ClientFileSaveFormat.FollowSource;
+
+        /// <summary>
+        /// Runtime flag set from AppSettings at startup. Not persisted in profiles.
+        /// </summary>
+        public static bool DarkMode { get; set; }
+
+        /// <summary>
+        /// When true, exported image filenames embed the ID in hexadecimal form (e.g. "Item 0x00FF.png").
+        /// When false, decimal form is used. Runtime flag set from AppSettings at startup.
+        /// </summary>
+        public static bool ExportFilenameInHex { get; set; } = true;
+
+        /// <summary>
+        /// When <see cref="ExportFilenameInHex"/> is false, controls whether decimal IDs are zero-padded
+        /// to 5 digits ("00255") or written without padding ("255"). Runtime flag set from AppSettings.
+        /// </summary>
+        public static bool ExportFilenameDecimalPadded { get; set; } = true;
 
         /// <summary>
         /// Defines the cmd to Send Client to Loc
@@ -187,7 +205,8 @@ namespace UoFiddler.Controls.Classes
             {17, true},
             {18, true},
             {19, true},
-            {20, true}
+            {20, true},
+            {21, true}
         };
 
         public static Icon GetFiddlerIcon()
@@ -201,8 +220,8 @@ namespace UoFiddler.Controls.Classes
         public static string ProfileName { get; set; }
         public static Color TileFocusColor { get; set; } = Color.DarkRed;
         public static Color TileSelectionColor { get; set; } = Color.DodgerBlue;
-        public static bool OverrideBackgroundColorFromTile { get; set; }
         public static bool RemoveTileBorder { get; set; }
+        public static Color PreviewBackgroundColor { get; set; } = Color.White;
 
         static Options()
         {

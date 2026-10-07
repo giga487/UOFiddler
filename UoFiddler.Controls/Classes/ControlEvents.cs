@@ -1,4 +1,4 @@
-﻿/***************************************************************************
+/***************************************************************************
  *
  * $Author: Turley
  * 
@@ -39,6 +39,9 @@ namespace UoFiddler.Controls.Classes
 
         public delegate void ProgressChangeHandler();
         public delegate void FontReloadHandler();
+
+        public delegate void PreviewBackgroundColorChangeHandler();
+
         /// <summary>
         /// Fired when map diff file usage is switched
         /// </summary>
@@ -113,6 +116,12 @@ namespace UoFiddler.Controls.Classes
         {
             FontLoaderReloadEvent?.Invoke();
         }
+
+        /// <summary>
+        /// Fired when preview background color changed
+        /// </summary>
+        public static event PreviewBackgroundColorChangeHandler PreviewBackgroundColorChangeEvent;
+
         public static void FireMapDiffChangeEvent()
         {
             MapDiffChangeEvent?.Invoke();
@@ -181,6 +190,11 @@ namespace UoFiddler.Controls.Classes
         public static void FireProgressChangeEvent()
         {
             ProgressChangeEvent?.Invoke();
+        }
+
+        public static void FirePreviewBackgroundColorChangeEvent()
+        {
+            PreviewBackgroundColorChangeEvent?.Invoke();
         }
     }
 }

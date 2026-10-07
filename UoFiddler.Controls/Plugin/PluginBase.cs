@@ -10,7 +10,10 @@
  ***************************************************************************/
 
 using System.Windows.Forms;
+using Microsoft.Extensions.Logging;
+using UoFiddler.Controls.Classes;
 using UoFiddler.Controls.Plugin.Interfaces;
+using Ultima.Helpers;
 
 namespace UoFiddler.Controls.Plugin
 {
@@ -22,6 +25,12 @@ namespace UoFiddler.Controls.Plugin
         public abstract string Description { get; }
         public abstract string Author { get; }
         public abstract string Version { get; }
+
+        /// <summary>
+        /// Per-plugin logger, categorized by the concrete plugin type. Resolved on demand
+        /// since plugins are instantiated via Activator and cannot take constructor parameters.
+        /// </summary>
+        protected ILogger Logger => AppLog.For(GetType());
 
         public abstract void Initialize();
         public abstract void Unload();
@@ -39,4 +48,3 @@ namespace UoFiddler.Controls.Plugin
         public virtual void ModifyTabPages(TabControl tabControl) { }
     }
 }
-

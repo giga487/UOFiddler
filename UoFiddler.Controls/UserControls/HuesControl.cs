@@ -158,8 +158,11 @@ namespace UoFiddler.Controls.UserControls
                 float size = (float)(pictureBox.Width - 200) / 32;
                 Hue hue = Hues.List[index];
                 Rectangle stringRect = new Rectangle(3, y * _itemHeight, pictureBox.Width, _itemHeight);
+
+                int hueDisplayIndex = hue.Index + (IndexOffsetButton.Checked ? 1 : 0);
+
                 e.Graphics.DrawString(
-                    $"{hue.Index,-5} {$"(0x{hue.Index:X})",-7} {hue.Name}", Font, Brushes.Black, stringRect);
+                    $"{hueDisplayIndex,-5} {$"(0x{hueDisplayIndex:X})",-7} {hue.Name}", Font, SystemBrushes.ControlText, stringRect);
 
                 for (int i = 0; i < hue.Colors.Length; ++i)
                 {
@@ -237,14 +240,16 @@ namespace UoFiddler.Controls.UserControls
         {
             string path = Options.OutputPath;
             Hues.Save(path);
-            MessageBox.Show($"Hue saved to {path}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button1);
             Options.ChangedUltimaClass["Hues"] = false;
+
+            FileSavedDialog.Show(FindForm(), path, "Files saved successfully.");
         }
 
         private void OnTextChangedReplace(object sender, EventArgs e)
         {
-            ReplaceText.ForeColor = Utils.ConvertStringToInt(ReplaceText.Text, out _, 1, 3000) ? Color.Black : Color.Red;
+            ReplaceText.ForeColor = Utils.ConvertStringToInt(ReplaceText.Text, out _, 1, 3000)
+                ? SystemColors.ControlText
+                : (Options.DarkMode ? Color.OrangeRed : Color.Red);
         }
 
         private void OnKeyDownReplace(object sender, KeyEventArgs e)
@@ -269,7 +274,7 @@ namespace UoFiddler.Controls.UserControls
             string path = Options.OutputPath;
             string fileName = Path.Combine(path, $"Hue {_selected}.txt");
             Hues.List[_selected].Export(fileName);
-            MessageBox.Show($"Hue saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Hue saved successfully.");
         }
 
         private void OnImport(object sender, EventArgs e)
@@ -312,6 +317,11 @@ namespace UoFiddler.Controls.UserControls
             if (!Utils.ConvertStringToInt(HueIndexToolStripTextBox.Text, out int indexValue))
             {
                 return;
+            }
+
+            if (IndexOffsetButton.Checked)
+            {
+                indexValue--;
             }
 
             if (indexValue < 0)
@@ -388,7 +398,12 @@ namespace UoFiddler.Controls.UserControls
 
             Hues.ExportHueList(fileName);
 
-            MessageBox.Show($"Hue names list saved to {fileName}", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1);
+            FileSavedDialog.Show(FindForm(), fileName, "Hue names list saved successfully.");
+        }
+
+        private void IndexOffsetButton_CheckedChanged(object sender, EventArgs e)
+        {
+            pictureBox.Invalidate();
         }
     }
 }

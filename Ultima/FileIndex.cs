@@ -2,18 +2,65 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Ultima.Helpers;
 
 namespace Ultima
 {
-    public sealed class FileIndex
+    public sealed class FileIndex : IDisposable
     {
-        public Entry3D[] Index { get; }
+        public IFileAccessor FileAccessor { get; }
 
-        public long IdxLength { get; }
+        public long IndexLength { get => FileAccessor?.IndexLength ?? 0; }
+        public long IdxLength { get => FileAccessor?.IdxLength ?? 0; }
+        public IEntry this[int index]
+        {
+            get => FileAccessor[index];
+            // Let the accessor cast: it knows whether it stores Entry3D or Entry6D.
+            set => FileAccessor[index] = value;
+        }
+
+        private readonly Lock _entryWriteLock = new();
+
+        /// <summary>
+        /// Persists dimensions discovered by actually decoding an entry back into the index, so a
+        /// later lookup does not have to decode it again.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Seek(int, ref IEntry, out bool)"/> and the indexer hand out a <b>boxed copy</b> of
+        /// the entry, so assigning to <c>entry.Extra1</c> on that copy is discarded - write-back has to go
+        /// through here. Callers only ever pass values read out of the payload, so the lock is only there
+        /// to stop two threads tearing the struct mid-write.
+        /// </remarks>
+        public void CacheDimensions(int index, int width, int height)
+        {
+            if (FileAccessor == null || index < 0 || index >= FileAccessor.IndexLength)
+            {
+                return;
+            }
+
+            lock (_entryWriteLock)
+            {
+                IEntry entry = FileAccessor[index];
+                if (entry == null)
+                {
+                    return;
+                }
+
+                entry.Extra1 = width;
+                entry.Extra2 = height;
+                FileAccessor[index] = entry;
+            }
+        }
 
         private readonly string _mulPath;
-        private Stream _stream;
+
+        /// <summary>
+        /// Absolute path to the .mul or .uop file backing this index, or null
+        /// if no client file was located. Exposed so parallel preloaders can
+        /// open their own per-thread FileStreams (FileShare.Read).
+        /// </summary>
+        public string MulPath => _mulPath;
 
         public FileIndex(string idxFile, string mulFile, int length, int file) : this(idxFile, mulFile, null, length,
             file, ".dat", -1, false)
@@ -23,8 +70,6 @@ namespace Ultima
         public FileIndex(string idxFile, string mulFile, string uopFile, int length, int file, string uopEntryExtension,
             int idxLength, bool hasExtra)
         {
-            Index = new Entry3D[length];
-
             string idxPath = null;
             string uopPath = null;
 
@@ -37,12 +82,12 @@ namespace Ultima
 
             if (Files.MulPath.Count > 0)
             {
-                idxPath = Files.MulPath[idxFile.ToLower()];
-                _mulPath = Files.MulPath[mulFile.ToLower()];
+                idxPath = Files.MulPath[idxFile];
+                _mulPath = Files.MulPath[mulFile];
 
-                if (!string.IsNullOrEmpty(uopFile) && Files.MulPath.ContainsKey(uopFile.ToLower()))
+                if (!string.IsNullOrEmpty(uopFile) && Files.MulPath.ContainsKey(uopFile))
                 {
-                    uopPath = Files.MulPath[uopFile.ToLower()];
+                    uopPath = Files.MulPath[uopFile];
                 }
 
                 if (string.IsNullOrEmpty(idxPath))
@@ -102,134 +147,14 @@ namespace Ultima
              */
             if (_mulPath?.EndsWith(".uop") == true)
             {
-                _stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                var fi = new FileInfo(_mulPath);
-                string uopPattern = fi.Name.Replace(fi.Extension, "").ToLowerInvariant();
-
-                using (var br = new BinaryReader(_stream))
-                {
-                    br.BaseStream.Seek(0, SeekOrigin.Begin);
-
-                    if (br.ReadInt32() != 0x50594D)
-                    {
-                        throw new ArgumentException("Bad UOP file.");
-                    }
-
-                    br.ReadInt64(); // version + signature
-                    long nextBlock = br.ReadInt64();
-                    br.ReadInt32(); // block capacity
-                    _ = br.ReadInt32(); // TODO: check if we need value from here
-
-                    if (idxLength > 0)
-                    {
-                        IdxLength = idxLength * 12;
-                    }
-
-                    var hashes = new Dictionary<ulong, int>();
-
-                    for (int i = 0; i < length; i++)
-                    {
-                        string entryName = $"build/{uopPattern}/{i:D8}{uopEntryExtension}";
-                        ulong hash = UopUtils.HashFileName(entryName);
-
-                        hashes.TryAdd(hash, i);
-                    }
-
-                    br.BaseStream.Seek(nextBlock, SeekOrigin.Begin);
-
-                    // There are no invalid entries in .uop so we have to initialize all entries
-                    // as invalid and then fill the valid ones
-                    for (var i = 0; i < Index.Length; i++)
-                    {
-                        Index[i].Lookup = -1;
-                        Index[i].Length = -1;
-                        Index[i].Extra = -1;
-                    }
-
-                    do
-                    {
-                        int filesCount = br.ReadInt32();
-                        nextBlock = br.ReadInt64();
-
-                        for (int i = 0; i < filesCount; i++)
-                        {
-                            long offset = br.ReadInt64();
-                            int headerLength = br.ReadInt32();
-                            int compressedLength = br.ReadInt32();
-                            int decompressedLength = br.ReadInt32();
-                            ulong hash = br.ReadUInt64();
-                            br.ReadUInt32(); // Adler32
-                            short flag = br.ReadInt16();
-
-                            int entryLength = flag == 1 ? compressedLength : decompressedLength;
-
-                            if (offset == 0)
-                            {
-                                continue;
-                            }
-
-                            if (!hashes.TryGetValue(hash, out int idx))
-                            {
-                                continue;
-                            }
-
-                            if (idx < 0 || idx > Index.Length)
-                            {
-                                throw new IndexOutOfRangeException("hashes dictionary and files collection have different count of entries!");
-                            }
-
-                            Index[idx].Lookup = (int)(offset + headerLength);
-                            Index[idx].Length = entryLength;
-
-                            if (!hasExtra)
-                            {
-                                continue;
-                            }
-
-                            long curPos = br.BaseStream.Position;
-
-                            br.BaseStream.Seek(offset + headerLength, SeekOrigin.Begin);
-
-                            byte[] extra = br.ReadBytes(8);
-
-                            var extra1 = (short)((extra[3] << 24) | (extra[2] << 16) | (extra[1] << 8) | extra[0]);
-                            var extra2 = (short)((extra[7] << 24) | (extra[6] << 16) | (extra[5] << 8) | extra[4]);
-
-                            Index[idx].Lookup += 8;
-                            // changed from int b = extra1 << 16 | extra2;
-                            // int cast removes compiler warning
-                            Index[idx].Extra = extra1 << 16 | (int)extra2;
-
-                            br.BaseStream.Seek(curPos, SeekOrigin.Begin);
-                        }
-                    }
-                    while (br.BaseStream.Seek(nextBlock, SeekOrigin.Begin) != 0);
-                }
+                FileAccessor = new UopFileAccessor(_mulPath, uopEntryExtension, length, idxLength, hasExtra);
             }
             else if ((idxPath != null) && (_mulPath != null))
             {
-                using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    _stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    var count = (int)(index.Length / 12);
-                    IdxLength = index.Length;
-                    GCHandle gc = GCHandle.Alloc(Index, GCHandleType.Pinned);
-                    var buffer = new byte[index.Length];
-                    index.Read(buffer, 0, (int)index.Length);
-                    Marshal.Copy(buffer, 0, gc.AddrOfPinnedObject(), (int)Math.Min(IdxLength, length * 12));
-                    gc.Free();
-                    for (int i = count; i < length; ++i)
-                    {
-                        Index[i].Lookup = -1;
-                        Index[i].Length = -1;
-                        Index[i].Extra = -1;
-                    }
-                }
+                FileAccessor = new MulFileAccessor(idxPath, _mulPath, length);
             }
             else
             {
-                _stream = null;
                 return;
             }
 
@@ -246,9 +171,7 @@ namespace Ultima
                     continue;
                 }
 
-                Index[patch.Index].Lookup = patch.Lookup;
-                Index[patch.Index].Length = patch.Length | (1 << 31);
-                Index[patch.Index].Extra = patch.Extra;
+                FileAccessor.ApplyPatch(patch);
             }
         }
 
@@ -264,8 +187,8 @@ namespace Ultima
 
             if (Files.MulPath.Count > 0)
             {
-                idxPath = Files.MulPath[idxFile.ToLower()];
-                _mulPath = Files.MulPath[mulFile.ToLower()];
+                idxPath = Files.MulPath[idxFile];
+                _mulPath = Files.MulPath[mulFile];
                 if (string.IsNullOrEmpty(idxPath))
                 {
                     idxPath = null;
@@ -303,23 +226,10 @@ namespace Ultima
 
             if ((idxPath != null) && (_mulPath != null))
             {
-                using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    _stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    var count = (int)(index.Length / 12);
-                    IdxLength = index.Length;
-                    Index = new Entry3D[count];
-                    GCHandle gc = GCHandle.Alloc(Index, GCHandleType.Pinned);
-                    var buffer = new byte[index.Length];
-                    index.Read(buffer, 0, (int)index.Length);
-                    Marshal.Copy(buffer, 0, gc.AddrOfPinnedObject(), (int)index.Length);
-                    gc.Free();
-                }
+                FileAccessor = new MulFileAccessor(idxPath, _mulPath);
             }
             else
             {
-                _stream = null;
-                Index = new Entry3D[1];
                 return;
             }
 
@@ -330,29 +240,50 @@ namespace Ultima
 
             foreach (var patch in Verdata.Patches)
             {
-                if (patch.File != file || patch.Index < 0 || patch.Index >= Index.Length)
+                if (patch.File != file || patch.Index < 0 || patch.Index >= FileAccessor.IndexLength)
                 {
                     continue;
                 }
 
-                Index[patch.Index].Lookup = patch.Lookup;
-                Index[patch.Index].Length = patch.Length | (1 << 31);
-                Index[patch.Index].Extra = patch.Extra;
+                FileAccessor.ApplyPatch(patch);
             }
+        }
+
+        /// <summary>
+        /// True when the entry carries the high bit that <see cref="IFileAccessor.ApplyPatch"/> sets
+        /// to mark it as coming from verdata.
+        /// </summary>
+        /// <remarks>
+        /// A length of -1 is the "unused entry" filler that real .idx files are padded with, and it
+        /// has that same high bit set. Without the -1 test every unused entry looks like a verdata
+        /// patch of length 0x7FFFFFFF, and the reader then tries to pull that many bytes out of
+        /// <see cref="Verdata.Stream"/> - which, with no verdata.mul present, is Stream.Null.
+        /// A real patch never reaches 0x7FFFFFFF bytes, so the two cases cannot be confused.
+        /// </remarks>
+        private static bool IsVerdataPatched(IEntry e)
+        {
+            return e.Length != -1 && (e.Length & (1 << 31)) != 0;
         }
 
         public Stream Seek(int index, out int length, out int extra, out bool patched)
         {
-            if (index < 0 || index >= Index.Length)
+            if (FileAccessor is null)
             {
                 length = extra = 0;
                 patched = false;
                 return null;
             }
 
-            Entry3D e = Index[index];
+            if (index < 0 || index >= FileAccessor.IndexLength)
+            {
+                length = extra = 0;
+                patched = false;
+                return null;
+            }
 
-            if (e.Lookup < 0)
+            IEntry e = FileAccessor.GetEntry(index);
+
+            if (e.Lookup < 0 || (e.Lookup > 0 && e.Length == -1))
             {
                 length = extra = 0;
                 patched = false;
@@ -362,7 +293,7 @@ namespace Ultima
             length = e.Length & 0x7FFFFFFF;
             extra = e.Extra;
 
-            if ((e.Length & (1 << 31)) != 0)
+            if (IsVerdataPatched(e))
             {
                 patched = true;
                 Verdata.Seek(e.Lookup);
@@ -376,19 +307,15 @@ namespace Ultima
                 return null;
             }
 
-            if ((_stream?.CanRead != true) || (!_stream.CanSeek))
-            {
-                _stream = _mulPath == null ? null : new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            }
-
-            if (_stream == null)
+            FileStream stream = EnsureOpen();
+            if (stream == null)
             {
                 length = extra = 0;
                 patched = false;
                 return null;
             }
 
-            if (_stream.Length < e.Lookup)
+            if (stream.Length < e.Lookup)
             {
                 length = extra = 0;
                 patched = false;
@@ -397,20 +324,130 @@ namespace Ultima
 
             patched = false;
 
-            _stream.Seek(e.Lookup, SeekOrigin.Begin);
-            return _stream;
+            stream.Seek(e.Lookup, SeekOrigin.Begin);
+            return stream;
+        }
+
+        public Stream Seek(int index, ref IEntry entry, out bool patched)
+        {
+            if (FileAccessor is null)
+            {
+                patched = false;
+                return null;
+            }
+
+            if (index < 0 || index >= FileAccessor.IndexLength)
+            {
+                patched = false;
+                return null;
+            }
+
+            IEntry e = FileAccessor.GetEntry(index);
+
+            if (e.Lookup < 0)
+            {
+                patched = false;
+                return null;
+            }
+
+            var length = e.Length & 0x7FFFFFFF;
+            if (length < 0)
+            {
+                patched = false;
+                return null;
+            }
+
+            entry = e;
+
+            if (IsVerdataPatched(e))
+            {
+                patched = true;
+                Verdata.Seek(e.Lookup);
+                return Verdata.Stream;
+            }
+
+            if (e.Length < 0)
+            {
+                patched = false;
+                return null;
+            }
+
+            FileStream stream = EnsureOpen();
+            if (stream == null)
+            {
+                patched = false;
+                return null;
+            }
+
+            if (stream.Length < e.Lookup)
+            {
+                patched = false;
+                return null;
+            }
+
+            patched = false;
+
+            stream.Seek(e.Lookup, SeekOrigin.Begin);
+            return stream;
+        }
+
+        /// <summary>
+        /// Returns the cached FileAccessor.Stream, re-opening it only when
+        /// genuinely required (null or disposed). Replaces the per-call
+        /// CanRead/CanSeek probe that previously re-instantiated the
+        /// FileStream every time a downstream caller had Close()'d it.
+        /// </summary>
+        private FileStream EnsureOpen()
+        {
+            FileStream stream = FileAccessor.Stream;
+            if (stream != null && stream.CanRead && stream.CanSeek)
+            {
+                return stream;
+            }
+
+            if (_mulPath == null)
+            {
+                FileAccessor.Stream = null;
+                return null;
+            }
+
+            stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            FileAccessor.Stream = stream;
+            return stream;
+        }
+
+        /// <summary>
+        /// Releases the underlying .mul / .uop FileStream so the next access
+        /// re-opens fresh. Additive — existing code paths that ignore the
+        /// disposable contract keep working because EnsureOpen handles a
+        /// disposed FileAccessor.Stream gracefully.
+        /// </summary>
+        public void Dispose()
+        {
+            FileAccessor?.Stream?.Dispose();
+            if (FileAccessor != null)
+            {
+                FileAccessor.Stream = null;
+            }
         }
 
         public bool Valid(int index, out int length, out int extra, out bool patched)
         {
-            if (index < 0 || index >= Index.Length)
+            if (FileAccessor is null)
             {
                 length = extra = 0;
                 patched = false;
                 return false;
             }
 
-            Entry3D e = Index[index];
+            if (index < 0 || index >= FileAccessor.IndexLength)
+            {
+                length = extra = 0;
+                patched = false;
+                return false;
+            }
+
+            IEntry e = FileAccessor.GetEntry(index);
 
             if (e.Lookup < 0)
             {
@@ -422,7 +459,7 @@ namespace Ultima
             length = e.Length & 0x7FFFFFFF;
             extra = e.Extra;
 
-            if ((e.Length & (1 << 31)) != 0)
+            if (IsVerdataPatched(e))
             {
                 patched = true;
                 return true;
@@ -442,12 +479,15 @@ namespace Ultima
                 return false;
             }
 
-            if ((_stream?.CanRead != true) || (!_stream.CanSeek))
+            FileStream stream = EnsureOpen();
+            if (stream == null)
             {
-                _stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                length = extra = 0;
+                patched = false;
+                return false;
             }
 
-            if (_stream.Length < e.Lookup)
+            if (stream.Length < e.Lookup)
             {
                 length = extra = 0;
                 patched = false;
@@ -460,11 +500,325 @@ namespace Ultima
         }
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Entry3D
+    public enum CompressionFlag
     {
-        public int Lookup;
-        public int Length;
-        public int Extra;
+        None = 0,
+        Zlib = 1,
+        Mythic = 3
+    }
+
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct Entry3D : IEntry
+    {
+        // do not mess with the fields struct layout in memory is important because of how we read the index files.
+        public int lookup;
+        public int length;
+        public int extra;
+
+#pragma warning disable S2292
+        public int Lookup { get => lookup; set => lookup = value; }
+
+        public int Length { get => length; set => length = value; }
+
+        public int Extra { get => extra; set => extra = value; }
+
+        public int DecompressedLength { get => length; set => length = value; }
+#pragma warning restore S2292
+
+        public int Extra1
+        {
+            get => (int)((Extra & 0xFFFF0000) >> 16);
+            set => Extra = Extra & 0x0000FFFF | (value << 16);
+        }
+
+        public int Extra2
+        {
+            get => Extra & 0x0000FFFF;
+            set => Extra = (int)((Extra & 0xFFFF0000) | (uint)value);
+        }
+
+        public CompressionFlag Flag { get => CompressionFlag.None; set { } } // No compression, means that we have only three first fields
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct Entry6D : IEntry
+    {
+        public IEntry Invalid { get => new Entry6D(); }
+
+        public int Lookup { get; set; }
+
+        public int Length { get; set; }
+
+        public int DecompressedLength { get; set; }
+
+        /// <summary>
+        /// High half of <see cref="Extra"/>. For gumps this is the width, matching the
+        /// (width &lt;&lt; 16 | height) packing in gumpidx.mul.
+        /// </summary>
+        public int Extra1 { get; set; }
+
+        /// <summary>
+        /// Low half of <see cref="Extra"/>. For gumps this is the height.
+        /// </summary>
+        public int Extra2 { get; set; }
+
+        /// <summary>
+        /// Packed (Extra1 &lt;&lt; 16 | Extra2) view over the two halves, mirroring <see cref="Entry3D"/>.
+        /// Getter and setter must agree on the order: they once did not, so every UOP gump reported its
+        /// width and height swapped.
+        /// </summary>
+        public int Extra
+        {
+            get => (Extra1 << 16) | (Extra2 & 0xFFFF);
+            set
+            {
+                Extra1 = (value >> 16) & 0xFFFF;
+                Extra2 = value & 0xFFFF;
+            }
+        }
+
+        public CompressionFlag Flag { get; set; }
+    }
+
+    // Dumb access to all possible fields of entries
+    public interface IEntry
+    {
+        public int Lookup { get; set; }
+        public int Length { get; set; }
+        public int Extra { get; set; }
+        public int DecompressedLength { get; set; }
+        public int Extra1 { get; set; }
+        public int Extra2 { get; set; }
+        public CompressionFlag Flag { get; set; }
+    }
+
+    public interface IFileAccessor
+    {
+        public IEntry GetEntry(int index);
+        void ApplyPatch(Entry5D patch);
+        public FileStream Stream { get; set; }
+        public int IndexLength { get; }
+        public long IdxLength { get; }
+        public IEntry this[int index] { get; set; }
+    }
+
+    public class MulFileAccessor : IFileAccessor
+    {
+        public Entry3D[] Index { get; }
+
+        public long IdxLength { get; }
+
+        public FileStream Stream { get; set; }
+
+        public int IndexLength { get => Index.Length; }
+
+        public IEntry this[int index] { get => Index[index]; set => Index[index] = (Entry3D)value; }
+
+        public MulFileAccessor(string idxPath, string path, int length)
+        {
+            Index = new Entry3D[length];
+
+            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var count = (int)(index.Length / 12);
+                IdxLength = index.Length;
+
+                int readLen = (int)Math.Min(IdxLength, (long)Index.Length * 12);
+                index.ReadExactly(MemoryMarshal.AsBytes(Index.AsSpan()).Slice(0, readLen));
+
+                for (int i = count; i < Index.Length; ++i)
+                {
+                    Index[i].Lookup = -1;
+                    Index[i].Length = -1;
+                    Index[i].Extra = -1;
+                }
+            }
+        }
+
+        public MulFileAccessor(string idxPath, string path)
+        {
+            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var count = (int)(index.Length / 12);
+                IdxLength = index.Length;
+                Index = new Entry3D[count];
+                index.ReadExactly(MemoryMarshal.AsBytes(Index.AsSpan()));
+            }
+        }
+
+        public void ApplyPatch(Entry5D patch)
+        {
+            Index[patch.Index].Lookup = patch.Lookup;
+            Index[patch.Index].Length = patch.Length | (1 << 31);
+            Index[patch.Index].Extra = patch.Extra;
+        }
+
+        public IEntry GetEntry(int index)
+        {
+            if (index < 0 || index >= Index.Length)
+            {
+                return new Entry3D();
+            }
+
+            return Index[index];
+        }
+    }
+
+    public class UopFileAccessor : IFileAccessor
+    {
+        public Entry6D[] Index { get; }
+
+        public FileStream Stream { get; set; }
+
+        public long IdxLength { get; }
+
+        public int IndexLength { get => Index.Length; }
+
+        public IEntry this[int index]
+        {
+            get => Index[index];
+            set => Index[index] = (Entry6D)value;
+        }
+
+        public UopFileAccessor(string path, string uopEntryExtension, int length, int idxLength, bool hasextra)
+        {
+            Index = new Entry6D[length];
+
+            if (idxLength > 0)
+            {
+                IdxLength = idxLength * 12;
+            }
+
+            Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+            var fileInfo = new FileInfo(path);
+            string uopPattern = fileInfo.Name.Replace(fileInfo.Extension, "").ToLowerInvariant();
+
+            // leaveOpen: this ctor caches Stream on the instance for later
+            // FileIndex.Seek calls; disposing the BinaryReader must not close it.
+            using (var br = new BinaryReader(Stream, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                br.BaseStream.Seek(0, SeekOrigin.Begin);
+
+                if (br.ReadInt32() != 0x50594D)
+                {
+                    throw new ArgumentException("Bad UOP file.");
+                }
+
+                _ = br.ReadUInt32(); // version
+                _ = br.ReadUInt32(); // signature
+                long nextBlock = br.ReadInt64();
+                _ = br.ReadUInt32(); // block size (capacity?)
+                _ = br.ReadInt32(); // count 
+
+                var hashes = new Dictionary<ulong, int>();
+
+                for (int i = 0; i < length; i++)
+                {
+                    string entryName = $"build/{uopPattern}/{i:D8}{uopEntryExtension}";
+                    ulong hash = UopUtils.HashFileName(entryName);
+
+                    hashes.TryAdd(hash, i);
+                }
+
+                br.BaseStream.Seek(nextBlock, SeekOrigin.Begin);
+
+                // There are no invalid entries in .uop so we have to initialize all entries
+                // as invalid and then fill the valid ones
+                for (var i = 0; i < Index.Length; i++)
+                {
+                    Index[i].Lookup = -1;
+                    Index[i].Length = -1;
+                    Index[i].Extra1 = -1;
+                    Index[i].Extra2 = -1;
+                }
+
+                do
+                {
+                    int filesCount = br.ReadInt32();
+                    nextBlock = br.ReadInt64();
+
+                    for (int i = 0; i < filesCount; i++)
+                    {
+                        long offset = br.ReadInt64();
+                        int headerLength = br.ReadInt32();
+                        int compressedLength = br.ReadInt32();
+                        int decompressedLength = br.ReadInt32();
+                        ulong hash = br.ReadUInt64();
+                        _ = br.ReadUInt32(); // data_hash
+                        short flag = br.ReadInt16();
+
+                        if (offset == 0)
+                        {
+                            continue;
+                        }
+
+                        if (!hashes.TryGetValue(hash, out int idx))
+                        {
+                            continue;
+                        }
+
+                        if (idx < 0 || idx >= Index.Length)
+                        {
+                            throw new IndexOutOfRangeException("hashes dictionary and files collection have different count of entries!");
+                        }
+
+                        offset += headerLength;
+
+                        // The width/height prefix can only be read straight off the stream when the payload
+                        // is stored. For anything compressed those first eight bytes belong to the zlib (or
+                        // zlib+Mythic) stream and the dimensions come out of the decompressed payload instead
+                        // - see Gumps.GetRawGump.
+                        if (hasextra && (CompressionFlag)flag == CompressionFlag.None)
+                        {
+                            long curPos = br.BaseStream.Position;
+
+                            br.BaseStream.Seek(offset, SeekOrigin.Begin);
+
+                            var extra1 = br.ReadInt32();
+                            var extra2 = br.ReadInt32();
+                            Index[idx].Lookup = (int)(offset + 8);
+                            Index[idx].Length = compressedLength - 8;
+                            Index[idx].DecompressedLength = decompressedLength;
+                            Index[idx].Flag = (CompressionFlag)flag;
+                            Index[idx].Extra = extra1 << 16 | extra2;
+                            Index[idx].Extra1 = extra1;
+                            Index[idx].Extra2 = extra2;
+
+                            br.BaseStream.Seek(curPos, SeekOrigin.Begin);
+                        }
+                        else
+                        {
+                            Index[idx].Lookup = (int)(offset);
+                            Index[idx].Length = compressedLength;
+                            Index[idx].DecompressedLength = decompressedLength;
+                            Index[idx].Flag = (CompressionFlag)flag;
+                            Index[idx].Extra = 0x0FFFFFFF; // we cant read it right now, but -1 and 0 makes this entry invalid
+                        }
+                    }
+                }
+                while (br.BaseStream.Seek(nextBlock, SeekOrigin.Begin) != 0);
+            }
+        }
+
+        public void ApplyPatch(Entry5D patch)
+        {
+            Index[patch.Index].Lookup = patch.Lookup;
+            Index[patch.Index].Length = patch.Length | (1 << 31);
+            Index[patch.Index].Extra = patch.Extra;
+        }
+
+        public IEntry GetEntry(int index)
+        {
+            if (index < 0 || index >= Index.Length)
+            {
+                return new Entry6D();
+            }
+
+            return Index[index];
+        }
     }
 }
