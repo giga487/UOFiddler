@@ -51,6 +51,7 @@ internal sealed class ResourcePipeServer : IDisposable
                         string json = await ReadRequestAsync(_pipe, timeout.Token).ConfigureAwait(false);
                         ResourceRequest request = JsonSerializer.Deserialize<ResourceRequest>(json, Protocol.RequestOptions)
                             ?? throw new ResourceException("invalid_request", "A request object is required.");
+                        if (request.Command == "save") timeout.CancelAfter(TimeSpan.FromMinutes(10));
                         object data = await _execute(request, timeout.Token).ConfigureAwait(false);
                         response = new(true, data);
                     }

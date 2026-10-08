@@ -307,6 +307,10 @@ namespace UoFiddler.Controls.UserControls
 
             LandTilesTileView.VirtualListSize = _tileList.Count;
             LandTilesTileView.Invalidate();
+            if (_selectedGraphicId == index)
+            {
+                UpdateToolStripLabels(index);
+            }
         }
 
         private void OnClickFindFree(object sender, EventArgs e)

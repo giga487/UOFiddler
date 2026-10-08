@@ -34,6 +34,7 @@ internal static class Program
             var service = new ResourceService();
             TestService(service, fixture);
             TestUop(service, fixture);
+            TestEditing(service, fixture);
             Console.WriteLine("Resource reader checks passed.");
             SynchronizationContext.SetSynchronizationContext(null);
             TestPipeAsync(service).GetAwaiter().GetResult();
@@ -161,6 +162,80 @@ internal static class Program
         return bitmap.GetPixel(x, y);
     }
 
+    private static void TestEditing(ResourceService service, string fixture)
+    {
+        string png = Path.Combine(fixture, "replacement.png");
+        using (var bitmap = new Bitmap(44, 44))
+        {
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.Clear(Color.Blue);
+            bitmap.SetPixel(0, 0, Color.Transparent);
+            bitmap.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        Check(!Json(service.Execute(new())).GetProperty("readOnly").GetBoolean(), "editing advertised");
+        Error(() => service.Execute(new() { Command = "import", Kind = "font", Id = 1, ImagePath = png }), "invalid_request");
+        Error(() => service.Execute(new() { Command = "import", Kind = "item", Id = -1, ImagePath = png }), "invalid_request");
+        Error(() => service.Execute(new() { Command = "import", Kind = "item", Id = 5, ImagePath = png }), "not_found");
+        Error(() => service.Execute(new() { Command = "import", Kind = "item", Id = 1, ImagePath = "relative.png" }), "invalid_request");
+        string small = Path.Combine(fixture, "small.png");
+        using (var bitmap = new Bitmap(2, 2)) bitmap.Save(small, System.Drawing.Imaging.ImageFormat.Png);
+        Error(() => service.Execute(new() { Command = "import", Kind = "land", Id = 2, ImagePath = small }), "invalid_request");
+        Error(() => service.Execute(new() { Command = "import", Kind = "item", Id = 1, ImagePath = Path.Combine(fixture, "truncated.mul") }), "invalid_file");
+        foreach ((string kind, int id) in new[] { ("item", 1), ("land", 2), ("gump", 4) })
+        {
+            var imported = Json(service.Execute(new() { Command = "import", Kind = kind, Id = id, ImagePath = png }));
+            Check(imported.GetProperty("modified").GetBoolean() && Pixel(imported, 21, 0).B > 240, "import updates " + kind);
+            Check(Options.ChangedUltimaClass[kind == "gump" ? "Gumps" : "Art"], "host dirty flag " + kind);
+            if (kind != "land") Check(Pixel(imported, 0, 0).A == 0, "import preserves transparency " + kind);
+        }
+        Error(() => service.Execute(new() { Command = "save", Kind = "item", OutputDirectory = fixture }), "invalid_request");
+        Error(() => service.Execute(new() { Command = "save", Kind = "item", Id = 1 }), "invalid_request");
+        Error(() => service.Execute(new() { Command = "save", Kind = "item", Format = "bad" }), "invalid_request");
+        string output = Path.Combine(fixture, "saved");
+        Directory.CreateDirectory(output);
+        string artOutput = Path.Combine(output, "art.mul");
+        string idxOutput = Path.Combine(output, "artidx.mul");
+        File.WriteAllText(artOutput, "old art");
+        File.WriteAllText(idxOutput, "old index");
+        using (var locked = new FileStream(idxOutput, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Error(() => service.Execute(new() { Command = "save", Kind = "item", OutputDirectory = output }), "save_failed");
+        }
+        Check(File.ReadAllText(artOutput) == "old art" && File.ReadAllText(idxOutput) == "old index", "failed pair install rolls back output");
+        Check(Art.IsStaticModified(1) && Art.IsLandModified(2), "failed save preserves modified marks");
+        var saved = Json(service.Execute(new() { Command = "save", Kind = "item", OutputDirectory = output }));
+        string backup = saved.GetProperty("backupDirectory").GetString()!;
+        Check(File.ReadAllText(Path.Combine(backup, "art.mul")) == "old art" && File.ReadAllText(Path.Combine(backup, "artidx.mul")) == "old index", "backup contains original pair");
+        Check(!Art.IsStaticModified(1) && !Options.ChangedUltimaClass["Art"], "successful save clears dirty state");
+        service.Execute(new() { Command = "save", Kind = "gump", OutputDirectory = output });
+        string packed = Path.Combine(fixture, "packed");
+        service.Execute(new() { Command = "save", Kind = "item", OutputDirectory = packed, Format = "uop" });
+        service.Execute(new() { Command = "save", Kind = "gump", OutputDirectory = packed, Format = "uop" });
+        var originalMap = new Dictionary<string, string>(Files.MulPath, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (bool uop in new[] { false, true })
+            {
+                foreach (string name in new[] { "art.mul", "artidx.mul", "gumpart.mul", "gumpidx.mul" })
+                    Files.MulPath[name] = Path.Combine(output, name);
+                Files.MulPath["artlegacymul.uop"] = uop ? Path.Combine(packed, "artLegacyMUL.uop") : "";
+                Files.MulPath["gumpartlegacymul.uop"] = uop ? Path.Combine(packed, "gumpartLegacyMUL.uop") : "";
+                Art.Reload(); Gumps.Reload();
+                foreach ((string kind, int id) in new[] { ("item", 1), ("land", 2), ("gump", 4) })
+                {
+                    var reloaded = Json(service.Execute(new() { Command = kind, Id = id }));
+                    Check(reloaded.GetProperty("width").GetInt32() == 44 && Pixel(reloaded, 21, 0).B > 240, "saved image round trip " + kind + (uop ? " UOP" : " MUL"));
+                    if (kind != "land") Check(Pixel(reloaded, 0, 0).A == 0, "saved transparency " + kind);
+                }
+            }
+        }
+        finally
+        {
+            Files.MulPath = originalMap;
+            Art.Reload(); Gumps.Reload();
+        }
+    }
+
     private static void TestPluginLifecycle()
     {
         var plugin = new ResourceAccessPlugin();
@@ -266,15 +341,20 @@ internal static class Program
         server.Start();
         string image = Path.Combine(fixture, "export.png");
         string bytes = Path.Combine(fixture, "export.bin");
-        foreach (string command in new[] { "font", "read" })
+        foreach (string command in new[] { "font", "read", "import", "save" })
         {
             var start = new ProcessStartInfo("pwsh") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
             foreach (string argument in new[] { "-NoProfile", "-File", Path.GetFullPath(script), "-PipeName", name, "-Command", command })
             {
                 start.ArgumentList.Add(argument);
             }
-            string[] parameters = command == "font" ? ["-Font", "1", "-CodePoint", "65", "-ImagePath", image]
-                : ["-File", "artidx.mul", "-Length", "12", "-BytesPath", bytes];
+            string[] parameters = command switch
+            {
+                "font" => ["-Font", "1", "-CodePoint", "65", "-ImagePath", image],
+                "read" => ["-File", "artidx.mul", "-Length", "12", "-BytesPath", bytes],
+                "import" => ["-Kind", "item", "-Id", "1", "-InputImagePath", image],
+                _ => ["-Kind", "item", "-OutputDirectory", Path.Combine(fixture, "powershell-save")]
+            };
             foreach (string parameter in parameters) start.ArgumentList.Add(parameter);
             using Process process = Process.Start(start)!;
             Task<string> output = process.StandardOutput.ReadToEndAsync();
@@ -285,6 +365,7 @@ internal static class Program
         using var exported = new Bitmap(image);
         Check(exported.Width == 2 && exported.GetPixel(0, 0).R == 255, "PowerShell PNG export");
         Check(File.ReadAllBytes(bytes).SequenceEqual(File.ReadAllBytes(Path.Combine(fixture, "artidx.mul")).Take(12)), "PowerShell binary export");
+        Check(File.Exists(Path.Combine(fixture, "powershell-save", "art.mul")), "PowerShell save output");
     }
 
     private static void CreateFixture(string root)

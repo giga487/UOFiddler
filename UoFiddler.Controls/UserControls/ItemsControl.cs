@@ -353,6 +353,11 @@ namespace UoFiddler.Controls.UserControls
 
             ItemsTileView.VirtualListSize = _itemList.Count;
             ItemsTileView.Invalidate();
+            if (_selectedGraphicId == index)
+            {
+                UpdateToolStripLabels(index);
+                UpdateDetail(index);
+            }
         }
 
         private void ChangeBackgroundColorToolStripMenuItem_Click(object sender, EventArgs e)

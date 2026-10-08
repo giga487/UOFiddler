@@ -10,9 +10,9 @@ public sealed class ResourceAccessPlugin : PluginBase
 
     public override IPluginHost Host { get; set; } = null!;
     public override string Name => "Resource Access";
-    public override string Description => "Query the active profile's resources by ID or byte range through a local read-only connection.";
+    public override string Description => "Query resources, replace images and save with backups through a local connection.";
     public override string Author => "SeaHats";
-    public override string Version => "1.0.0";
+    public override string Version => "1.1.0";
 
     public override void Initialize()
     {

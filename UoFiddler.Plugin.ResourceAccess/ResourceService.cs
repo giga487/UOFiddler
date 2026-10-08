@@ -6,7 +6,7 @@ using UoFiddler.Controls.Classes;
 namespace UoFiddler.Plugin.ResourceAccess;
 
 /// <summary>Called on Fiddler's UI thread so SDK caches and pending edits remain consistent.</summary>
-internal sealed class ResourceService
+internal sealed partial class ResourceService
 {
     private StringList? _compressedCliloc;
     private string? _clilocPath;
@@ -19,15 +19,17 @@ internal sealed class ResourceService
         _questSource = questSource;
     }
 
-    public static readonly string[] Commands = ["status", "files", "read", "item", "land", "gump", "font", "cliloc", "quest"];
+    public static readonly string[] Commands = ["status", "files", "read", "item", "land", "gump", "font", "cliloc", "quest", "import", "save"];
 
     public object Execute(ResourceRequest request)
     {
         return request.Command switch
         {
-            "status" => new { protocolVersion = 1, processId = Environment.ProcessId,
+            "status" => new { protocolVersion = 2, processId = Environment.ProcessId,
                 profile = Options.ProfileName, root = Files.RootDir, commands = Commands,
-                readOnly = true, maxReadBytes = Protocol.MaxReadBytes },
+                readOnly = false, maxReadBytes = Protocol.MaxReadBytes },
+            "import" => ImportImage(request),
+            "save" => SaveImages(request),
             "files" => FileCatalog().OrderBy(pair => pair.Key).Select(pair =>
             {
                 var file = new FileInfo(pair.Value);

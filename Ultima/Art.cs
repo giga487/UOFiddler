@@ -921,6 +921,12 @@ namespace Ultima
         /// <param name="path"></param>
         public static unsafe void Save(string path)
         {
+            Save(path, true);
+        }
+
+        /// <summary>Optionally preserve dirty marks while staging a save.</summary>
+        public static unsafe void Save(string path, bool clearModified)
+        {
             _landImageData = new Dictionary<UInt128, ImageData>();
             _staticImageData = new Dictionary<UInt128, ImageData>();
 
@@ -1134,7 +1140,7 @@ namespace Ultima
                 }
             }
 
-            _modified.Clear();
+            if (clearModified) _modified.Clear();
         }
 
     }

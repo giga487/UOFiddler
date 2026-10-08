@@ -15,6 +15,10 @@ internal sealed record ResourceRequest
     public bool Unicode { get; init; }
     public string Language { get; init; } = "enu";
     public bool IncludeImage { get; init; } = true;
+    public string? Kind { get; init; }
+    public string? ImagePath { get; init; }
+    public string? OutputDirectory { get; init; }
+    public string Format { get; init; } = "mul";
 }
 
 internal sealed record ResourceError(string Code, string Message);

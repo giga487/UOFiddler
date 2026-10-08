@@ -1,6 +1,6 @@
 # Resource Access
 
-A native UOFiddler plugin for reading resources from the active profile on demand.
+A native UOFiddler plugin for reading resources and replacing images in the active profile.
 It returns structured JSON and optional PNG images through a Windows named pipe.
 The accompanying PowerShell client queries a running Fiddler session from a terminal.
 
@@ -58,7 +58,50 @@ For multiple Fiddler instances, specify `-FiddlerProcessId 1234` or the exact
 `-PipeName` in the tab. The script returns PowerShell objects. Without an export
 path, PNG data is returned as `image.base64` and byte ranges as `hex` and `base64`.
 Export paths refer to the terminal's current directory and replace existing output
-files. The plugin never saves the source client files.
+files. Import and save are separate operations; the plugin never overwrites the active profile's source files.
+
+## Replace and save images
+
+```powershell
+# Export an existing image, edit the PNG, then replace the same slot in memory.
+./tools/Invoke-FiddlerResource.ps1 -Command item -Id 0x1234 -ImagePath ./original.png
+./tools/Invoke-FiddlerResource.ps1 -Command import -Kind item -Id 0x1234 -InputImagePath ./edited.png -ImagePath ./preview.png
+
+# Save ALL session art edits (both items and land) to a separate folder.
+./tools/Invoke-FiddlerResource.ps1 -Command save -Kind item -OutputDirectory ./output -Format mul
+# Save ALL session gump edits as UOP instead.
+./tools/Invoke-FiddlerResource.ps1 -Command save -Kind gump -OutputDirectory ./output -Format uop
+```
+
+`import` supports `item`, `land` and `gump`, and replaces existing image IDs only.
+It updates the native editor views and dirty flags. The returned PNG is a preview
+of the converted image, also available through the normal read commands.
+PNG input is limited to 32 MiB, four million pixels and 32767 pixels per dimension;
+land must be exactly 44 x 44. Static art must fit its encoded 16-bit offset limits.
+Conversion follows Fiddler's native paste behavior: 15-bit color and one-bit alpha
+(alpha below 128 becomes transparent); fully opaque inputs use the native
+black/white transparency convention. Inspect the returned preview before saving.
+Fonts, animations, tile properties, cliloc and quests are not writable through this plugin.
+
+`save` writes the entire selected collection, including edits made manually in
+Fiddler. `item` and `land` both save the complete art collection; `gump` saves all
+gumps. It does not accept an ID. Omit `OutputDirectory` to use Fiddler's configured
+output folder. `Format` defaults to `mul`; `uop` uses the native UOP packer.
+The active source files and symbolic-link/junction output paths are rejected.
+
+Files are encoded in a temporary staging folder before replacing output files.
+Existing output files are copied to a unique `ResourceAccess-backups` subfolder;
+the response returns its path. No backup is needed for a new output file.
+If replacement fails, already replaced files are restored and session dirty flags
+remain set. A system crash during a multi-file replacement is not an atomic
+transaction; the backup remains available for recovery. Successful saves clear
+the collection's dirty flags. Saved output is not automatically installed into
+the client or selected as the active profile.
+
+Saving runs on Fiddler's UI thread and can temporarily pause the interface.
+Save requests have a ten-minute server timeout; the PowerShell client defaults
+to 600 seconds for save and 35 seconds otherwise. A timeout/disconnection does not cancel a save already executing:
+inspect the output before retrying.
 
 Quest lookup defaults to `Quests.Json` in the client profile's root. Use
 **Choose quest JSON** to select a saved file elsewhere; it then appears as
@@ -84,7 +127,7 @@ and editor actions. Large decodes can briefly occupy that thread.
 
 JSON/cliloc documents and decompressed cliloc tables are limited to 64 MiB;
 images to four million pixels. Requests are capped at 16 KiB, with a 30-second
-connection timeout. A request waiting for the UI can be cancelled before it
+connection timeout (ten minutes for save after parsing). A request waiting for the UI can be cancelled before it
 begins; an SDK decode already executing on the UI thread completes normally.
 
 ## Wire protocol
@@ -104,6 +147,11 @@ Error codes include `invalid_request`, `not_found`, `invalid_file`,
 `read.file` is a catalog name rather than an arbitrary path. Request properties
 are `command`, `id`, `file`, `offset`, `length`, `font`, `codePoint`, `unicode`,
 `language`, and `includeImage`, as applicable to each command.
+Protocol version 2 adds `kind`, `imagePath` (absolute local PNG path),
+`outputDirectory` (absolute path), and `format` (`mul` or `uop`).
+For example: `{"command":"import","kind":"gump","id":4,"imagePath":"C:\\work\\edited.png"}`.
+`status` advertises `readOnly: false`. Save failures use `save_failed` and include
+the backup location when available.
 
 ## Verification
 
@@ -115,7 +163,9 @@ The dependency-free test executable creates temporary MUL/UOP/font/cliloc/quest
 fixtures, checks pixels and metadata, verifies session edits, exercises native UI
 dispatch without displaying a window, tests malformed requests and disconnect,
 restart and shutdown behavior, and runs the real PowerShell client to export PNG
-and binary files. It compares source-file hashes before and after. Fixtures are
+and binary files. Editing tests verify import, transparency, MUL/UOP round trips,
+output backups, rollback on a locked output file, dirty flags after failure, and
+PowerShell import/save. It compares source-file hashes before and after. Fixtures are
 retained in the printed temporary directory for inspection.
 
 ## Upstream alignment

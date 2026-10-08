@@ -41,4 +41,6 @@ Please report any bugs or issues here: [issues](https://github.com/polserver/UOF
 This fork includes a native **Resource Access** plugin for querying the open
 profile's files by ID or byte range from PowerShell. It provides JSON metadata
 and PNG exports for items, land tiles, gumps and font glyphs, plus cliloc and
-saved quest lookups. See [setup, commands and verification](UoFiddler.Plugin.ResourceAccess/README.md).
+saved quest lookups. Items, land tiles and gumps can also be replaced from PNG
+in the live session and saved as MUL or UOP to a separate output folder, with
+backups of existing output files. See [setup, commands and verification](UoFiddler.Plugin.ResourceAccess/README.md).

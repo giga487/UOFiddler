@@ -1149,6 +1149,12 @@ namespace Ultima
 
         public static unsafe void Save(string path)
         {
+            Save(path, true);
+        }
+
+        /// <summary>Optionally preserve dirty marks while staging a save.</summary>
+        public static unsafe void Save(string path, bool clearModified)
+        {
             string idx = Path.Combine(path, "Gumpidx.mul");
             string mul = Path.Combine(path, "Gumpart.mul");
 
@@ -1244,7 +1250,7 @@ namespace Ultima
                 fsidx.SetLength(rows * 12);
             }
 
-            _modified.Clear();
+            if (clearModified) _modified.Clear();
         }
     }
 }

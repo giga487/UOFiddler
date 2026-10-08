@@ -14,7 +14,7 @@ internal sealed class ResourceAccessControl : UserControl
     {
         Dock = DockStyle.Fill;
         var layout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Padding = new Padding(16) };
-        layout.Controls.Add(new Label { AutoSize = true, Text = "Read resources from the active profile on demand.", Margin = new Padding(0, 0, 0, 12) });
+        layout.Controls.Add(new Label { AutoSize = true, Text = "Read and replace images in the active profile.", Margin = new Padding(0, 0, 0, 12) });
         layout.Controls.Add(new Label { AutoSize = true, Text = "Start the connection, then run Invoke-FiddlerResource.ps1 from PowerShell." });
         layout.Controls.Add(new TextBox { ReadOnly = true, Dock = DockStyle.Top, Text = _pipeName });
         var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top, WrapContents = true };
@@ -38,9 +38,10 @@ internal sealed class ResourceAccessControl : UserControl
         _status = new Label { AutoSize = true, Text = "Connection stopped." };
         layout.Controls.Add(_status);
         layout.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(720, 0), Margin = new Padding(0, 16, 0, 0),
-            Text = "Commands: status, files, read, item, land, gump, font, cliloc, quest.\r\n" +
+            Text = "Commands: status, files, read, item, land, gump, font, cliloc, quest, import, save.\r\n" +
                 "Images and tile properties reflect the current Fiddler session. Font, text, quest and byte-range reads reflect files on disk.\r\n" +
-                "The connection reads resources and never saves client files. It is available only to your Windows user." });
+                "Import replaces an image in this session. Save writes a complete art or gump collection to a separate output folder, with backups of existing output files.\r\n" +
+                "The connection is available only to your Windows user." });
         Controls.Add(layout);
     }
 

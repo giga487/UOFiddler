@@ -11,7 +11,7 @@ Queries the Resource Access plugin in an open UOFiddler session.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('status', 'files', 'read', 'item', 'land', 'gump', 'font', 'cliloc', 'quest')]
+    [ValidateSet('status', 'files', 'read', 'item', 'land', 'gump', 'font', 'cliloc', 'quest', 'import', 'save')]
     [string] $Command = 'status',
     [string] $PipeName,
     [int] $FiddlerProcessId,
@@ -26,11 +26,16 @@ param(
     [switch] $NoImage,
     [string] $ImagePath,
     [string] $BytesPath,
-    [ValidateRange(1, 120)] [int] $TimeoutSeconds = 35
+    [ValidateSet('item', 'land', 'gump')] [string] $Kind,
+    [string] $InputImagePath,
+    [string] $OutputDirectory,
+    [ValidateSet('mul', 'uop')] [string] $Format = 'mul',
+    [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 35
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Command -eq 'save' -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds = 600 }
 if (-not $PipeName) {
     if (-not $FiddlerProcessId) {
         $fiddlerProcesses = @(Get-Process -Name UoFiddler -ErrorAction SilentlyContinue)
@@ -45,7 +50,20 @@ if (-not $PipeName) {
 $request = @{ command = $Command; includeImage = (-not $NoImage.IsPresent) }
 if ($PSBoundParameters.ContainsKey('Id')) { $request.id = $Id }
 if ($File) { $request.file = $File }
+if ($Command -in @('import', 'save')) {
+    if (-not $Kind) { throw '-Kind is required for import and save.' }
+    $request.kind = $Kind
+}
 switch ($Command) {
+    'import' {
+        if (-not $InputImagePath -or -not $PSBoundParameters.ContainsKey('Id')) { throw 'import requires -Id and -InputImagePath.' }
+        $request.imagePath = (Resolve-Path -LiteralPath $InputImagePath -ErrorAction Stop).ProviderPath
+    }
+    'save' {
+        if ($PSBoundParameters.ContainsKey('Id')) { throw 'save writes the whole collection; omit -Id.' }
+        $request.format = $Format
+        if ($OutputDirectory) { $request.outputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory) }
+    }
     'read' { $request.offset = $Offset; $request.length = $Length }
     'font' {
         if (-not $PSBoundParameters.ContainsKey('CodePoint')) { throw '-CodePoint is required for font.' }
@@ -54,7 +72,7 @@ switch ($Command) {
     'cliloc' { $request.language = $Language }
 }
 if ($ImagePath -and $NoImage) { throw '-ImagePath cannot be combined with -NoImage.' }
-if ($ImagePath -and $Command -notin @('item', 'land', 'gump', 'font')) { throw '-ImagePath requires an image command.' }
+if ($ImagePath -and $Command -notin @('item', 'land', 'gump', 'font', 'import')) { throw '-ImagePath requires an image command.' }
 if ($BytesPath -and $Command -ne 'read') { throw '-BytesPath requires the read command.' }
 
 $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $PipeName, [IO.Pipes.PipeDirection]::InOut, [IO.Pipes.PipeOptions]::Asynchronous)
