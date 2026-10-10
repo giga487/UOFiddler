@@ -243,15 +243,6 @@ namespace UoFiddler.Classes
             elem = dom.CreateElement("RootPath");
             elem.SetAttribute("path", Files.RootDir);
             sr.AppendChild(elem);
-            List<string> sorter = new List<string>(Files.MulPath.Keys);
-            sorter.Sort();
-            foreach (string key in sorter)
-            {
-                XmlElement path = dom.CreateElement("Paths");
-                path.SetAttribute("key", key);
-                path.SetAttribute("value", Files.MulPath[key]);
-                sr.AppendChild(path);
-            }
             dom.AppendChild(sr);
 
             comment = dom.CreateComment("Disabled Tab Views");
@@ -433,16 +424,8 @@ namespace UoFiddler.Classes
             }
 
             elem = (XmlElement)xOptions.SelectSingleNode("RootPath");
-            if (elem != null)
-            {
-                Files.RootDir = elem.GetAttribute("path");
-            }
-
-            foreach (XmlElement xPath in xOptions.SelectNodes("Paths"))
-            {
-                string key = xPath.GetAttribute("key");
-                Files.MulPath[key] = xPath.GetAttribute("value");
-            }
+            // Legacy per-file paths can point at another client; the profile root is authoritative.
+            Files.SetMulPath(elem?.GetAttribute("path") ?? Files.Directory);
 
             foreach (XmlElement xTab in xOptions.SelectNodes("TabView"))
             {

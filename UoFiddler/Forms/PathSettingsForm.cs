@@ -33,8 +33,7 @@ namespace UoFiddler.Forms
 
         private void ReloadPath(object sender, EventArgs e)
         {
-            Files.ReLoadDirectory();
-            Files.LoadMulPath();
+            Files.SetMulPath(Files.RootDir);
             MapHelper.CheckForNewMapSize();
             pgPaths.SelectedObject = new DictionaryPropertyGridAdapter(Files.MulPath);
             pgPaths.Refresh();
@@ -178,7 +177,7 @@ namespace UoFiddler.Forms
             return _dictionary[_key];
         }
 
-        public override bool IsReadOnly => false;
+        public override bool IsReadOnly => true;
 
         public override Type ComponentType => null;
 

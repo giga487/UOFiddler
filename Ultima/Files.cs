@@ -216,54 +216,26 @@ namespace Ultima
         /// </summary>
         public static void LoadMulPath()
         {
-            MulPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            RootDir = Directory ?? string.Empty;
-
-            foreach (string file in _uoFiles)
-            {
-                string filePath = Path.Combine(RootDir, file);
-
-                MulPath[file] = File.Exists(filePath) ? file : string.Empty;
-            }
+            SetMulPath(Directory);
         }
 
         /// <summary>
-        /// ReSets <see cref="MulPath"/> with given path
+        /// Rebuilds all resource paths from the selected client directory.
         /// </summary>
         /// <param name="path"></param>
         public static void SetMulPath(string path)
         {
-            RootDir = path;
+            string root = string.IsNullOrWhiteSpace(path) ? string.Empty : Path.GetFullPath(path);
+            var paths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (string file in _uoFiles)
             {
-                string filePath;
-
-                // file was set
-                if (!string.IsNullOrEmpty(MulPath[file]))
-                {
-                    // and was relative like "art.mul"
-                    if (string.IsNullOrEmpty(Path.GetDirectoryName(MulPath[file])))
-                    {
-                        filePath = Path.Combine(RootDir, MulPath[file]);
-                        if (File.Exists(filePath))
-                        {
-                            MulPath[file] = filePath;
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        // absolute dir
-                        // ignore because someone might want custom path for individual file
-                        continue;
-                    }
-                }
-
-                // file was not set, or relative and non existent
-                filePath = Path.Combine(RootDir, file);
-                MulPath[file] = File.Exists(filePath) ? filePath : string.Empty;
+                string filePath = Path.Combine(root, file);
+                paths[file] = root.Length > 0 && File.Exists(filePath) ? filePath : string.Empty;
             }
+
+            RootDir = root;
+            MulPath = paths;
         }
 
         /// <summary>

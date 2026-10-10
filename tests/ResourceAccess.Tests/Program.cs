@@ -19,6 +19,7 @@ internal static class Program
         Directory.CreateDirectory(fixture);
         try
         {
+            TestClientPaths(fixture);
             CreateFixture(fixture);
             Files.RootDir = fixture;
             Files.MulPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -61,6 +62,39 @@ internal static class Program
     }
 
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+
+    private static void TestClientPaths(string fixture)
+    {
+        string first = Path.Combine(fixture, "client-first");
+        string second = Path.Combine(fixture, "client-second");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        File.WriteAllBytes(Path.Combine(first, "art.mul"), [1]);
+        File.WriteAllBytes(Path.Combine(first, "artidx.mul"), [2]);
+        File.WriteAllBytes(Path.Combine(first, "gumpart.mul"), [3]);
+        File.WriteAllBytes(Path.Combine(second, "art.mul"), [4]);
+        File.WriteAllBytes(Path.Combine(second, "artidx.mul"), [5]);
+
+        Files.SetMulPath(first);
+        Check(Files.GetFilePath("art.mul") == Path.Combine(first, "art.mul"), "first client resource path");
+        Files.SetMulPath(Path.Combine(first, "artidx.mul"), "artidx.mul");
+        Files.MulPath["custom-old-resource"] = Path.Combine(first, "art.mul");
+        Files.SetMulPath(second);
+        Check(Files.RootDir == second, "selected root is absolute");
+        Check(Files.GetFilePath("ART.MUL") == Path.Combine(second, "art.mul"), "client change replaces old absolute paths");
+        Check(Files.GetFilePath("artidx.mul") == Path.Combine(second, "artidx.mul"), "index and data use the same new client");
+        Check(Files.GetFilePath("gumpart.mul") == null, "missing file does not fall back to the old client");
+        Check(!Files.MulPath.ContainsKey("custom-old-resource"), "client change removes stale custom mappings");
+        File.WriteAllBytes(Path.Combine(second, "gumpart.mul"), [6]);
+        Files.SetMulPath(Files.RootDir);
+        Check(Files.GetFilePath("gumpart.mul") == Path.Combine(second, "gumpart.mul"), "refresh discovers new files in the selected root");
+        Files.SetMulPath(Path.GetRelativePath(Environment.CurrentDirectory, second));
+        Check(Files.RootDir == second, "relative root is normalized");
+        Files.SetMulPath(null);
+        Check(Files.RootDir == "" && Files.GetFilePath("art.mul") == null, "empty root has no current-directory fallback");
+        Files.SetMulPath(Path.Combine(fixture, "missing-client"));
+        Check(Files.GetFilePath("art.mul") == null, "missing client has no old-file fallback");
+    }
 
     private static JsonElement Json(object data) => JsonSerializer.SerializeToElement(data, Protocol.JsonOptions);
 

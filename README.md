@@ -38,6 +38,13 @@ Please report any bugs or issues here: [issues](https://github.com/polserver/UOF
 
 ## SeaHats resource access
 
+Client resources are resolved directly from the folder selected in **Settings →
+Path Settings**. Selecting another folder replaces all previous resource paths;
+missing files are not taken from another client. **Reload paths** rescans the
+selected folder. The file list is read-only, and profiles save only the root
+folder; legacy per-file paths are ignored when loading a profile. Use
+**Reload Files** after changing the folder to refresh already loaded resources.
+
 This fork includes a native **Resource Access** plugin for querying the open
 profile's files by ID or byte range from PowerShell. It provides JSON metadata
 and PNG exports for items, land tiles, gumps and font glyphs, plus cliloc and
