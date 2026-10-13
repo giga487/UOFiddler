@@ -2,6 +2,13 @@
 
 Quests.Json is the editable catalog. The current stories are examples; their names, journal text, dialogue, steps, objectives, markers and gameplay conditions can be rewritten for the official map. Fiddler preserves extra JSON fields at catalog, quest and step level, including Triggers, MapMarkers, World and future fields. Editing a normal text field, replacing a step, duplicating a quest, exporting or saving the catalog retains these fields. Duplicated extension objects are independent from the original.
 
+The example first-voyage step 5 points to the public **Crew Registry**, map 0 at (3565,1373,16).
+The player double-clicks the registry with their personal flag in the backpack, confirms their
+crew and opens the shipyard. It emits the existing `CrewFounded` event; the public object never
+becomes the first player's crew flag. Its static-art graphic is `0xF320`. Registry spawn location
+is controlled by server settings `crews.registry.map/x/y/z`; keep the step's `MapMarkers`
+coordinates aligned if the map author moves it. These are editable example quest texts.
+
 The existing visual controls edit the original fields. Edit gameplay extensions directly in JSON, including with an AI, and reopen the file in Fiddler. Unknown fields are preserved, but the game only executes fields supported by its quest runtime.
 
 ## Instructions for an author or AI
