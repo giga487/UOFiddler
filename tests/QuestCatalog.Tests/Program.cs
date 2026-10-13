@@ -23,8 +23,8 @@ try
               "Triggers": [
                 { "Name": "catch", "Type": "FishingCatch", "Target": "Fish", "RequiredCount": 2,
                   "MapId": 0, "Region": "Custom Islet", "RegionType": "BaseRegion", "MinimumValue": 20,
-                  "After": [], "FutureTrigger": { "Tags": ["a", "b"] } },
-                { "Name": "talk", "Type": "NpcTalk", "Target": "Julius", "After": ["catch"] }
+                  "After": [], "ObjectiveIndex": 0, "FutureTrigger": { "Tags": ["a", "b"] } },
+                { "Name": "talk", "Type": "NpcTalk", "Target": "Julius", "After": ["catch"], "ObjectiveIndex": 1 }
               ],
               "MapMarkers": [{ "Name": "Harbour", "MapId": 0, "X": 15, "Y": 25, "FutureMarker": true }],
               "FutureStep": { "Optional": null, "Amount": 0 }
