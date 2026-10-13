@@ -17,6 +17,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SeaHatsExternal.Crypto;
 using SeaHatsExternal.Quests;
 
@@ -36,6 +37,8 @@ namespace SeaHatsExternal.Quests
 
     public class QuestData
     {
+        [JsonExtensionData]
+        public IDictionary<string, JToken> ExtensionData { get; set; } = new Dictionary<string, JToken>(StringComparer.Ordinal);
         public Dictionary<ushort, QuestDataInfo> Quests { get; set; } = new Dictionary<ushort, QuestDataInfo>();
         public string SecretKey { get; set; } = string.Empty;
         public QuestData()
@@ -45,6 +48,7 @@ namespace SeaHatsExternal.Quests
         public QuestData(QuestData dataToCopy)
         {
             SecretKey = dataToCopy.SecretKey;
+            ExtensionData = dataToCopy.ExtensionData.ToDictionary(entry => entry.Key, entry => entry.Value.DeepClone(), StringComparer.Ordinal);
             Quests = new Dictionary<ushort, QuestDataInfo>(dataToCopy.Quests);
         }
     }

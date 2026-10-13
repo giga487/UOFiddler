@@ -12,6 +12,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 
 namespace SeaHatsExternal.Quests
@@ -70,6 +72,9 @@ namespace SeaHatsExternal.Quests
     }
     public class QuestDataStep
     {
+        // Gameplay extensions remain JSON data so editor saves also preserve future fields.
+        [JsonExtensionData]
+        public IDictionary<string, JToken> ExtensionData { get; set; } = new Dictionary<string, JToken>(StringComparer.Ordinal);
         //public Dictionary<QuestParameters, string> NPCTextParameters { get; set; } = new Dictionary<QuestParameters, string>();
         //public Dictionary<QuestParameters, string> QuestTextParameters { get; set; } = new Dictionary<QuestParameters, string>();
         public string? StepName { get; set; } = string.Empty;
@@ -101,6 +106,7 @@ namespace SeaHatsExternal.Quests
             Text = toCopy.Text;
             Own = toCopy.Own;
             Notes = toCopy.Notes;
+            ExtensionData = toCopy.ExtensionData.ToDictionary(entry => entry.Key, entry => entry.Value.DeepClone(), StringComparer.Ordinal);
             StepDataContainers = new List<IStepDataContainer>(toCopy.StepDataContainers);
         }
         public QuestDataStep(QuestDataInfo? parent)
@@ -126,6 +132,8 @@ namespace SeaHatsExternal.Quests
     }
     public class QuestDataInfo
     {
+        [JsonExtensionData]
+        public IDictionary<string, JToken> ExtensionData { get; set; } = new Dictionary<string, JToken>(StringComparer.Ordinal);
         public Dictionary<string, QuestRewardInfo> Reward = new Dictionary<string, QuestRewardInfo>();
         public bool CanRepeat { get; set; } = false;
         public string QuestName { get; set; } = "DEFAULT NAME";
@@ -145,6 +153,7 @@ namespace SeaHatsExternal.Quests
             ID = toCopy.ID;
             Priority = toCopy.Priority;
             Group = toCopy.Group;
+            ExtensionData = toCopy.ExtensionData.ToDictionary(entry => entry.Key, entry => entry.Value.DeepClone(), StringComparer.Ordinal);
 
             foreach (var stepKV in toCopy.Steps)
             {
