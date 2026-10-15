@@ -36,11 +36,40 @@ The existing visual controls edit the original fields. Edit gameplay extensions 
 | NpcTalk | Julius, after a valid conversation; other NPCs need to emit their own event |
 | VendorPurchase | PersonalCrewFlag, after Marlowe's actual sale |
 | CrewFounded | Crew, after successful foundation (Target can be omitted) |
+| VocationSelected | Fighter, Swordsman, Sniper or Armsman, after the first valid selection is stored on the player; omit Target for any vocation |
 | ShipCrafted | Ship, after a paid Crew Shipyard recipe |
 | ItemDelivery | Board, Cloth or IronIngot, after successful shipyard material consumption |
 | ShipDeparted | Existing harbour region name, e.g. StartCity; physical crew vessel movement across its boundary with member aboard |
 | EnterArea | Registered region name, after the player enters it |
 | KillMob | Concrete creature class name; Rat includes the quest rat subclass |
+
+## Vocation selection objective
+
+The example main quest already uses this trigger in quest 1, step 3, Something Worth Defending.
+Speak to Julius and select the vocation option in his dialogue to open the gump, then finish the combat lesson and practice before returning.
+Julius recognises a character's existing vocation for this main quest objective. Other quests receive
+only actual selection events. The step IDs and existing combat progress remain stable.
+
+Quest steps do not need a dialogue link. Actions and choices update progress independently; NPC dialogue
+opens only on player interaction. In the NPC file, ordered EntryNodes rules select a quest-specific node
+using ActiveQuest/QuestStep, or StartNode supplies a generic reply. QuestTextFrom optionally reads the
+current step's NpcGumpText and falls back to the node's Text when no text is available.
+
+Add this to an active step with an objective such as `Choose your vocation.`:
+
+```json
+"StepDataContainers": [],
+"Triggers": [
+  { "Name": "choose_vocation", "Type": "VocationSelected", "RequiredCount": 1, "ObjectiveIndex": 0 }
+]
+```
+
+An omitted Target accepts any vocation; `"Target": "Sniper"` requires that exact choice.
+Set SelectVocationNPC.QuestID to the active quest ID and QuestStep to the intended step.
+Opening the gump does not count. Selection is allowed once per character, so use RequiredCount = 1
+and ensure the step and any After prerequisites are active before confirmation. A vocation chosen earlier
+does not count retroactively. Fiddler preserves this Triggers extension through edits, copies and export;
+edit it in JSON using the same workflow as the other gameplay triggers.
 
 ## Example step
 
